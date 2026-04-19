@@ -5453,13 +5453,20 @@ export function startBot(expressApp?: Application): TelegramBot {
     }
   });
 
+  let pollingConflictRetries = 0;
   bot.on("polling_error", (err: any) => {
-    // 409 = une autre instance tourne déjà (prod vs dev) → on s'arrête automatiquement
+    // 409 = une autre instance tourne déjà → on attend et on réessaie
     if (err?.response?.statusCode === 409 || err?.message?.includes("409")) {
-      logger.error("409 Conflict détecté — une autre instance du bot est déjà active. Arrêt du polling.");
+      pollingConflictRetries++;
+      const delayMs = Math.min(10000 * pollingConflictRetries, 60000);
+      logger.warn({ retry: pollingConflictRetries, delayMs }, "409 Conflict — retry dans quelques secondes");
       bot.stopPolling().catch(() => {});
+      setTimeout(() => {
+        bot.startPolling().catch((e: unknown) => logger.error({ err: e }, "Erreur re-démarrage polling après 409"));
+      }, delayMs);
       return;
     }
+    pollingConflictRetries = 0;
     logger.error({ err }, "Telegram polling error");
   });
 

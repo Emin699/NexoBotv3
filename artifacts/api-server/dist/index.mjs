@@ -115984,13 +115984,20 @@ Nous vous r\xE9pondrons dans les plus brefs d\xE9lais.`,
       }
     }
   });
+  let pollingConflictRetries = 0;
   bot.on("polling_error", (err) => {
     if (err?.response?.statusCode === 409 || err?.message?.includes("409")) {
-      logger.error("409 Conflict d\xE9tect\xE9 \u2014 une autre instance du bot est d\xE9j\xE0 active. Arr\xEAt du polling.");
+      pollingConflictRetries++;
+      const delayMs = Math.min(1e4 * pollingConflictRetries, 6e4);
+      logger.warn({ retry: pollingConflictRetries, delayMs }, "409 Conflict \u2014 retry dans quelques secondes");
       bot.stopPolling().catch(() => {
       });
+      setTimeout(() => {
+        bot.startPolling().catch((e) => logger.error({ err: e }, "Erreur re-d\xE9marrage polling apr\xE8s 409"));
+      }, delayMs);
       return;
     }
+    pollingConflictRetries = 0;
     logger.error({ err }, "Telegram polling error");
   });
   return bot;
