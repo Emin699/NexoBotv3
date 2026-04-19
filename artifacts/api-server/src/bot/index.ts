@@ -1,5 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 import { createReadStream } from "fs";
+import path from "path";
 import type { Application } from "express";
 import { logger } from "../lib/logger";
 import { sendDiscordLog, sendOrderNotification, sendCreditLog, testAllWebhooks } from "./discord";
@@ -391,34 +392,39 @@ export function startBot(expressApp?: Application): TelegramBot {
   }
 
   const webhookUrl = detectWebhookUrl();
-  if (false && !webhookUrl || !expressApp) {
-    // polling mode - continue below
-  }
-
   const webhookSecret = Buffer.from(token).toString("base64url").slice(0, 32);
   const webhookPath = `/webhook/tg/${webhookSecret}`;
-  const fullWebhookUrl = `${webhookUrl}${webhookPath}`;
 
-  const bot = new TelegramBot(token, { polling: false });
-  if (!webhookUrl) {
-    bot.deleteWebHook().catch(()=>{}).then(()=>bot.startPolling()).catch((e: unknown)=>logger.error({err:e},"Erreur polling"));
+  let bot: TelegramBot;
+
+  if (!webhookUrl || !expressApp) {
+    // Mode POLLING — développement (pas de domaine .replit.app disponible)
+    bot = new TelegramBot(token, { polling: false });
+    bot.deleteWebHook()
+      .catch(() => {})
+      .then(() => bot.startPolling())
+      .catch((e: unknown) => logger.error({ err: e }, "Erreur démarrage polling"));
     logger.info("Telegram bot démarré en mode POLLING");
+  } else {
+    // Mode WEBHOOK — production (.replit.app domaine détecté)
+    const fullWebhookUrl = `${webhookUrl}${webhookPath}`;
+    bot = new TelegramBot(token, { polling: false });
+
+    // Enregistrer la route webhook dans Express
+    expressApp.post(webhookPath, (req: import("express").Request, res: import("express").Response) => {
+      try {
+        bot.processUpdate(req.body);
+      } catch { /* ignore */ }
+      res.sendStatus(200);
+    });
+
+    // Enregistrer le webhook auprès de Telegram
+    bot.setWebHook(fullWebhookUrl)
+      .then(() => logger.info({ url: fullWebhookUrl }, "✅ Telegram webhook enregistré — bot actif 24/7"))
+      .catch((err) => logger.error({ err }, "Échec enregistrement webhook Telegram"));
+
+    logger.info("Telegram bot démarré en mode WEBHOOK (production 24/7)");
   }
-
-  // Enregistrer la route webhook dans Express
-  expressApp.post(webhookPath, (req: import("express").Request, res: import("express").Response) => {
-    try {
-      bot.processUpdate(req.body);
-    } catch { /* ignore */ }
-    res.sendStatus(200);
-  });
-
-  // Enregistrer le webhook auprès de Telegram
-  bot.setWebHook(fullWebhookUrl)
-    .then(() => logger.info({ url: fullWebhookUrl }, "✅ Telegram webhook enregistré — bot actif 24/7"))
-    .catch((err) => logger.error({ err }, "Échec enregistrement webhook Telegram"));
-
-  logger.info("Telegram bot démarré en mode WEBHOOK (production 24/7)");
 
   // ── Déduplication des updates Telegram ────────────────────────────────────
   // Évite qu'un même message ou callback soit traité deux fois
@@ -447,8 +453,10 @@ export function startBot(expressApp?: Application): TelegramBot {
   }
 
   // Photo principale du menu
-  const PUBLIC_PATH = "/home/runner/workspace/artifacts/api-server/public";
-  const BOT_IMAGE_PATH = `${PUBLIC_PATH}/menu.png`;
+  // __dirname est défini par le banner esbuild (pointe vers le dossier dist/)
+  // en dev (tsx/ts-node), on remonte depuis src/bot/ vers public/
+  const PUBLIC_PATH = path.resolve(__dirname, "..", "public");
+  const BOT_IMAGE_PATH = `${PUBLIC_PATH}/menu.jpg`;
 
   // Username du bot (récupéré au démarrage pour les liens parrainage)
   let botUsername = "";
@@ -529,7 +537,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         reply_markup: keyboard,
       });
       userMenuMsg.set(chatId, sent.message_id);
-    } catch {
+    } catch (err) {
+      logger.warn({ err, path: CART_IMAGE_PATH }, "sendCartMenu: échec envoi photo, fallback texte");
       const sent = await bot.sendMessage(chatId, text, {
         parse_mode: "Markdown",
         reply_markup: keyboard,
@@ -553,8 +562,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         reply_markup: keyboard,
       });
       userMenuMsg.set(chatId, sent.message_id);
-    } catch {
-      // Si l'image n'existe pas ou échoue, envoyer un message texte normal
+    } catch (err) {
+      logger.warn({ err, path: `${PUBLIC_PATH}/merci.png` }, "sendReceipt: échec envoi photo, fallback texte");
       const sent = await bot.sendMessage(chatId, text, {
         parse_mode: "Markdown",
         reply_markup: keyboard,
@@ -590,7 +599,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         reply_markup: mainMenuKeyboard(),
       });
       userMenuMsg.set(chatId, sent.message_id);
-    } catch {
+    } catch (err) {
+      logger.warn({ err, path: BOT_IMAGE_PATH }, "sendMainMenu: échec envoi photo menu.png, fallback texte");
       await sendMenu(chatId, caption, mainMenuKeyboard());
     }
   }
@@ -1692,7 +1702,8 @@ export function startBot(expressApp?: Application): TelegramBot {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption, parse_mode: "Markdown", reply_markup: informationsMenuKeyboard(),
           });
-        } catch {
+        } catch (err) {
+          logger.warn({ err, path: `${PUBLIC_PATH}/infos.png` }, "menu_infos: échec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: informationsMenuKeyboard() });
         }
         return;
@@ -1720,7 +1731,8 @@ export function startBot(expressApp?: Application): TelegramBot {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/fidelite.png`), {
             caption, parse_mode: "Markdown", reply_markup: loyaltyMenuKeyboard(pts),
           });
-        } catch {
+        } catch (err) {
+          logger.warn({ err, path: `${PUBLIC_PATH}/fidelite.png` }, "menu_loyalty: échec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: loyaltyMenuKeyboard(pts) });
         }
         return;
