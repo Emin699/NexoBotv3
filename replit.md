@@ -47,9 +47,40 @@ NexoShop is a Telegram-bot-based digital marketplace for selling digital goods (
 
 ## Database
 
-Schema is managed with Drizzle ORM. Tables: `users`, `transactions`, `referrals`, `reviews`, `deezer_links`, `iptv_stock`, `paypal_payments`, `sumup_checkouts`.
+Schema is managed with Drizzle ORM. Tables: `users`, `transactions`, `referrals`, `reviews`, `deezer_links`, `iptv_stock`, `paypal_payments`, `sumup_checkouts`, `wheel_spins`, `jackpot_tickets`.
+
+- `wheel_spins` — tracks daily spin cooldown and total spin count per user
+- `jackpot_tickets` — one ticket per purchase, used for weekly admin jackpot draws
 
 Run schema push: `pnpm --filter @workspace/db run push-force`
+
+## Mini-Games (implemented)
+
+### Roue du Destin (daily wheel spin)
+- Accessible via Menu Informations → 🎡 Roue du Destin
+- One spin per day per user; animated reveal message
+- Prizes: Dommage (70% real / 50% shown), -5% coupon (20%/40%), -10€ coupon (5%/20%), 50 pts (3%/30%), Deezer link (2%/10%)
+- Prize probs configured in `artifacts/api-server/src/bot/minigames.ts` → `WHEEL_PRIZES`
+
+### Jackpot Lottery
+- 1 ticket earned per purchase (any product)
+- Admin draws winner via `/tirage` command or Admin → Mini-Jeux panel
+- Winning user notified automatically; ticket marked as drawn
+
+### Purchase Milestones
+- Tracked via `purchaseCount` on `users` table
+- Milestones: 1→20pts, 5→-5% coupon, 10→100pts, 15→-10% coupon, 20→200pts, 30→-15€ coupon, 50→Deezer link
+- Reward sent automatically after purchase via `onPurchaseComplete()`
+
+### Deezer Bulk Lots
+- Replaces single Deezer purchase button with lot menu
+- Lots: 1 link=2€, 10=5€, 50=15€, 200=20€
+- Configured in `DEEZER_LOTS` array in `minigames.ts`
+
+### `onPurchaseComplete()` hooked into all purchase flows:
+- Deezer single, Deezer generator, Deezer lots
+- Netflix/PS/Spotify subscriptions, new-style subscriptions
+- IPTV, tech/méthodes, Basic-Fit/FitnessParK, cart checkout
 
 ## Deployment
 

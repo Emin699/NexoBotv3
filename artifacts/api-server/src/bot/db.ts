@@ -6,8 +6,10 @@ import {
   reviewsTable,
   deezerLinksTable,
   iptvStockTable,
+  wheelSpinsTable,
+  jackpotTicketsTable,
 } from "@workspace/db";
-import { eq, and, desc, count, sql, avg } from "drizzle-orm";
+import { eq, and, desc, count, sql, avg, inArray } from "drizzle-orm";
 
 export async function userExists(telegramId: number): Promise<boolean> {
   const rows = await db
@@ -59,7 +61,7 @@ export async function getBalance(telegramId: number): Promise<number> {
     .where(eq(usersTable.telegramId, telegramId))
     .limit(1);
   if (user.length === 0) return 0;
-  return parseFloat(user[0].balance);
+  return parseFloat(user[0]!.balance);
 }
 
 export async function deductBalance(
@@ -163,6 +165,29 @@ export async function deductLoyaltyPoints(telegramId: number, points: number): P
   return result.length > 0;
 }
 
+// ── Compteur d'achats ────────────────────────────────────────────────────────
+
+export async function incrementPurchaseCount(telegramId: number): Promise<number> {
+  const result = await db
+    .update(usersTable)
+    .set({
+      purchaseCount: sql`${usersTable.purchaseCount} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(usersTable.telegramId, telegramId))
+    .returning({ purchaseCount: usersTable.purchaseCount });
+  return result[0]?.purchaseCount ?? 0;
+}
+
+export async function getPurchaseCount(telegramId: number): Promise<number> {
+  const rows = await db
+    .select({ cnt: usersTable.purchaseCount })
+    .from(usersTable)
+    .where(eq(usersTable.telegramId, telegramId))
+    .limit(1);
+  return rows[0]?.cnt ?? 0;
+}
+
 // ── Ban system ──────────────────────────────────────────────────────────────
 
 export async function loadBannedUsers(): Promise<Set<number>> {
@@ -254,9 +279,9 @@ export async function getUserProfile(telegramId: number) {
 
   return {
     user: users[0],
-    totalCredited: parseFloat(totals.totalCredited ?? "0"),
-    totalDebited: parseFloat(totals.totalDebited ?? "0"),
-    txCount: Number(totals.txCount ?? 0),
+    totalCredited: parseFloat(totals?.totalCredited ?? "0"),
+    totalDebited: parseFloat(totals?.totalDebited ?? "0"),
+    txCount: Number(totals?.txCount ?? 0),
     recentTx,
   };
 }
@@ -290,7 +315,7 @@ export async function createReview(
     .insert(reviewsTable)
     .values({ telegramId, username, firstName, orderId, service, rating, comment })
     .returning({ id: reviewsTable.id });
-  return row;
+  return row!;
 }
 
 export async function getGlobalRating(): Promise<{ avg: number; total: number }> {
@@ -327,7 +352,6 @@ export async function deleteAllReviews(): Promise<number> {
   const rows = await db
     .delete(reviewsTable)
     .returning({ id: reviewsTable.id });
-  // Remet le compteur d'ID à 1
   await db.execute(sql`ALTER SEQUENCE reviews_id_seq RESTART WITH 1`);
   return rows.length;
 }
@@ -347,7 +371,7 @@ export async function getDeezerStockCount(): Promise<number> {
   return Number(row?.cnt ?? 0);
 }
 
-export async function popDeezerLink(userId: number): Promise<string | null> {
+export async function popDeezerLink(userId?: number): Promise<string | null> {
   const [row] = await db
     .select()
     .from(deezerLinksTable)
@@ -357,9 +381,25 @@ export async function popDeezerLink(userId: number): Promise<string | null> {
   if (!row) return null;
   await db
     .update(deezerLinksTable)
-    .set({ used: true, usedBy: userId, usedAt: new Date() })
+    .set({ used: true, usedBy: userId ?? null, usedAt: new Date() })
     .where(eq(deezerLinksTable.id, row.id));
   return row.link;
+}
+
+export async function popDeezerLinks(userId: number, quantity: number): Promise<string[]> {
+  const rows = await db
+    .select()
+    .from(deezerLinksTable)
+    .where(eq(deezerLinksTable.used, false))
+    .orderBy(deezerLinksTable.id)
+    .limit(quantity);
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  await db
+    .update(deezerLinksTable)
+    .set({ used: true, usedBy: userId, usedAt: new Date() })
+    .where(inArray(deezerLinksTable.id, ids));
+  return rows.map((r) => r.link);
 }
 
 export async function clearDeezerLinks(): Promise<number> {
@@ -372,18 +412,15 @@ export async function clearDeezerLinks(): Promise<number> {
 // ── Stats globales admin ──────────────────────────────────────────────────
 
 export async function getAdminStats() {
-  // Utilisateurs
   const [userStats] = await db.select({
     total: count(),
     banned: sql<number>`SUM(CASE WHEN banned = true THEN 1 ELSE 0 END)`,
   }).from(usersTable);
 
-  // Solde total en circulation
   const [balanceStats] = await db.select({
     totalBalance: sql<string>`COALESCE(SUM(balance::numeric), 0)`,
   }).from(usersTable).where(eq(usersTable.banned, false));
 
-  // Transactions
   const [txStats] = await db.select({
     totalTx: count(),
     totalCredited: sql<string>`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
@@ -392,20 +429,17 @@ export async function getAdminStats() {
     txThisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
   }).from(transactionsTable);
 
-  // Revenus PayPal confirmés
   const [paypalStats] = await db.select({
     totalPaid: sql<string>`COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount::numeric ELSE 0 END), 0)`,
     countPaid: sql<number>`SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END)`,
     countPending: sql<number>`SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END)`,
   }).from(paypalPaymentsTable);
 
-  // Nouveaux utilisateurs aujourd'hui / cette semaine
   const [newUsers] = await db.select({
     today: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
     thisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
   }).from(usersTable);
 
-  // Avis
   const [reviewStats] = await db.select({
     total: count(),
     avgRating: avg(reviewsTable.rating),
@@ -454,4 +488,84 @@ export async function getIptvStockSummary(): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   for (const r of rows) result[r.duration] = Number(r.cnt);
   return result;
+}
+
+// ── Roue du Destin ──────────────────────────────────────────────────────────
+
+export async function getLastWheelSpin(telegramId: number): Promise<{ lastSpinAt: Date; totalSpins: number } | null> {
+  const rows = await db
+    .select()
+    .from(wheelSpinsTable)
+    .where(eq(wheelSpinsTable.telegramId, telegramId))
+    .limit(1);
+  if (rows.length === 0) return null;
+  return { lastSpinAt: rows[0]!.lastSpinAt, totalSpins: rows[0]!.totalSpins };
+}
+
+export async function recordWheelSpin(telegramId: number): Promise<void> {
+  const existing = await db
+    .select({ telegramId: wheelSpinsTable.telegramId })
+    .from(wheelSpinsTable)
+    .where(eq(wheelSpinsTable.telegramId, telegramId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(wheelSpinsTable)
+      .set({
+        lastSpinAt: new Date(),
+        totalSpins: sql`${wheelSpinsTable.totalSpins} + 1`,
+      })
+      .where(eq(wheelSpinsTable.telegramId, telegramId));
+  } else {
+    await db
+      .insert(wheelSpinsTable)
+      .values({ telegramId, lastSpinAt: new Date(), totalSpins: 1 });
+  }
+}
+
+// ── Jackpot ─────────────────────────────────────────────────────────────────
+
+export async function addJackpotTicket(telegramId: number): Promise<void> {
+  await db.insert(jackpotTicketsTable).values({ telegramId });
+}
+
+export async function getJackpotTicketCount(): Promise<number> {
+  const [row] = await db
+    .select({ cnt: count() })
+    .from(jackpotTicketsTable)
+    .where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  return Number(row?.cnt ?? 0);
+}
+
+export async function getJackpotStats(): Promise<{ totalTickets: number; uniqueUsers: number }> {
+  const tickets = await db
+    .select({ telegramId: jackpotTicketsTable.telegramId })
+    .from(jackpotTicketsTable)
+    .where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  const uniqueUsers = new Set(tickets.map(t => t.telegramId)).size;
+  return { totalTickets: tickets.length, uniqueUsers };
+}
+
+export async function drawJackpotWinner(): Promise<{ telegramId: number; ticketId: number } | null> {
+  const tickets = await db
+    .select()
+    .from(jackpotTicketsTable)
+    .where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+
+  if (tickets.length === 0) return null;
+
+  const winner = tickets[Math.floor(Math.random() * tickets.length)]!;
+
+  await db
+    .update(jackpotTicketsTable)
+    .set({ drawnAt: new Date(), won: false })
+    .where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+
+  await db
+    .update(jackpotTicketsTable)
+    .set({ won: true })
+    .where(eq(jackpotTicketsTable.id, winner.id));
+
+  return { telegramId: winner.telegramId, ticketId: winner.id };
 }

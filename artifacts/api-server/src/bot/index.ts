@@ -9,10 +9,14 @@ import {
   loadBannedUsers, banUser, unbanUser, getUserProfile,
   countPendingPaypalPayments,
   getOrdersByUserId, getAllUserIds, countUsers,
-  addDeezerLinks, getDeezerStockCount, popDeezerLink, clearDeezerLinks,
+  addDeezerLinks, getDeezerStockCount, popDeezerLink, popDeezerLinks, clearDeezerLinks,
   getAdminStats, getIptvStockSummary,
   getLoyaltyPoints, addLoyaltyPoints, deductLoyaltyPoints,
+  incrementPurchaseCount,
+  getLastWheelSpin, recordWheelSpin,
+  addJackpotTicket, getJackpotTicketCount, getJackpotStats, drawJackpotWinner,
 } from "./db";
+import { WHEEL_PRIZES, spinWheel, getMilestoneForCount, DEEZER_LOTS, getDeezerLotById } from "./minigames";
 import {
   mainMenuKeyboard,
   achatMenuKeyboard,
@@ -50,11 +54,15 @@ import {
   adminCouponsKeyboard,
   adminCommKeyboard,
   adminSysKeyboard,
+  adminMinigamesKeyboard,
   chatgptMenuKeyboard,
   claudeMenuKeyboard,
   informationsMenuKeyboard,
   loyaltyMenuKeyboard,
   loyaltyConvertKeyboard,
+  wheelMenuKeyboard,
+  deezerBulkMenuKeyboard,
+  deezerBulkConfirmKeyboard,
 } from "./keyboards";
 import { getNewSubById } from "./subscriptions";
 import { getTechById } from "./techs";
@@ -460,6 +468,56 @@ export function startBot(expressApp?: Application): TelegramBot {
   }
   function unlockUser(userId: number): void {
     processingUsers.delete(userId);
+  }
+
+  // ── Mini-jeux : helpers ───────────────────────────────────────────────────
+  function createMiniGameCoupon(userId: number, type: "fixed" | "pct", value: number): string {
+    const code = `GAME${userId.toString(36).toUpperCase()}${Date.now().toString(36).toUpperCase().slice(-5)}`;
+    activeCoupons.set(code.toLowerCase(), {
+      code,
+      type,
+      discountValue: value,
+      maxUses: 1,
+      usedCount: 0,
+      usedBy: new Set(),
+      restrictedToUserId: userId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+    return code;
+  }
+
+  async function onPurchaseComplete(userId: number): Promise<void> {
+    const newCount = await incrementPurchaseCount(userId);
+    await addJackpotTicket(userId);
+    const milestone = getMilestoneForCount(newCount);
+    if (!milestone) return;
+    let rewardMsg = "";
+    if (milestone.rewardType === "loyalty_pts" && milestone.value) {
+      await addLoyaltyPoints(userId, milestone.value);
+      rewardMsg = `⭐ *+${milestone.value} Points de fidélité* ont été ajoutés à ton compte !`;
+    } else if (milestone.rewardType === "coupon_pct" && milestone.value) {
+      const code = createMiniGameCoupon(userId, "pct", milestone.value);
+      rewardMsg = `🎟️ *Coupon -${milestone.value}%* généré !\n\nTon code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+    } else if (milestone.rewardType === "coupon_fixed" && milestone.value) {
+      const code = createMiniGameCoupon(userId, "fixed", milestone.value);
+      rewardMsg = `💶 *Coupon -${milestone.value}€* généré !\n\nTon code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+    } else if (milestone.rewardType === "deezer_link") {
+      const link = await popDeezerLink(userId);
+      if (link) {
+        rewardMsg = `🎧 *Lien Deezer Premium offert !*\n\n\`${link}\`\n\n_Lien personnel, ne le partagez pas._`;
+      } else {
+        rewardMsg = `🎧 Tu as gagné un lien Deezer Premium ! Contacte le support pour le récupérer.`;
+      }
+    }
+    try {
+      await bot.sendMessage(
+        userId,
+        `🏆 *Palier atteint : ${milestone.label}*\n\n` +
+        `*${newCount} achat(s)* accomplis sur NexoShop !\n\n` +
+        `🎁 *Récompense :* ${milestone.description}\n\n${rewardMsg}`,
+        { parse_mode: "Markdown" }
+      );
+    } catch { /* ignore */ }
   }
 
   // Photo principale du menu
@@ -1755,6 +1813,46 @@ export function startBot(expressApp?: Application): TelegramBot {
     }
   });
 
+  // /tirage — Admin : effectuer un tirage jackpot manuel
+  bot.onText(/\/tirage/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!isAdmin(msg.from!.id)) return;
+    try {
+      const { totalTickets, uniqueUsers } = await getJackpotStats();
+      if (totalTickets === 0) {
+        await bot.sendMessage(chatId, `🎰 *Aucun ticket disponible*\n\nIl n'y a aucun ticket en jeu pour le moment.`, { parse_mode: "Markdown" });
+        return;
+      }
+      const winner = await drawJackpotWinner();
+      if (!winner) {
+        await bot.sendMessage(chatId, `🎰 *Tirage annulé* — Aucun ticket valide.`, { parse_mode: "Markdown" });
+        return;
+      }
+      const jackpotUser = await getOrCreateUser(winner.telegramId);
+      const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
+      await bot.sendMessage(chatId,
+        `🎰 *Résultat du Tirage Jackpot*\n\n` +
+        `📊 Tickets en jeu : *${totalTickets}* (${uniqueUsers} participants)\n\n` +
+        `🏆 Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)\n` +
+        `🎟️ Ticket gagnant : \`${winner.ticketId}\`\n\n` +
+        `Le ticket a été marqué comme utilisé. Pensez à contacter le gagnant !`,
+        { parse_mode: "Markdown" }
+      );
+      try {
+        await bot.sendMessage(winner.telegramId,
+          `🎉 *Félicitations !*\n\n` +
+          `Tu as été tiré au sort lors du *Jackpot NexoShop* ! 🎰\n\n` +
+          `Un administrateur va te contacter très prochainement pour t'offrir ton lot.\n\n` +
+          `Merci de ta fidélité ! 🙏`,
+          { parse_mode: "Markdown" }
+        );
+      } catch (_) { /* l'utilisateur a peut-être bloqué le bot */ }
+    } catch (err) {
+      logger.error({ err }, "Error /tirage");
+      await bot.sendMessage(chatId, `❌ Erreur lors du tirage : ${String(err)}`);
+    }
+  });
+
   // ── Callback queries ───────────────────────────────────────────────────────
 
   bot.on("callback_query", async (query) => {
@@ -1788,7 +1886,9 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       // ── Menu Informations ───────────────────────────────────────
       if (data === "menu_infos") {
-        const caption = `ℹ️ *Informations*\n\nRetrouvez ici notre canal, nos preuves de vente, le parrainage et vos points de fidélité.`;
+        const caption =
+          `ℹ️ *Informations*\n\n` +
+          `Retrouvez ici notre canal, nos preuves de vente, la 🎡 *Roue du Destin* quotidienne, le parrainage et vos points de fidélité.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption, parse_mode: "Markdown", reply_markup: informationsMenuKeyboard(),
@@ -1796,6 +1896,108 @@ export function startBot(expressApp?: Application): TelegramBot {
         } catch (err) {
           logger.warn({ err, path: `${PUBLIC_PATH}/infos.png` }, "menu_infos: échec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: informationsMenuKeyboard() });
+        }
+        return;
+      }
+
+      // ── Roue du Destin — Menu ─────────────────────────────────────
+      if (data === "menu_wheel") {
+        const spinStatus = await getLastWheelSpin(userId);
+        const now = Date.now();
+        const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+        const canSpin = !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        const nextSpinMs = spinStatus && !canSpin
+          ? (spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now
+          : 0;
+        const nextSpinHours = Math.floor(nextSpinMs / (60 * 60 * 1000));
+        const nextSpinMins = Math.floor((nextSpinMs % (60 * 60 * 1000)) / 60000);
+        const prizeListText = WHEEL_PRIZES.map((p) =>
+          `${p.emoji} ${p.label} — *${p.displayedChance}%* de chance`
+        ).join("\n");
+        await sendMenu(
+          chatId,
+          `🎡 *Roue du Destin*\n\n` +
+          `Tourne la roue chaque jour pour gagner des récompenses !\n\n` +
+          `*🎁 Prix disponibles :*\n${prizeListText}\n\n` +
+          (canSpin
+            ? `✅ *Tu peux tourner la roue maintenant !*`
+            : `⏳ *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
+          wheelMenuKeyboard(canSpin)
+        );
+        return;
+      }
+
+      // ── Roue du Destin — Tourner ──────────────────────────────────
+      if (data === "wheel_spin") {
+        const spinStatus = await getLastWheelSpin(userId);
+        const now = Date.now();
+        const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+        const canSpin = !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        if (!canSpin) {
+          const nextSpinMs = (spinStatus!.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now;
+          const h = Math.floor(nextSpinMs / (60 * 60 * 1000));
+          const m = Math.floor((nextSpinMs % (60 * 60 * 1000)) / 60000);
+          try {
+            await bot.answerCallbackQuery(query.id, {
+              text: `⏳ Tu as déjà tourné aujourd'hui ! Reviens dans ${h}h ${m}min.`,
+              show_alert: true,
+            });
+          } catch {}
+          return;
+        }
+        // Enregistrer le spin immédiatement pour éviter le double-spin
+        await recordWheelSpin(userId);
+        const prize = spinWheel();
+        // Animation
+        const emojis = WHEEL_PRIZES.map((p) => p.emoji);
+        const spinMsg = await bot.sendMessage(chatId,
+          `🎡 *La roue tourne...*\n\n${emojis.join(" ⟶ ")}`,
+          { parse_mode: "Markdown" }
+        );
+        const frames = [
+          `🎡 *La roue tourne...*\n\n${[...emojis.slice(1), emojis[0]].join(" ⟶ ")}`,
+          `🎡 *La roue tourne...*\n\n${[...emojis.slice(2), ...emojis.slice(0, 2)].join(" ⟶ ")}`,
+          `🎡 *La roue ralentit...*\n\n${[...emojis.slice(3), ...emojis.slice(0, 3)].join(" ⟶ ")}`,
+        ];
+        for (const frame of frames) {
+          await new Promise((r) => setTimeout(r, 500));
+          try { await bot.editMessageText(frame, { chat_id: chatId, message_id: spinMsg.message_id, parse_mode: "Markdown" }); } catch {}
+        }
+        await new Promise((r) => setTimeout(r, 700));
+        // Appliquer la récompense
+        let resultMsg = `🎡 *Résultat !*\n\n${prize.emoji} *${prize.label}*\n\n`;
+        if (prize.type === "nothing") {
+          resultMsg += `😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+        } else if (prize.type === "coupon_pct" && prize.value) {
+          const code = createMiniGameCoupon(userId, "pct", prize.value);
+          resultMsg += `🎉 *Félicitations !* Voici ton coupon :\n\n🎟️ Code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+        } else if (prize.type === "coupon_fixed" && prize.value) {
+          const code = createMiniGameCoupon(userId, "fixed", prize.value);
+          resultMsg += `🎉 *Félicitations !* Voici ton coupon :\n\n🎟️ Code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+        } else if (prize.type === "loyalty_pts" && prize.value) {
+          await addLoyaltyPoints(userId, prize.value);
+          const newPts = await getLoyaltyPoints(userId);
+          resultMsg += `🎉 *Félicitations !* *${prize.value} points* ont été ajoutés à ton compte.\n⭐ Total : *${newPts} points*`;
+        } else if (prize.type === "deezer_link") {
+          const link = await popDeezerLink(userId);
+          if (link) {
+            resultMsg += `🎉 *Incroyable !* Voici ton lien Deezer :\n\n\`${link}\`\n\n_Ce lien est personnel, ne le partagez pas._`;
+          } else {
+            resultMsg += `🎉 Tu as gagné un lien Deezer ! Contacte le support pour le récupérer 🎧`;
+          }
+        }
+        try {
+          await bot.editMessageText(resultMsg, {
+            chat_id: chatId,
+            message_id: spinMsg.message_id,
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] },
+          });
+        } catch {
+          await bot.sendMessage(chatId, resultMsg, {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] },
+          });
         }
         return;
       }
@@ -2049,6 +2251,63 @@ export function startBot(expressApp?: Application): TelegramBot {
             `🔧 *Système*\n\nOutils de configuration :`,
             { parse_mode: "Markdown", reply_markup: adminSysKeyboard() }
           );
+          return;
+        }
+
+        if (data === "admin_cat_minigames") {
+          await bot.sendMessage(
+            chatId,
+            `🎮 *Mini-Jeux*\n\nGestion de la roue, jackpot et paliers :`,
+            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard() }
+          );
+          return;
+        }
+
+        if (data === "admin_do_jackpot_stats") {
+          try {
+            const { totalTickets, uniqueUsers } = await getJackpotStats();
+            await bot.sendMessage(chatId,
+              `🎰 *Statistiques Jackpot*\n\n` +
+              `🎟️ Tickets en jeu : *${totalTickets}*\n` +
+              `👥 Participants uniques : *${uniqueUsers}*\n\n` +
+              `Utilisez le bouton "Tirage au sort" pour désigner un gagnant.`,
+              { parse_mode: "Markdown" }
+            );
+          } catch (e) {
+            await bot.sendMessage(chatId, `❌ Erreur : ${String(e)}`);
+          }
+          return;
+        }
+
+        if (data === "admin_do_jackpot_draw") {
+          try {
+            const winner = await drawJackpotWinner();
+            if (!winner) {
+              await bot.sendMessage(chatId, `🎰 *Tirage annulé*\n\nAucun ticket valide disponible pour le jackpot.`, { parse_mode: "Markdown" });
+              return;
+            }
+            const jackpotUser = await getOrCreateUser(winner.telegramId);
+            const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
+            await bot.sendMessage(chatId,
+              `🎰 *Résultat du Tirage Jackpot*\n\n` +
+              `🏆 Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)\n` +
+              `🎟️ Ticket gagnant : \`${winner.ticketId}\`\n\n` +
+              `Le ticket a été marqué comme utilisé. Pensez à contacter le gagnant et à lui remettre son lot !`,
+              { parse_mode: "Markdown" }
+            );
+            // Notifier le gagnant
+            try {
+              await bot.sendMessage(winner.telegramId,
+                `🎉 *Félicitations !*\n\n` +
+                `Tu as été tiré au sort lors du *Jackpot NexoShop* ! 🎰\n\n` +
+                `Un administrateur va te contacter très prochainement pour t'offrir ton lot.\n\n` +
+                `Merci de ta fidélité ! 🙏`,
+                { parse_mode: "Markdown" }
+              );
+            } catch (_) { /* l'utilisateur a peut-être bloqué le bot */ }
+          } catch (e) {
+            await bot.sendMessage(chatId, `❌ Erreur lors du tirage : ${String(e)}`);
+          }
           return;
         }
 
@@ -2353,13 +2612,130 @@ export function startBot(expressApp?: Application): TelegramBot {
         const deezerStock = await getDeezerStockCount();
         await sendMenu(
           chatId,
-          `🎧 *Deezer Premium — À vie*\n\n` +
+          `🎧 *Deezer Premium — Achat en lot*\n\n` +
           `Profitez de la musique en illimité, sans publicité, en qualité FLAC.\n\n` +
-          `💰 *Prix : 2€* — Livraison instantanée\n` +
-          `📦 Stock : *${deezerStock}* lien(s) disponible(s)\n\n` +
-          `⚡ Vous recevrez votre lien d'activation immédiatement après l'achat.`,
-          deezerBuyKeyboard()
+          `📦 Stock actuel : *${deezerStock}* lien(s)\n\n` +
+          `💰 *Choisissez votre lot :*`,
+          deezerBulkMenuKeyboard(deezerStock)
         );
+        return;
+      }
+
+      // ── Deezer Lot : fiche confirmation ────────────────────────────
+      if (data.startsWith("dzlot_") && !data.endsWith("_cnf")) {
+        const lotId = data.replace("dzlot_", "");
+        const lot = getDeezerLotById(lotId);
+        if (!lot) return;
+        const deezerStock = await getDeezerStockCount();
+        if (deezerStock < lot.quantity) {
+          await sendMenu(chatId,
+            `😔 *Stock insuffisant*\n\nIl ne reste que *${deezerStock}* lien(s) disponible(s).\nChoisissez un lot plus petit.`,
+            { inline_keyboard: [[{ text: "⬅️ Retour aux lots", callback_data: "buy_deezer" }]] }
+          );
+          return;
+        }
+        const balance = await getBalance(userId);
+        const savingsLine = lot.savingsLabel ? `\n🔥 *${lot.savingsLabel}*` : "";
+        await sendMenu(chatId,
+          `🎧 *Deezer Premium — ${lot.label}*\n\n` +
+          `💰 Prix total : *${lot.price}€*\n` +
+          `💲 Prix unitaire : *${lot.pricePerUnit}*${savingsLine}\n` +
+          `📦 Stock disponible : *${deezerStock}*\n` +
+          `👛 Votre solde : *${balance.toFixed(2)}€*\n\n` +
+          `Confirmez-vous cet achat ?`,
+          deezerBulkConfirmKeyboard(lot.id, lot.price)
+        );
+        return;
+      }
+
+      // ── Deezer Lot : traitement achat ───────────────────────────────
+      if (data.startsWith("dzlot_") && data.endsWith("_cnf")) {
+        const lotId = data.replace("dzlot_", "").replace("_cnf", "");
+        const lot = getDeezerLotById(lotId);
+        if (!lot) return;
+        if (disabledServices.has("deezer")) {
+          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "↩️ Retour", callback_data: "cat_musique" }]] });
+          return;
+        }
+        const deezerStock = await getDeezerStockCount();
+        if (deezerStock < lot.quantity) {
+          await sendMenu(chatId,
+            `😔 *Rupture de stock*\n\nIl ne reste que *${deezerStock}* lien(s). Choisissez un lot plus petit.`,
+            { inline_keyboard: [[{ text: "⬅️ Retour aux lots", callback_data: "buy_deezer" }]] }
+          );
+          return;
+        }
+        const balance = await getBalance(userId);
+        if (balance < lot.price) {
+          await sendMenu(chatId,
+            `❌ *Solde insuffisant*\n\nVotre solde : *${balance.toFixed(2)}€*\nPrix : *${lot.price}€*`,
+            { inline_keyboard: [
+              [{ text: "💰 Recharger", callback_data: "menu_payment" }],
+              [{ text: "↩️ Retour", callback_data: "buy_deezer" }],
+            ]}
+          );
+          return;
+        }
+        const links = await popDeezerLinks(userId, lot.quantity);
+        if (links.length < lot.quantity) {
+          await sendMenu(chatId, `😔 *Erreur de stock.* Veuillez réessayer ou contacter le support.`,
+            { inline_keyboard: [[{ text: "💬 Support", url: SUPPORT_URL }]] }
+          );
+          return;
+        }
+        const orderId = generateOrderId();
+        const deducted = await deductBalance(userId, lot.price, `Achat Deezer x${lot.quantity} #${orderId}`);
+        if (!deducted) {
+          await sendMenu(chatId, `❌ *Solde insuffisant.* Veuillez recharger.`,
+            { inline_keyboard: [[{ text: "💰 Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const newBalance = await getBalance(userId);
+        await addLoyaltyPoints(userId, Math.floor(lot.price));
+        await onPurchaseComplete(userId);
+        const userInfo = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
+        const deezerStockAfter = await getDeezerStockCount();
+        let linksText = "";
+        if (lot.quantity === 1) {
+          linksText = `🎧 *Lien d'activation :*\n\`${links[0]}\``;
+        } else {
+          linksText = `🎧 *Vos ${links.length} liens :*\n${links.map((l, i) => `${i + 1}. \`${l}\``).join("\n")}`;
+        }
+        await deleteOldMenu(chatId);
+        await sendReceipt(chatId,
+          `✅ *Votre commande Deezer est prête !*\n\n` +
+          `${linksText}\n\n` +
+          `🧾 Commande n° *#${orderId}*\n` +
+          `💰 Solde restant : *${newBalance.toFixed(2)}€*\n\n` +
+          `⚠️ Ces liens sont personnels et à usage unique.`,
+          { inline_keyboard: [
+            [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+            [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+          ]}
+        );
+        sendDiscordLog(
+          "🎧 Deezer Premium acheté",
+          `Un utilisateur a acheté un lot Deezer.`,
+          "purple",
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "Username", value: userInfo?.username ? `@${userInfo.username}` : "—", inline: true },
+            { name: "Lot", value: `x${lot.quantity} — ${lot.price}€`, inline: true },
+            { name: "Commande", value: `#${orderId}`, inline: true },
+            { name: "Stock restant", value: `${deezerStockAfter} lien(s)`, inline: true },
+          ],
+          "activity"
+        ).catch(() => {});
+        if (deezerStockAfter <= 2) {
+          const adminId = getAdminId();
+          if (adminId) {
+            bot.sendMessage(adminId,
+              `⚠️ *Stock Deezer faible !*\n\nIl ne reste que *${deezerStockAfter}* lien(s).\nUtilisez /adddeezer pour en ajouter.`,
+              { parse_mode: "Markdown" }
+            ).catch(() => {});
+          }
+        }
         return;
       }
 
@@ -2411,6 +2787,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         const deezerStockAfter = await getDeezerStockCount();
 
@@ -2503,6 +2880,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
 
         await sendReceipt(
@@ -2645,6 +3023,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         await deductBalance(userId, sub.price, `Abonnement ${sub.name} #${orderId}`);
         const newBal = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(sub.price));
+        await onPurchaseComplete(userId);
 
         pendingNewOrders.set(orderId, { userId, subLabel: sub.name, emoji: sub.emoji });
 
@@ -2770,6 +3149,7 @@ export function startBot(expressApp?: Application): TelegramBot {
 
           await deductBalance(userId, price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
           const newBal = await getBalance(userId);
+          await onPurchaseComplete(userId);
           const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "—";
           const nowStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
@@ -2868,6 +3248,7 @@ export function startBot(expressApp?: Application): TelegramBot {
 
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "—";
         const nowStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
@@ -3286,6 +3667,7 @@ export function startBot(expressApp?: Application): TelegramBot {
 
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(tech.price));
+        await onPurchaseComplete(userId);
 
         sendDiscordLog(
           "🔧 Achat Tech",
@@ -3845,6 +4227,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (successes.length > 0) {
           const netSpent = Math.floor(finalTotal);
           if (netSpent > 0) await addLoyaltyPoints(userId, netSpent);
+          await onPurchaseComplete(userId);
         }
 
         let discountLine = "";
@@ -4579,6 +4962,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         const orderId = generateOrderId();
         await deductBalance(userId, state.price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
         const newBal = await getBalance(userId);
+        await onPurchaseComplete(userId);
         const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "—";
         const nowStr = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
         const adminCmd = state.service === "bf"

@@ -1,5 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 import { TECHS, TIKTOK_TECH_IDS } from "./techs";
+import { WHEEL_PRIZES, DEEZER_LOTS } from "./minigames";
 
 export const SUPPORT_URL = "https://t.me/nexoshop6912";
 
@@ -24,11 +25,23 @@ export function informationsMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
         { text: "📢 Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
         { text: "💎 Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" },
       ],
+      [{ text: "🎡 Roue du Destin — Récompense quotidienne", callback_data: "menu_wheel" }],
       [{ text: "🎁 Parrainage", callback_data: "menu_parrainage" }],
       [{ text: "⭐ Points de fidélité", callback_data: "menu_loyalty" }],
       [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
     ],
   };
+}
+
+export function wheelMenuKeyboard(canSpin: boolean): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = [];
+  if (canSpin) {
+    rows.push([{ text: "🎡 Tourner la roue !", callback_data: "wheel_spin" }]);
+  } else {
+    rows.push([{ text: "⏳ Déjà tourné aujourd'hui", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "⬅️ Retour", callback_data: "menu_infos" }]);
+  return { inline_keyboard: rows };
 }
 
 export function loyaltyMenuKeyboard(points: number): TelegramBot.InlineKeyboardMarkup {
@@ -209,8 +222,32 @@ export function musiqueMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
         { text: "🎵 Spotify Premium", callback_data: "sub_new_spotify" },
         { text: "▶️ YouTube Premium", callback_data: "sub_new_youtube" },
       ],
-      [{ text: "🎧 Deezer Premium à vie — 2€", callback_data: "buy_deezer" }],
+      [{ text: "🎧 Deezer Premium — Achat en lot", callback_data: "buy_deezer" }],
       [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+    ],
+  };
+}
+
+export function deezerBulkMenuKeyboard(stock: number): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = DEEZER_LOTS.map((lot) => {
+    const stockOk = stock >= lot.quantity;
+    const suffix = lot.savingsLabel ? ` — ${lot.savingsLabel}` : "";
+    const stockBadge = !stockOk ? " ❌ Rupture" : "";
+    return [{
+      text: `🎧 ${lot.label} — ${lot.price}€ (${lot.pricePerUnit})${suffix}${stockBadge}`,
+      callback_data: stockOk ? `dzlot_${lot.id}` : "noop",
+    }];
+  });
+  rows.push([{ text: "↩️ Retour", callback_data: "cat_musique" }]);
+  return { inline_keyboard: rows };
+}
+
+export function deezerBulkConfirmKeyboard(lotId: string, price: number): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: `✅ Acheter maintenant — ${price}€`, callback_data: `dzlot_${lotId}_cnf` }],
+      [{ text: "🛒 Retour aux lots", callback_data: "buy_deezer" }],
+      [{ text: "↩️ Annuler", callback_data: "cat_musique" }],
     ],
   };
 }
@@ -438,8 +475,19 @@ export function adminMainMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
       [{ text: "🎧 Deezer", callback_data: "admin_cat_deezer" }],
       [{ text: "🎟️ Coupons", callback_data: "admin_cat_coupons" }],
       [{ text: "🛒 Services", callback_data: "admin_cat_services" }],
+      [{ text: "🎰 Mini-jeux", callback_data: "admin_cat_minigames" }],
       [{ text: "📢 Communication", callback_data: "admin_cat_comm" }],
       [{ text: "🔧 Système", callback_data: "admin_cat_sys" }],
+    ],
+  };
+}
+
+export function adminMinigamesKeyboard(ticketCount: number): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: `🎟️ Urne Jackpot : ${ticketCount} ticket(s)`, callback_data: "admin_do_jackpot_stats" }],
+      [{ text: "🎰 Lancer le tirage Jackpot", callback_data: "admin_do_jackpot_draw" }],
+      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
     ],
   };
 }

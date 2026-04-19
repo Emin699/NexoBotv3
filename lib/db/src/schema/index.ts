@@ -6,3 +6,4 @@ export * from "./sumup_checkouts";
 export * from "./paypal_payments";
 export * from "./referrals";
 export * from "./reviews";
+export * from "./minigames";

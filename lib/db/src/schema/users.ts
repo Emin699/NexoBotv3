@@ -9,6 +9,7 @@ export const usersTable = pgTable("users", {
   lastName: text("last_name"),
   balance: numeric("balance", { precision: 10, scale: 2 }).notNull().default("0"),
   loyaltyPoints: integer("loyalty_points").notNull().default(0),
+  purchaseCount: integer("purchase_count").notNull().default(0),
   banned: boolean("banned").notNull().default(false),
   bannedAt: timestamp("banned_at"),
   banReason: text("ban_reason"),

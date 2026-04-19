@@ -96746,12 +96746,14 @@ __export(schema_exports, {
   insertTransactionSchema: () => insertTransactionSchema,
   insertUserSchema: () => insertUserSchema,
   iptvStockTable: () => iptvStockTable,
+  jackpotTicketsTable: () => jackpotTicketsTable,
   paypalPaymentsTable: () => paypalPaymentsTable,
   referralsTable: () => referralsTable,
   reviewsTable: () => reviewsTable,
   sumupCheckoutsTable: () => sumupCheckoutsTable,
   transactionsTable: () => transactionsTable,
-  usersTable: () => usersTable
+  usersTable: () => usersTable,
+  wheelSpinsTable: () => wheelSpinsTable
 });
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v4/classic/external.js
@@ -108148,6 +108150,7 @@ var usersTable = pgTable("users", {
   lastName: text("last_name"),
   balance: numeric("balance", { precision: 10, scale: 2 }).notNull().default("0"),
   loyaltyPoints: integer("loyalty_points").notNull().default(0),
+  purchaseCount: integer("purchase_count").notNull().default(0),
   banned: boolean("banned").notNull().default(false),
   bannedAt: timestamp("banned_at"),
   banReason: text("ban_reason"),
@@ -108241,6 +108244,20 @@ var reviewsTable = pgTable("reviews", {
   service: text("service").notNull(),
   rating: smallint("rating").notNull(),
   comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow()
+});
+
+// ../../lib/db/src/schema/minigames.ts
+var wheelSpinsTable = pgTable("wheel_spins", {
+  telegramId: bigint("telegram_id", { mode: "number" }).primaryKey(),
+  lastSpinAt: timestamp("last_spin_at").notNull().defaultNow(),
+  totalSpins: integer("total_spins").notNull().default(1)
+});
+var jackpotTicketsTable = pgTable("jackpot_tickets", {
+  id: serial("id").primaryKey(),
+  telegramId: bigint("telegram_id", { mode: "number" }).notNull(),
+  drawnAt: timestamp("drawn_at"),
+  won: boolean("won").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
@@ -108343,6 +108360,13 @@ async function deductLoyaltyPoints(telegramId, points) {
   ).returning({ id: usersTable.telegramId });
   return result.length > 0;
 }
+async function incrementPurchaseCount(telegramId) {
+  const result = await db.update(usersTable).set({
+    purchaseCount: sql`${usersTable.purchaseCount} + 1`,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(usersTable.telegramId, telegramId)).returning({ purchaseCount: usersTable.purchaseCount });
+  return result[0]?.purchaseCount ?? 0;
+}
 async function loadBannedUsers() {
   const rows = await db.select({ telegramId: usersTable.telegramId }).from(usersTable).where(eq(usersTable.banned, true));
   return new Set(rows.map((r) => r.telegramId));
@@ -108386,9 +108410,9 @@ async function getUserProfile(telegramId) {
   const recentTx = await db.select().from(transactionsTable).where(eq(transactionsTable.telegramId, telegramId)).orderBy(desc(transactionsTable.createdAt)).limit(8);
   return {
     user: users[0],
-    totalCredited: parseFloat(totals.totalCredited ?? "0"),
-    totalDebited: parseFloat(totals.totalDebited ?? "0"),
-    txCount: Number(totals.txCount ?? 0),
+    totalCredited: parseFloat(totals?.totalCredited ?? "0"),
+    totalDebited: parseFloat(totals?.totalDebited ?? "0"),
+    txCount: Number(totals?.txCount ?? 0),
     recentTx
   };
 }
@@ -108411,8 +108435,15 @@ async function getDeezerStockCount() {
 async function popDeezerLink(userId) {
   const [row] = await db.select().from(deezerLinksTable).where(eq(deezerLinksTable.used, false)).orderBy(deezerLinksTable.id).limit(1);
   if (!row) return null;
-  await db.update(deezerLinksTable).set({ used: true, usedBy: userId, usedAt: /* @__PURE__ */ new Date() }).where(eq(deezerLinksTable.id, row.id));
+  await db.update(deezerLinksTable).set({ used: true, usedBy: userId ?? null, usedAt: /* @__PURE__ */ new Date() }).where(eq(deezerLinksTable.id, row.id));
   return row.link;
+}
+async function popDeezerLinks(userId, quantity) {
+  const rows = await db.select().from(deezerLinksTable).where(eq(deezerLinksTable.used, false)).orderBy(deezerLinksTable.id).limit(quantity);
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  await db.update(deezerLinksTable).set({ used: true, usedBy: userId, usedAt: /* @__PURE__ */ new Date() }).where(inArray(deezerLinksTable.id, ids));
+  return rows.map((r) => r.link);
 }
 async function clearDeezerLinks() {
   const rows = await db.delete(deezerLinksTable).returning({ id: deezerLinksTable.id });
@@ -108482,6 +108513,115 @@ async function getIptvStockSummary() {
   const result = {};
   for (const r of rows) result[r.duration] = Number(r.cnt);
   return result;
+}
+async function getLastWheelSpin(telegramId) {
+  const rows = await db.select().from(wheelSpinsTable).where(eq(wheelSpinsTable.telegramId, telegramId)).limit(1);
+  if (rows.length === 0) return null;
+  return { lastSpinAt: rows[0].lastSpinAt, totalSpins: rows[0].totalSpins };
+}
+async function recordWheelSpin(telegramId) {
+  const existing = await db.select({ telegramId: wheelSpinsTable.telegramId }).from(wheelSpinsTable).where(eq(wheelSpinsTable.telegramId, telegramId)).limit(1);
+  if (existing.length > 0) {
+    await db.update(wheelSpinsTable).set({
+      lastSpinAt: /* @__PURE__ */ new Date(),
+      totalSpins: sql`${wheelSpinsTable.totalSpins} + 1`
+    }).where(eq(wheelSpinsTable.telegramId, telegramId));
+  } else {
+    await db.insert(wheelSpinsTable).values({ telegramId, lastSpinAt: /* @__PURE__ */ new Date(), totalSpins: 1 });
+  }
+}
+async function addJackpotTicket(telegramId) {
+  await db.insert(jackpotTicketsTable).values({ telegramId });
+}
+async function getJackpotStats() {
+  const tickets = await db.select({ telegramId: jackpotTicketsTable.telegramId }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  const uniqueUsers = new Set(tickets.map((t) => t.telegramId)).size;
+  return { totalTickets: tickets.length, uniqueUsers };
+}
+async function drawJackpotWinner() {
+  const tickets = await db.select().from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  if (tickets.length === 0) return null;
+  const winner = tickets[Math.floor(Math.random() * tickets.length)];
+  await db.update(jackpotTicketsTable).set({ drawnAt: /* @__PURE__ */ new Date(), won: false }).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  await db.update(jackpotTicketsTable).set({ won: true }).where(eq(jackpotTicketsTable.id, winner.id));
+  return { telegramId: winner.telegramId, ticketId: winner.id };
+}
+
+// src/bot/minigames.ts
+var WHEEL_PRIZES = [
+  {
+    id: "nothing",
+    label: "Dommage, reviens demain !",
+    emoji: "\u{1F614}",
+    displayedChance: 50,
+    realChance: 70,
+    type: "nothing"
+  },
+  {
+    id: "coupon5pct",
+    label: "Coupon -5% sur toute la boutique",
+    emoji: "\u{1F39F}\uFE0F",
+    displayedChance: 40,
+    realChance: 20,
+    type: "coupon_pct",
+    value: 5
+  },
+  {
+    id: "coupon10eur",
+    label: "Coupon -10\u20AC sur toute la boutique",
+    emoji: "\u{1F4B6}",
+    displayedChance: 20,
+    realChance: 5,
+    type: "coupon_fixed",
+    value: 10
+  },
+  {
+    id: "loyalty_pts",
+    label: "50 Points de fid\xE9lit\xE9 bonus !",
+    emoji: "\u2B50",
+    displayedChance: 30,
+    realChance: 3,
+    type: "loyalty_pts",
+    value: 50
+  },
+  {
+    id: "deezer",
+    label: "Lien Deezer Premium \xE0 vie offert !",
+    emoji: "\u{1F3A7}",
+    displayedChance: 10,
+    realChance: 2,
+    type: "deezer_link"
+  }
+];
+function spinWheel() {
+  const rand = Math.random() * 100;
+  let cumulative = 0;
+  for (const prize of WHEEL_PRIZES) {
+    cumulative += prize.realChance;
+    if (rand < cumulative) return prize;
+  }
+  return WHEEL_PRIZES[0];
+}
+var MILESTONES = [
+  { purchaseCount: 1, label: "\u{1F389} Premier achat !", rewardType: "loyalty_pts", value: 20, description: "+20 Points de fid\xE9lit\xE9 offerts" },
+  { purchaseCount: 5, label: "\u{1F31F} 5 achats accomplis", rewardType: "coupon_pct", value: 5, description: "Coupon -5% sur toute la boutique" },
+  { purchaseCount: 10, label: "\u{1F4AB} 10 achats accomplis", rewardType: "loyalty_pts", value: 100, description: "+100 Points de fid\xE9lit\xE9 offerts" },
+  { purchaseCount: 15, label: "\u{1F525} 15 achats accomplis", rewardType: "coupon_pct", value: 10, description: "Coupon -10% sur toute la boutique" },
+  { purchaseCount: 20, label: "\u{1F48E} 20 achats accomplis", rewardType: "loyalty_pts", value: 200, description: "+200 Points de fid\xE9lit\xE9 offerts" },
+  { purchaseCount: 30, label: "\u{1F451} 30 achats accomplis", rewardType: "coupon_fixed", value: 15, description: "Coupon -15\u20AC sur toute la boutique" },
+  { purchaseCount: 50, label: "\u{1F3C6} L\xE9gende NexoShop !", rewardType: "deezer_link", description: "Lien Deezer Premium \xE0 vie offert !" }
+];
+function getMilestoneForCount(count2) {
+  return MILESTONES.find((m) => m.purchaseCount === count2) ?? null;
+}
+var DEEZER_LOTS = [
+  { id: "1", quantity: 1, price: 2, label: "1 lien", pricePerUnit: "2,00\u20AC/lien" },
+  { id: "10", quantity: 10, price: 5, label: "10 liens", pricePerUnit: "0,50\u20AC/lien", savingsLabel: "\xC9conomie -75%" },
+  { id: "50", quantity: 50, price: 15, label: "50 liens", pricePerUnit: "0,30\u20AC/lien", savingsLabel: "\xC9conomie -85%" },
+  { id: "200", quantity: 200, price: 20, label: "200 liens", pricePerUnit: "0,10\u20AC/lien", savingsLabel: "\xC9conomie -95% \u{1F525}" }
+];
+function getDeezerLotById(id) {
+  return DEEZER_LOTS.find((l) => l.id === id) ?? null;
 }
 
 // src/bot/techs.ts
@@ -109140,11 +109280,22 @@ function informationsMenuKeyboard() {
         { text: "\u{1F4E2} Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
         { text: "\u{1F48E} Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" }
       ],
+      [{ text: "\u{1F3A1} Roue du Destin \u2014 R\xE9compense quotidienne", callback_data: "menu_wheel" }],
       [{ text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" }],
       [{ text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }],
       [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
     ]
   };
+}
+function wheelMenuKeyboard(canSpin) {
+  const rows = [];
+  if (canSpin) {
+    rows.push([{ text: "\u{1F3A1} Tourner la roue !", callback_data: "wheel_spin" }]);
+  } else {
+    rows.push([{ text: "\u23F3 D\xE9j\xE0 tourn\xE9 aujourd'hui", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]);
+  return { inline_keyboard: rows };
 }
 function loyaltyMenuKeyboard(points) {
   const rows = [];
@@ -109304,17 +109455,30 @@ function musiqueMenuKeyboard() {
         { text: "\u{1F3B5} Spotify Premium", callback_data: "sub_new_spotify" },
         { text: "\u25B6\uFE0F YouTube Premium", callback_data: "sub_new_youtube" }
       ],
-      [{ text: "\u{1F3A7} Deezer Premium \xE0 vie \u2014 2\u20AC", callback_data: "buy_deezer" }],
+      [{ text: "\u{1F3A7} Deezer Premium \u2014 Achat en lot", callback_data: "buy_deezer" }],
       [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
     ]
   };
 }
-function deezerBuyKeyboard() {
+function deezerBulkMenuKeyboard(stock) {
+  const rows = DEEZER_LOTS.map((lot) => {
+    const stockOk = stock >= lot.quantity;
+    const suffix = lot.savingsLabel ? ` \u2014 ${lot.savingsLabel}` : "";
+    const stockBadge = !stockOk ? " \u274C Rupture" : "";
+    return [{
+      text: `\u{1F3A7} ${lot.label} \u2014 ${lot.price}\u20AC (${lot.pricePerUnit})${suffix}${stockBadge}`,
+      callback_data: stockOk ? `dzlot_${lot.id}` : "noop"
+    }];
+  });
+  rows.push([{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]);
+  return { inline_keyboard: rows };
+}
+function deezerBulkConfirmKeyboard(lotId, price) {
   return {
     inline_keyboard: [
-      [{ text: "\u2705 Acheter maintenant \u2014 2\u20AC", callback_data: "buy_deezer_cnf" }],
-      [{ text: "\u{1F6D2} Ajouter au panier", callback_data: "cart_add_deezer" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]
+      [{ text: `\u2705 Acheter maintenant \u2014 ${price}\u20AC`, callback_data: `dzlot_${lotId}_cnf` }],
+      [{ text: "\u{1F6D2} Retour aux lots", callback_data: "buy_deezer" }],
+      [{ text: "\u21A9\uFE0F Annuler", callback_data: "cat_musique" }]
     ]
   };
 }
@@ -109479,8 +109643,18 @@ function adminMainMenuKeyboard() {
       [{ text: "\u{1F3A7} Deezer", callback_data: "admin_cat_deezer" }],
       [{ text: "\u{1F39F}\uFE0F Coupons", callback_data: "admin_cat_coupons" }],
       [{ text: "\u{1F6D2} Services", callback_data: "admin_cat_services" }],
+      [{ text: "\u{1F3B0} Mini-jeux", callback_data: "admin_cat_minigames" }],
       [{ text: "\u{1F4E2} Communication", callback_data: "admin_cat_comm" }],
       [{ text: "\u{1F527} Syst\xE8me", callback_data: "admin_cat_sys" }]
+    ]
+  };
+}
+function adminMinigamesKeyboard(ticketCount) {
+  return {
+    inline_keyboard: [
+      [{ text: `\u{1F39F}\uFE0F Urne Jackpot : ${ticketCount} ticket(s)`, callback_data: "admin_do_jackpot_stats" }],
+      [{ text: "\u{1F3B0} Lancer le tirage Jackpot", callback_data: "admin_do_jackpot_draw" }],
+      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
     ]
   };
 }
@@ -110474,6 +110648,68 @@ function startBot(expressApp) {
   }
   function unlockUser(userId) {
     processingUsers.delete(userId);
+  }
+  function createMiniGameCoupon(userId, type, value) {
+    const code = `GAME${userId.toString(36).toUpperCase()}${Date.now().toString(36).toUpperCase().slice(-5)}`;
+    activeCoupons.set(code.toLowerCase(), {
+      code,
+      type,
+      discountValue: value,
+      maxUses: 1,
+      usedCount: 0,
+      usedBy: /* @__PURE__ */ new Set(),
+      restrictedToUserId: userId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3)
+    });
+    return code;
+  }
+  async function onPurchaseComplete(userId) {
+    const newCount = await incrementPurchaseCount(userId);
+    await addJackpotTicket(userId);
+    const milestone = getMilestoneForCount(newCount);
+    if (!milestone) return;
+    let rewardMsg = "";
+    if (milestone.rewardType === "loyalty_pts" && milestone.value) {
+      await addLoyaltyPoints(userId, milestone.value);
+      rewardMsg = `\u2B50 *+${milestone.value} Points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !`;
+    } else if (milestone.rewardType === "coupon_pct" && milestone.value) {
+      const code = createMiniGameCoupon(userId, "pct", milestone.value);
+      rewardMsg = `\u{1F39F}\uFE0F *Coupon -${milestone.value}%* g\xE9n\xE9r\xE9 !
+
+Ton code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`;
+    } else if (milestone.rewardType === "coupon_fixed" && milestone.value) {
+      const code = createMiniGameCoupon(userId, "fixed", milestone.value);
+      rewardMsg = `\u{1F4B6} *Coupon -${milestone.value}\u20AC* g\xE9n\xE9r\xE9 !
+
+Ton code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`;
+    } else if (milestone.rewardType === "deezer_link") {
+      const link = await popDeezerLink(userId);
+      if (link) {
+        rewardMsg = `\u{1F3A7} *Lien Deezer Premium offert !*
+
+\`${link}\`
+
+_Lien personnel, ne le partagez pas._`;
+      } else {
+        rewardMsg = `\u{1F3A7} Tu as gagn\xE9 un lien Deezer Premium ! Contacte le support pour le r\xE9cup\xE9rer.`;
+      }
+    }
+    try {
+      await bot.sendMessage(
+        userId,
+        `\u{1F3C6} *Palier atteint : ${milestone.label}*
+
+*${newCount} achat(s)* accomplis sur NexoShop !
+
+\u{1F381} *R\xE9compense :* ${milestone.description}
+
+${rewardMsg}`,
+        { parse_mode: "Markdown" }
+      );
+    } catch {
+    }
   }
   const PUBLIC_PATH = path2.resolve(__dirname, "..", "public");
   const BOT_IMAGE_PATH = `${PUBLIC_PATH}/menu.jpg`;
@@ -111746,6 +111982,55 @@ ${lines}`,
       await bot.sendMessage(chatId, "\u274C Erreur lors de la r\xE9cup\xE9ration des commandes.");
     }
   });
+  bot.onText(/\/tirage/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!isAdmin(msg.from.id)) return;
+    try {
+      const { totalTickets, uniqueUsers } = await getJackpotStats();
+      if (totalTickets === 0) {
+        await bot.sendMessage(chatId, `\u{1F3B0} *Aucun ticket disponible*
+
+Il n'y a aucun ticket en jeu pour le moment.`, { parse_mode: "Markdown" });
+        return;
+      }
+      const winner = await drawJackpotWinner();
+      if (!winner) {
+        await bot.sendMessage(chatId, `\u{1F3B0} *Tirage annul\xE9* \u2014 Aucun ticket valide.`, { parse_mode: "Markdown" });
+        return;
+      }
+      const jackpotUser = await getOrCreateUser(winner.telegramId);
+      const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
+      await bot.sendMessage(
+        chatId,
+        `\u{1F3B0} *R\xE9sultat du Tirage Jackpot*
+
+\u{1F4CA} Tickets en jeu : *${totalTickets}* (${uniqueUsers} participants)
+
+\u{1F3C6} Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)
+\u{1F39F}\uFE0F Ticket gagnant : \`${winner.ticketId}\`
+
+Le ticket a \xE9t\xE9 marqu\xE9 comme utilis\xE9. Pensez \xE0 contacter le gagnant !`,
+        { parse_mode: "Markdown" }
+      );
+      try {
+        await bot.sendMessage(
+          winner.telegramId,
+          `\u{1F389} *F\xE9licitations !*
+
+Tu as \xE9t\xE9 tir\xE9 au sort lors du *Jackpot NexoShop* ! \u{1F3B0}
+
+Un administrateur va te contacter tr\xE8s prochainement pour t'offrir ton lot.
+
+Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
+          { parse_mode: "Markdown" }
+        );
+      } catch (_) {
+      }
+    } catch (err) {
+      logger.error({ err }, "Error /tirage");
+      await bot.sendMessage(chatId, `\u274C Erreur lors du tirage : ${String(err)}`);
+    }
+  });
   bot.on("callback_query", async (query) => {
     if (!isNewKey(`cb:${query.id}`)) return;
     const chatId = query.message.chat.id;
@@ -111769,7 +112054,7 @@ ${lines}`,
       if (data === "menu_infos") {
         const caption = `\u2139\uFE0F *Informations*
 
-Retrouvez ici notre canal, nos preuves de vente, le parrainage et vos points de fid\xE9lit\xE9.`;
+Retrouvez ici notre canal, nos preuves de vente, la \u{1F3A1} *Roue du Destin* quotidienne, le parrainage et vos points de fid\xE9lit\xE9.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption,
@@ -111779,6 +112064,129 @@ Retrouvez ici notre canal, nos preuves de vente, le parrainage et vos points de 
         } catch (err) {
           logger.warn({ err, path: `${PUBLIC_PATH}/infos.png` }, "menu_infos: \xE9chec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: informationsMenuKeyboard() });
+        }
+        return;
+      }
+      if (data === "menu_wheel") {
+        const spinStatus = await getLastWheelSpin(userId);
+        const now = Date.now();
+        const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
+        const canSpin = !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        const nextSpinMs = spinStatus && !canSpin ? spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now : 0;
+        const nextSpinHours = Math.floor(nextSpinMs / (60 * 60 * 1e3));
+        const nextSpinMins = Math.floor(nextSpinMs % (60 * 60 * 1e3) / 6e4);
+        const prizeListText = WHEEL_PRIZES.map(
+          (p) => `${p.emoji} ${p.label} \u2014 *${p.displayedChance}%* de chance`
+        ).join("\n");
+        await sendMenu(
+          chatId,
+          `\u{1F3A1} *Roue du Destin*
+
+Tourne la roue chaque jour pour gagner des r\xE9compenses !
+
+*\u{1F381} Prix disponibles :*
+${prizeListText}
+
+` + (canSpin ? `\u2705 *Tu peux tourner la roue maintenant !*` : `\u23F3 *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
+          wheelMenuKeyboard(canSpin)
+        );
+        return;
+      }
+      if (data === "wheel_spin") {
+        const spinStatus = await getLastWheelSpin(userId);
+        const now = Date.now();
+        const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
+        const canSpin = !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        if (!canSpin) {
+          const nextSpinMs = spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now;
+          const h = Math.floor(nextSpinMs / (60 * 60 * 1e3));
+          const m = Math.floor(nextSpinMs % (60 * 60 * 1e3) / 6e4);
+          try {
+            await bot.answerCallbackQuery(query.id, {
+              text: `\u23F3 Tu as d\xE9j\xE0 tourn\xE9 aujourd'hui ! Reviens dans ${h}h ${m}min.`,
+              show_alert: true
+            });
+          } catch {
+          }
+          return;
+        }
+        await recordWheelSpin(userId);
+        const prize = spinWheel();
+        const emojis = WHEEL_PRIZES.map((p) => p.emoji);
+        const spinMsg = await bot.sendMessage(
+          chatId,
+          `\u{1F3A1} *La roue tourne...*
+
+${emojis.join(" \u27F6 ")}`,
+          { parse_mode: "Markdown" }
+        );
+        const frames = [
+          `\u{1F3A1} *La roue tourne...*
+
+${[...emojis.slice(1), emojis[0]].join(" \u27F6 ")}`,
+          `\u{1F3A1} *La roue tourne...*
+
+${[...emojis.slice(2), ...emojis.slice(0, 2)].join(" \u27F6 ")}`,
+          `\u{1F3A1} *La roue ralentit...*
+
+${[...emojis.slice(3), ...emojis.slice(0, 3)].join(" \u27F6 ")}`
+        ];
+        for (const frame of frames) {
+          await new Promise((r) => setTimeout(r, 500));
+          try {
+            await bot.editMessageText(frame, { chat_id: chatId, message_id: spinMsg.message_id, parse_mode: "Markdown" });
+          } catch {
+          }
+        }
+        await new Promise((r) => setTimeout(r, 700));
+        let resultMsg = `\u{1F3A1} *R\xE9sultat !*
+
+${prize.emoji} *${prize.label}*
+
+`;
+        if (prize.type === "nothing") {
+          resultMsg += `\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+        } else if (prize.type === "coupon_pct" && prize.value) {
+          const code = createMiniGameCoupon(userId, "pct", prize.value);
+          resultMsg += `\u{1F389} *F\xE9licitations !* Voici ton coupon :
+
+\u{1F39F}\uFE0F Code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`;
+        } else if (prize.type === "coupon_fixed" && prize.value) {
+          const code = createMiniGameCoupon(userId, "fixed", prize.value);
+          resultMsg += `\u{1F389} *F\xE9licitations !* Voici ton coupon :
+
+\u{1F39F}\uFE0F Code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`;
+        } else if (prize.type === "loyalty_pts" && prize.value) {
+          await addLoyaltyPoints(userId, prize.value);
+          const newPts = await getLoyaltyPoints(userId);
+          resultMsg += `\u{1F389} *F\xE9licitations !* *${prize.value} points* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte.
+\u2B50 Total : *${newPts} points*`;
+        } else if (prize.type === "deezer_link") {
+          const link = await popDeezerLink(userId);
+          if (link) {
+            resultMsg += `\u{1F389} *Incroyable !* Voici ton lien Deezer :
+
+\`${link}\`
+
+_Ce lien est personnel, ne le partagez pas._`;
+          } else {
+            resultMsg += `\u{1F389} Tu as gagn\xE9 un lien Deezer ! Contacte le support pour le r\xE9cup\xE9rer \u{1F3A7}`;
+          }
+        }
+        try {
+          await bot.editMessageText(resultMsg, {
+            chat_id: chatId,
+            message_id: spinMsg.message_id,
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
+          });
+        } catch {
+          await bot.sendMessage(chatId, resultMsg, {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
+          });
         }
         return;
       }
@@ -112070,6 +112478,74 @@ Envoie un message \xE0 tous tes clients :`,
 Outils de configuration :`,
             { parse_mode: "Markdown", reply_markup: adminSysKeyboard() }
           );
+          return;
+        }
+        if (data === "admin_cat_minigames") {
+          await bot.sendMessage(
+            chatId,
+            `\u{1F3AE} *Mini-Jeux*
+
+Gestion de la roue, jackpot et paliers :`,
+            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard() }
+          );
+          return;
+        }
+        if (data === "admin_do_jackpot_stats") {
+          try {
+            const { totalTickets, uniqueUsers } = await getJackpotStats();
+            await bot.sendMessage(
+              chatId,
+              `\u{1F3B0} *Statistiques Jackpot*
+
+\u{1F39F}\uFE0F Tickets en jeu : *${totalTickets}*
+\u{1F465} Participants uniques : *${uniqueUsers}*
+
+Utilisez le bouton "Tirage au sort" pour d\xE9signer un gagnant.`,
+              { parse_mode: "Markdown" }
+            );
+          } catch (e) {
+            await bot.sendMessage(chatId, `\u274C Erreur : ${String(e)}`);
+          }
+          return;
+        }
+        if (data === "admin_do_jackpot_draw") {
+          try {
+            const winner = await drawJackpotWinner();
+            if (!winner) {
+              await bot.sendMessage(chatId, `\u{1F3B0} *Tirage annul\xE9*
+
+Aucun ticket valide disponible pour le jackpot.`, { parse_mode: "Markdown" });
+              return;
+            }
+            const jackpotUser = await getOrCreateUser(winner.telegramId);
+            const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
+            await bot.sendMessage(
+              chatId,
+              `\u{1F3B0} *R\xE9sultat du Tirage Jackpot*
+
+\u{1F3C6} Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)
+\u{1F39F}\uFE0F Ticket gagnant : \`${winner.ticketId}\`
+
+Le ticket a \xE9t\xE9 marqu\xE9 comme utilis\xE9. Pensez \xE0 contacter le gagnant et \xE0 lui remettre son lot !`,
+              { parse_mode: "Markdown" }
+            );
+            try {
+              await bot.sendMessage(
+                winner.telegramId,
+                `\u{1F389} *F\xE9licitations !*
+
+Tu as \xE9t\xE9 tir\xE9 au sort lors du *Jackpot NexoShop* ! \u{1F3B0}
+
+Un administrateur va te contacter tr\xE8s prochainement pour t'offrir ton lot.
+
+Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
+                { parse_mode: "Markdown" }
+              );
+            } catch (_) {
+            }
+          } catch (e) {
+            await bot.sendMessage(chatId, `\u274C Erreur lors du tirage : ${String(e)}`);
+          }
           return;
         }
         if (data === "admin_do_stats") {
@@ -112422,16 +112898,160 @@ ${lines.join("\n")}`,
         const deezerStock = await getDeezerStockCount();
         await sendMenu(
           chatId,
-          `\u{1F3A7} *Deezer Premium \u2014 \xC0 vie*
+          `\u{1F3A7} *Deezer Premium \u2014 Achat en lot*
 
 Profitez de la musique en illimit\xE9, sans publicit\xE9, en qualit\xE9 FLAC.
 
-\u{1F4B0} *Prix : 2\u20AC* \u2014 Livraison instantan\xE9e
-\u{1F4E6} Stock : *${deezerStock}* lien(s) disponible(s)
+\u{1F4E6} Stock actuel : *${deezerStock}* lien(s)
 
-\u26A1 Vous recevrez votre lien d'activation imm\xE9diatement apr\xE8s l'achat.`,
-          deezerBuyKeyboard()
+\u{1F4B0} *Choisissez votre lot :*`,
+          deezerBulkMenuKeyboard(deezerStock)
         );
+        return;
+      }
+      if (data.startsWith("dzlot_") && !data.endsWith("_cnf")) {
+        const lotId = data.replace("dzlot_", "");
+        const lot = getDeezerLotById(lotId);
+        if (!lot) return;
+        const deezerStock = await getDeezerStockCount();
+        if (deezerStock < lot.quantity) {
+          await sendMenu(
+            chatId,
+            `\u{1F614} *Stock insuffisant*
+
+Il ne reste que *${deezerStock}* lien(s) disponible(s).
+Choisissez un lot plus petit.`,
+            { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour aux lots", callback_data: "buy_deezer" }]] }
+          );
+          return;
+        }
+        const balance = await getBalance(userId);
+        const savingsLine = lot.savingsLabel ? `
+\u{1F525} *${lot.savingsLabel}*` : "";
+        await sendMenu(
+          chatId,
+          `\u{1F3A7} *Deezer Premium \u2014 ${lot.label}*
+
+\u{1F4B0} Prix total : *${lot.price}\u20AC*
+\u{1F4B2} Prix unitaire : *${lot.pricePerUnit}*${savingsLine}
+\u{1F4E6} Stock disponible : *${deezerStock}*
+\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*
+
+Confirmez-vous cet achat ?`,
+          deezerBulkConfirmKeyboard(lot.id, lot.price)
+        );
+        return;
+      }
+      if (data.startsWith("dzlot_") && data.endsWith("_cnf")) {
+        const lotId = data.replace("dzlot_", "").replace("_cnf", "");
+        const lot = getDeezerLotById(lotId);
+        if (!lot) return;
+        if (disabledServices.has("deezer")) {
+          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]] });
+          return;
+        }
+        const deezerStock = await getDeezerStockCount();
+        if (deezerStock < lot.quantity) {
+          await sendMenu(
+            chatId,
+            `\u{1F614} *Rupture de stock*
+
+Il ne reste que *${deezerStock}* lien(s). Choisissez un lot plus petit.`,
+            { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour aux lots", callback_data: "buy_deezer" }]] }
+          );
+          return;
+        }
+        const balance = await getBalance(userId);
+        if (balance < lot.price) {
+          await sendMenu(
+            chatId,
+            `\u274C *Solde insuffisant*
+
+Votre solde : *${balance.toFixed(2)}\u20AC*
+Prix : *${lot.price}\u20AC*`,
+            { inline_keyboard: [
+              [{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }],
+              [{ text: "\u21A9\uFE0F Retour", callback_data: "buy_deezer" }]
+            ] }
+          );
+          return;
+        }
+        const links = await popDeezerLinks(userId, lot.quantity);
+        if (links.length < lot.quantity) {
+          await sendMenu(
+            chatId,
+            `\u{1F614} *Erreur de stock.* Veuillez r\xE9essayer ou contacter le support.`,
+            { inline_keyboard: [[{ text: "\u{1F4AC} Support", url: SUPPORT_URL }]] }
+          );
+          return;
+        }
+        const orderId = generateOrderId();
+        const deducted = await deductBalance(userId, lot.price, `Achat Deezer x${lot.quantity} #${orderId}`);
+        if (!deducted) {
+          await sendMenu(
+            chatId,
+            `\u274C *Solde insuffisant.* Veuillez recharger.`,
+            { inline_keyboard: [[{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const newBalance = await getBalance(userId);
+        await addLoyaltyPoints(userId, Math.floor(lot.price));
+        await onPurchaseComplete(userId);
+        const userInfo = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
+        const deezerStockAfter = await getDeezerStockCount();
+        let linksText = "";
+        if (lot.quantity === 1) {
+          linksText = `\u{1F3A7} *Lien d'activation :*
+\`${links[0]}\``;
+        } else {
+          linksText = `\u{1F3A7} *Vos ${links.length} liens :*
+${links.map((l, i) => `${i + 1}. \`${l}\``).join("\n")}`;
+        }
+        await deleteOldMenu(chatId);
+        await sendReceipt(
+          chatId,
+          `\u2705 *Votre commande Deezer est pr\xEAte !*
+
+${linksText}
+
+\u{1F9FE} Commande n\xB0 *#${orderId}*
+\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
+
+\u26A0\uFE0F Ces liens sont personnels et \xE0 usage unique.`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+          ] }
+        );
+        sendDiscordLog(
+          "\u{1F3A7} Deezer Premium achet\xE9",
+          `Un utilisateur a achet\xE9 un lot Deezer.`,
+          "purple",
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "Username", value: userInfo?.username ? `@${userInfo.username}` : "\u2014", inline: true },
+            { name: "Lot", value: `x${lot.quantity} \u2014 ${lot.price}\u20AC`, inline: true },
+            { name: "Commande", value: `#${orderId}`, inline: true },
+            { name: "Stock restant", value: `${deezerStockAfter} lien(s)`, inline: true }
+          ],
+          "activity"
+        ).catch(() => {
+        });
+        if (deezerStockAfter <= 2) {
+          const adminId = getAdminId();
+          if (adminId) {
+            bot.sendMessage(
+              adminId,
+              `\u26A0\uFE0F *Stock Deezer faible !*
+
+Il ne reste que *${deezerStockAfter}* lien(s).
+Utilisez /adddeezer pour en ajouter.`,
+              { parse_mode: "Markdown" }
+            ).catch(() => {
+            });
+          }
+        }
         return;
       }
       if (data === "buy_deezer_cnf") {
@@ -112485,6 +113105,7 @@ Revenez plus tard ou contactez le support.`,
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         const deezerStockAfter = await getDeezerStockCount();
         await sendReceipt(
@@ -112584,6 +113205,7 @@ Rechargez votre compte depuis le menu Paiement.`,
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         await sendReceipt(
           chatId,
@@ -112734,6 +113356,7 @@ Rechargez votre solde pour continuer.`,
         await deductBalance(userId, sub.price, `Abonnement ${sub.name} #${orderId}`);
         const newBal = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(sub.price));
+        await onPurchaseComplete(userId);
         pendingNewOrders.set(orderId, { userId, subLabel: sub.name, emoji: sub.emoji });
         const adminId = getAdminId();
         if (adminId) {
@@ -112857,6 +113480,7 @@ Rechargez votre solde pour continuer.`,
           const discordChannel = "netflix";
           await deductBalance(userId, price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
           const newBal = await getBalance(userId);
+          await onPurchaseComplete(userId);
           const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
           const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
           sendOrderNotification(
@@ -112953,6 +113577,7 @@ Rechargez votre solde pour acc\xE9der \xE0 l'IPTV !`,
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
         const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
         const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
         sendOrderNotification(
@@ -113401,6 +114026,7 @@ Rechargez votre solde pour acc\xE9der \xE0 cette tech !`,
         }
         const newBalance = await getBalance(userId);
         await addLoyaltyPoints(userId, Math.floor(tech.price));
+        await onPurchaseComplete(userId);
         sendDiscordLog(
           "\u{1F527} Achat Tech",
           `Un utilisateur a achet\xE9 une tech/m\xE9thode.`,
@@ -114020,6 +114646,7 @@ ${sub.emoji} *${sub.name}*
         if (successes.length > 0) {
           const netSpent = Math.floor(finalTotal);
           if (netSpent > 0) await addLoyaltyPoints(userId, netSpent);
+          await onPurchaseComplete(userId);
         }
         let discountLine = "";
         if (autoDiscount > 0) discountLine += `\u2705 -${CART_AUTO_DISCOUNT_PCT}% : -${autoDiscount.toFixed(2)}\u20AC
@@ -114804,6 +115431,7 @@ Veuillez recharger et recommencer.`,
         const orderId = generateOrderId();
         await deductBalance(userId, state.price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
         const newBal = await getBalance(userId);
+        await onPurchaseComplete(userId);
         const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "\u2014";
         const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
         const adminCmd = state.service === "bf" ? `/newbasicfit ${userId} email:motdepasse` : `/newfitnesspark ${userId} email:motdepasse`;
