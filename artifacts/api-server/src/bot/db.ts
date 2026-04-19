@@ -9,7 +9,7 @@ import {
   wheelSpinsTable,
   jackpotTicketsTable,
 } from "@workspace/db";
-import { eq, and, desc, count, sql, avg, inArray } from "drizzle-orm";
+import { eq, and, desc, count, avg, sql, inArray } from "drizzle-orm";
 
 export async function userExists(telegramId: number): Promise<boolean> {
   const rows = await db
@@ -26,32 +26,35 @@ export async function getOrCreateUser(
   firstName?: string,
   lastName?: string
 ) {
+  if (username !== undefined || firstName !== undefined) {
+    // Existing user: UPDATE and get the result back in one query
+    const updated = await db
+      .update(usersTable)
+      .set({ username, firstName, lastName, updatedAt: new Date() })
+      .where(eq(usersTable.telegramId, telegramId))
+      .returning();
+    if (updated.length > 0) return updated[0]!;
+    // User does not exist yet → INSERT
+    const [created] = await db
+      .insert(usersTable)
+      .values({ telegramId, username, firstName, lastName, balance: "0" })
+      .returning();
+    return created!;
+  }
+
+  // No profile update needed: SELECT or INSERT
   const existing = await db
     .select()
     .from(usersTable)
     .where(eq(usersTable.telegramId, telegramId))
     .limit(1);
+  if (existing.length > 0) return existing[0]!;
 
-  if (existing.length > 0) {
-    if (username !== undefined || firstName !== undefined) {
-      await db
-        .update(usersTable)
-        .set({ username, firstName, lastName, updatedAt: new Date() })
-        .where(eq(usersTable.telegramId, telegramId));
-    }
-    const updated = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.telegramId, telegramId))
-      .limit(1);
-    return updated[0];
-  }
-
-  const [user] = await db
+  const [created] = await db
     .insert(usersTable)
     .values({ telegramId, username, firstName, lastName, balance: "0" })
     .returning();
-  return user;
+  return created!;
 }
 
 export async function getBalance(telegramId: number): Promise<number> {
@@ -179,15 +182,6 @@ export async function incrementPurchaseCount(telegramId: number): Promise<number
   return result[0]?.purchaseCount ?? 0;
 }
 
-export async function getPurchaseCount(telegramId: number): Promise<number> {
-  const rows = await db
-    .select({ cnt: usersTable.purchaseCount })
-    .from(usersTable)
-    .where(eq(usersTable.telegramId, telegramId))
-    .limit(1);
-  return rows[0]?.cnt ?? 0;
-}
-
 // ── Ban system ──────────────────────────────────────────────────────────────
 
 export async function loadBannedUsers(): Promise<Set<number>> {
@@ -261,21 +255,22 @@ export async function getUserProfile(telegramId: number) {
     .limit(1);
   if (users.length === 0) return null;
 
-  const [totals] = await db
-    .select({
-      totalCredited: sql<string>`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
-      totalDebited:  sql<string>`COALESCE(SUM(CASE WHEN type = 'debit'  THEN amount ELSE 0 END), 0)`,
-      txCount:       sql<number>`COUNT(*)`,
-    })
-    .from(transactionsTable)
-    .where(eq(transactionsTable.telegramId, telegramId));
-
-  const recentTx = await db
-    .select()
-    .from(transactionsTable)
-    .where(eq(transactionsTable.telegramId, telegramId))
-    .orderBy(desc(transactionsTable.createdAt))
-    .limit(8);
+  const [[totals], recentTx] = await Promise.all([
+    db
+      .select({
+        totalCredited: sql<string>`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
+        totalDebited:  sql<string>`COALESCE(SUM(CASE WHEN type = 'debit'  THEN amount ELSE 0 END), 0)`,
+        txCount:       sql<number>`COUNT(*)`,
+      })
+      .from(transactionsTable)
+      .where(eq(transactionsTable.telegramId, telegramId)),
+    db
+      .select()
+      .from(transactionsTable)
+      .where(eq(transactionsTable.telegramId, telegramId))
+      .orderBy(desc(transactionsTable.createdAt))
+      .limit(8),
+  ]);
 
   return {
     user: users[0],
@@ -298,62 +293,6 @@ export async function countUsers(): Promise<number> {
     .select({ count: sql<number>`COUNT(*)` })
     .from(usersTable);
   return Number(result[0]?.count ?? 0);
-}
-
-// ── Avis / Reviews ───────────────────────────────────────────────────────────
-
-export async function createReview(
-  telegramId: number,
-  username: string | null | undefined,
-  firstName: string | null | undefined,
-  orderId: string | null | undefined,
-  service: string,
-  rating: number,
-  comment: string
-): Promise<{ id: number }> {
-  const [row] = await db
-    .insert(reviewsTable)
-    .values({ telegramId, username, firstName, orderId, service, rating, comment })
-    .returning({ id: reviewsTable.id });
-  return row!;
-}
-
-export async function getGlobalRating(): Promise<{ avg: number; total: number }> {
-  const rows = await db
-    .select({
-      avg: avg(reviewsTable.rating),
-      total: count(reviewsTable.id),
-    })
-    .from(reviewsTable);
-  const row = rows[0];
-  return {
-    avg: row?.avg ? parseFloat(String(row.avg)) : 0,
-    total: Number(row?.total ?? 0),
-  };
-}
-
-export async function getRecentReviews(limit = 5) {
-  return db
-    .select()
-    .from(reviewsTable)
-    .orderBy(desc(reviewsTable.createdAt))
-    .limit(limit);
-}
-
-export async function deleteReview(id: number): Promise<boolean> {
-  const rows = await db
-    .delete(reviewsTable)
-    .where(eq(reviewsTable.id, id))
-    .returning({ id: reviewsTable.id });
-  return rows.length > 0;
-}
-
-export async function deleteAllReviews(): Promise<number> {
-  const rows = await db
-    .delete(reviewsTable)
-    .returning({ id: reviewsTable.id });
-  await db.execute(sql`ALTER SEQUENCE reviews_id_seq RESTART WITH 1`);
-  return rows.length;
 }
 
 // ── Deezer links (persistés en DB) ─────────────────────────────────────────
@@ -412,38 +351,47 @@ export async function clearDeezerLinks(): Promise<number> {
 // ── Stats globales admin ──────────────────────────────────────────────────
 
 export async function getAdminStats() {
-  const [userStats] = await db.select({
-    total: count(),
-    banned: sql<number>`SUM(CASE WHEN banned = true THEN 1 ELSE 0 END)`,
-  }).from(usersTable);
+  const [
+    [userStats],
+    [balanceStats],
+    [txStats],
+    [paypalStats],
+    [newUsers],
+    [reviewStats],
+  ] = await Promise.all([
+    db.select({
+      total: count(),
+      banned: sql<number>`SUM(CASE WHEN banned = true THEN 1 ELSE 0 END)`,
+    }).from(usersTable),
 
-  const [balanceStats] = await db.select({
-    totalBalance: sql<string>`COALESCE(SUM(balance::numeric), 0)`,
-  }).from(usersTable).where(eq(usersTable.banned, false));
+    db.select({
+      totalBalance: sql<string>`COALESCE(SUM(balance::numeric), 0)`,
+    }).from(usersTable).where(eq(usersTable.banned, false)),
 
-  const [txStats] = await db.select({
-    totalTx: count(),
-    totalCredited: sql<string>`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
-    totalDebited: sql<string>`COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)`,
-    txToday: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
-    txThisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
-  }).from(transactionsTable);
+    db.select({
+      totalTx: count(),
+      totalCredited: sql<string>`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
+      totalDebited: sql<string>`COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)`,
+      txToday: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
+      txThisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
+    }).from(transactionsTable),
 
-  const [paypalStats] = await db.select({
-    totalPaid: sql<string>`COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount::numeric ELSE 0 END), 0)`,
-    countPaid: sql<number>`SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END)`,
-    countPending: sql<number>`SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END)`,
-  }).from(paypalPaymentsTable);
+    db.select({
+      totalPaid: sql<string>`COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount::numeric ELSE 0 END), 0)`,
+      countPaid: sql<number>`SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END)`,
+      countPending: sql<number>`SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END)`,
+    }).from(paypalPaymentsTable),
 
-  const [newUsers] = await db.select({
-    today: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
-    thisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
-  }).from(usersTable);
+    db.select({
+      today: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
+      thisWeek: sql<number>`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`,
+    }).from(usersTable),
 
-  const [reviewStats] = await db.select({
-    total: count(),
-    avgRating: avg(reviewsTable.rating),
-  }).from(reviewsTable);
+    db.select({
+      total: count(),
+      avgRating: avg(reviewsTable.rating),
+    }).from(reviewsTable),
+  ]);
 
   return {
     users: {
@@ -503,25 +451,16 @@ export async function getLastWheelSpin(telegramId: number): Promise<{ lastSpinAt
 }
 
 export async function recordWheelSpin(telegramId: number): Promise<void> {
-  const existing = await db
-    .select({ telegramId: wheelSpinsTable.telegramId })
-    .from(wheelSpinsTable)
-    .where(eq(wheelSpinsTable.telegramId, telegramId))
-    .limit(1);
-
-  if (existing.length > 0) {
-    await db
-      .update(wheelSpinsTable)
-      .set({
+  await db
+    .insert(wheelSpinsTable)
+    .values({ telegramId, lastSpinAt: new Date(), totalSpins: 1 })
+    .onConflictDoUpdate({
+      target: wheelSpinsTable.telegramId,
+      set: {
         lastSpinAt: new Date(),
         totalSpins: sql`${wheelSpinsTable.totalSpins} + 1`,
-      })
-      .where(eq(wheelSpinsTable.telegramId, telegramId));
-  } else {
-    await db
-      .insert(wheelSpinsTable)
-      .values({ telegramId, lastSpinAt: new Date(), totalSpins: 1 });
-  }
+      },
+    });
 }
 
 // ── Jackpot ─────────────────────────────────────────────────────────────────
@@ -547,12 +486,17 @@ export async function getUserJackpotTicketCount(telegramId: number): Promise<num
 }
 
 export async function getJackpotStats(): Promise<{ totalTickets: number; uniqueUsers: number }> {
-  const tickets = await db
-    .select({ telegramId: jackpotTicketsTable.telegramId })
+  const [row] = await db
+    .select({
+      totalTickets: count(),
+      uniqueUsers: sql<number>`COUNT(DISTINCT ${jackpotTicketsTable.telegramId})`,
+    })
     .from(jackpotTicketsTable)
     .where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  const uniqueUsers = new Set(tickets.map(t => t.telegramId)).size;
-  return { totalTickets: tickets.length, uniqueUsers };
+  return {
+    totalTickets: Number(row?.totalTickets ?? 0),
+    uniqueUsers: Number(row?.uniqueUsers ?? 0),
+  };
 }
 
 export async function drawJackpotWinner(): Promise<{ telegramId: number; ticketId: number } | null> {

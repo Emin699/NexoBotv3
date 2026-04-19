@@ -108284,16 +108284,16 @@ async function userExists(telegramId) {
   return rows.length > 0;
 }
 async function getOrCreateUser(telegramId, username, firstName, lastName) {
-  const existing = await db.select().from(usersTable).where(eq(usersTable.telegramId, telegramId)).limit(1);
-  if (existing.length > 0) {
-    if (username !== void 0 || firstName !== void 0) {
-      await db.update(usersTable).set({ username, firstName, lastName, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.telegramId, telegramId));
-    }
-    const updated = await db.select().from(usersTable).where(eq(usersTable.telegramId, telegramId)).limit(1);
-    return updated[0];
+  if (username !== void 0 || firstName !== void 0) {
+    const updated = await db.update(usersTable).set({ username, firstName, lastName, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.telegramId, telegramId)).returning();
+    if (updated.length > 0) return updated[0];
+    const [created2] = await db.insert(usersTable).values({ telegramId, username, firstName, lastName, balance: "0" }).returning();
+    return created2;
   }
-  const [user] = await db.insert(usersTable).values({ telegramId, username, firstName, lastName, balance: "0" }).returning();
-  return user;
+  const existing = await db.select().from(usersTable).where(eq(usersTable.telegramId, telegramId)).limit(1);
+  if (existing.length > 0) return existing[0];
+  const [created] = await db.insert(usersTable).values({ telegramId, username, firstName, lastName, balance: "0" }).returning();
+  return created;
 }
 async function getBalance(telegramId) {
   const user = await db.select({ balance: usersTable.balance }).from(usersTable).where(eq(usersTable.telegramId, telegramId)).limit(1);
@@ -108402,12 +108402,14 @@ async function getOrdersByUserId(telegramId) {
 async function getUserProfile(telegramId) {
   const users = await db.select().from(usersTable).where(eq(usersTable.telegramId, telegramId)).limit(1);
   if (users.length === 0) return null;
-  const [totals] = await db.select({
-    totalCredited: sql`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
-    totalDebited: sql`COALESCE(SUM(CASE WHEN type = 'debit'  THEN amount ELSE 0 END), 0)`,
-    txCount: sql`COUNT(*)`
-  }).from(transactionsTable).where(eq(transactionsTable.telegramId, telegramId));
-  const recentTx = await db.select().from(transactionsTable).where(eq(transactionsTable.telegramId, telegramId)).orderBy(desc(transactionsTable.createdAt)).limit(8);
+  const [[totals], recentTx] = await Promise.all([
+    db.select({
+      totalCredited: sql`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
+      totalDebited: sql`COALESCE(SUM(CASE WHEN type = 'debit'  THEN amount ELSE 0 END), 0)`,
+      txCount: sql`COUNT(*)`
+    }).from(transactionsTable).where(eq(transactionsTable.telegramId, telegramId)),
+    db.select().from(transactionsTable).where(eq(transactionsTable.telegramId, telegramId)).orderBy(desc(transactionsTable.createdAt)).limit(8)
+  ]);
   return {
     user: users[0],
     totalCredited: parseFloat(totals?.totalCredited ?? "0"),
@@ -108450,33 +108452,42 @@ async function clearDeezerLinks() {
   return rows.length;
 }
 async function getAdminStats() {
-  const [userStats] = await db.select({
-    total: count(),
-    banned: sql`SUM(CASE WHEN banned = true THEN 1 ELSE 0 END)`
-  }).from(usersTable);
-  const [balanceStats] = await db.select({
-    totalBalance: sql`COALESCE(SUM(balance::numeric), 0)`
-  }).from(usersTable).where(eq(usersTable.banned, false));
-  const [txStats] = await db.select({
-    totalTx: count(),
-    totalCredited: sql`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
-    totalDebited: sql`COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)`,
-    txToday: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
-    txThisWeek: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`
-  }).from(transactionsTable);
-  const [paypalStats] = await db.select({
-    totalPaid: sql`COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount::numeric ELSE 0 END), 0)`,
-    countPaid: sql`SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END)`,
-    countPending: sql`SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END)`
-  }).from(paypalPaymentsTable);
-  const [newUsers] = await db.select({
-    today: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
-    thisWeek: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`
-  }).from(usersTable);
-  const [reviewStats] = await db.select({
-    total: count(),
-    avgRating: avg(reviewsTable.rating)
-  }).from(reviewsTable);
+  const [
+    [userStats],
+    [balanceStats],
+    [txStats],
+    [paypalStats],
+    [newUsers],
+    [reviewStats]
+  ] = await Promise.all([
+    db.select({
+      total: count(),
+      banned: sql`SUM(CASE WHEN banned = true THEN 1 ELSE 0 END)`
+    }).from(usersTable),
+    db.select({
+      totalBalance: sql`COALESCE(SUM(balance::numeric), 0)`
+    }).from(usersTable).where(eq(usersTable.banned, false)),
+    db.select({
+      totalTx: count(),
+      totalCredited: sql`COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0)`,
+      totalDebited: sql`COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0)`,
+      txToday: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
+      txThisWeek: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`
+    }).from(transactionsTable),
+    db.select({
+      totalPaid: sql`COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount::numeric ELSE 0 END), 0)`,
+      countPaid: sql`SUM(CASE WHEN status = 'PAID' THEN 1 ELSE 0 END)`,
+      countPending: sql`SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END)`
+    }).from(paypalPaymentsTable),
+    db.select({
+      today: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END)`,
+      thisWeek: sql`SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END)`
+    }).from(usersTable),
+    db.select({
+      total: count(),
+      avgRating: avg(reviewsTable.rating)
+    }).from(reviewsTable)
+  ]);
   return {
     users: {
       total: Number(userStats?.total ?? 0),
@@ -108520,15 +108531,13 @@ async function getLastWheelSpin(telegramId) {
   return { lastSpinAt: rows[0].lastSpinAt, totalSpins: rows[0].totalSpins };
 }
 async function recordWheelSpin(telegramId) {
-  const existing = await db.select({ telegramId: wheelSpinsTable.telegramId }).from(wheelSpinsTable).where(eq(wheelSpinsTable.telegramId, telegramId)).limit(1);
-  if (existing.length > 0) {
-    await db.update(wheelSpinsTable).set({
+  await db.insert(wheelSpinsTable).values({ telegramId, lastSpinAt: /* @__PURE__ */ new Date(), totalSpins: 1 }).onConflictDoUpdate({
+    target: wheelSpinsTable.telegramId,
+    set: {
       lastSpinAt: /* @__PURE__ */ new Date(),
       totalSpins: sql`${wheelSpinsTable.totalSpins} + 1`
-    }).where(eq(wheelSpinsTable.telegramId, telegramId));
-  } else {
-    await db.insert(wheelSpinsTable).values({ telegramId, lastSpinAt: /* @__PURE__ */ new Date(), totalSpins: 1 });
-  }
+    }
+  });
 }
 async function addJackpotTicket(telegramId) {
   await db.insert(jackpotTicketsTable).values({ telegramId });
@@ -108538,9 +108547,14 @@ async function getUserJackpotTicketCount(telegramId) {
   return Number(row?.cnt ?? 0);
 }
 async function getJackpotStats() {
-  const tickets = await db.select({ telegramId: jackpotTicketsTable.telegramId }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  const uniqueUsers = new Set(tickets.map((t) => t.telegramId)).size;
-  return { totalTickets: tickets.length, uniqueUsers };
+  const [row] = await db.select({
+    totalTickets: count(),
+    uniqueUsers: sql`COUNT(DISTINCT ${jackpotTicketsTable.telegramId})`
+  }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  return {
+    totalTickets: Number(row?.totalTickets ?? 0),
+    uniqueUsers: Number(row?.uniqueUsers ?? 0)
+  };
 }
 async function drawJackpotWinner() {
   const tickets = await db.select().from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
@@ -109264,46 +109278,49 @@ function getTechById(id) {
 
 // src/bot/keyboards.ts
 var SUPPORT_URL = "https://t.me/nexoshop6912";
+var _mainMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F3EA} Boutique", callback_data: "menu_achat" }],
+    [
+      { text: "\u{1F4B3} Recharge", callback_data: "menu_payment" },
+      { text: "\u{1F6CD}\uFE0F Mon Panier", callback_data: "cart_view" }
+    ],
+    [
+      { text: "\u{1F4E2} Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
+      { text: "\u{1F48E} Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" }
+    ],
+    [{ text: "\u2139\uFE0F Informations", callback_data: "menu_infos" }]
+  ]
+};
 function mainMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F3EA} Boutique", callback_data: "menu_achat" }],
-      [
-        { text: "\u{1F4B3} Recharge", callback_data: "menu_payment" },
-        { text: "\u{1F6CD}\uFE0F Mon Panier", callback_data: "cart_view" }
-      ],
-      [
-        { text: "\u{1F4E2} Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
-        { text: "\u{1F48E} Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" }
-      ],
-      [{ text: "\u2139\uFE0F Informations", callback_data: "menu_infos" }]
-    ]
-  };
+  return _mainMenuKb;
 }
+var _informationsMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" },
+      { text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }
+    ],
+    [
+      { text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" },
+      { text: "\u{1F3C6} Palier", callback_data: "menu_palier" }
+    ],
+    [{ text: "\u{1F4AC} Contacter le support", callback_data: "menu_support" }],
+    [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+  ]
+};
 function informationsMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" },
-        { text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }
-      ],
-      [
-        { text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" },
-        { text: "\u{1F3C6} Palier", callback_data: "menu_palier" }
-      ],
-      [{ text: "\u{1F4AC} Contacter le support", callback_data: "menu_support" }],
-      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-    ]
-  };
+  return _informationsMenuKb;
 }
+var _minijeuxMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F3A1} Roue du Destin", callback_data: "menu_wheel" }],
+    [{ text: "\u{1F3B0} Jackpot \u2014 Mes tickets", callback_data: "menu_jackpot_info" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
+  ]
+};
 function minijeuxMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F3A1} Roue du Destin", callback_data: "menu_wheel" }],
-      [{ text: "\u{1F3B0} Jackpot \u2014 Mes tickets", callback_data: "menu_jackpot_info" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
-    ]
-  };
+  return _minijeuxMenuKb;
 }
 function wheelMenuKeyboard(canSpin) {
   const rows = [];
@@ -109348,35 +109365,40 @@ function loyaltyConvertKeyboard(points) {
   rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: "menu_loyalty" }]);
   return { inline_keyboard: rows };
 }
+var _achatMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4B3} Abonnement \u{1F4B3}", callback_data: "menu_abonnement" }],
+    [{ text: "\u{1F527} Tech", callback_data: "menu_tech" }],
+    [{ text: "\u{1F4E6} Fournisseur", callback_data: "menu_fournisseur" }],
+    [{ text: "\u2728 Autres", callback_data: "menu_achat_autres" }],
+    [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+  ]
+};
 function achatMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4B3} Abonnement \u{1F4B3}", callback_data: "menu_abonnement" }],
-      [{ text: "\u{1F527} Tech", callback_data: "menu_tech" }],
-      [{ text: "\u{1F4E6} Fournisseur", callback_data: "menu_fournisseur" }],
-      [{ text: "\u2728 Autres", callback_data: "menu_achat_autres" }],
-      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-    ]
-  };
+  return _achatMenuKb;
 }
+var _achatAutresMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium \xE0 vie \u2014 23\u20AC", callback_data: "buy_deezer_gen" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_achat" }]
+  ]
+};
 function achatAutresMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium \xE0 vie \u2014 23\u20AC", callback_data: "buy_deezer_gen" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_achat" }]
-    ]
-  };
+  return _achatAutresMenuKb;
 }
+var _deezerGenConfirmKb = {
+  inline_keyboard: [
+    [{ text: "\u2705 Acheter maintenant \u2014 23\u20AC", callback_data: "buy_deezer_gen_cnf" }],
+    [{ text: "\u{1F6D2} Ajouter au panier", callback_data: "cart_add_deezer_gen" }],
+    [{ text: "\u274C Annuler", callback_data: "menu_achat_autres" }]
+  ]
+};
 function deezerGenConfirmKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u2705 Acheter maintenant \u2014 23\u20AC", callback_data: "buy_deezer_gen_cnf" }],
-      [{ text: "\u{1F6D2} Ajouter au panier", callback_data: "cart_add_deezer_gen" }],
-      [{ text: "\u274C Annuler", callback_data: "menu_achat_autres" }]
-    ]
-  };
+  return _deezerGenConfirmKb;
 }
+var _techMenuKb = null;
 function techMenuKeyboard() {
+  if (_techMenuKb) return _techMenuKb;
   const techButtons = [];
   const techsPerRow = 2;
   const nonTikTokTechs = TECHS.filter((t) => !TIKTOK_TECH_IDS.includes(t.id));
@@ -109389,94 +109411,100 @@ function techMenuKeyboard() {
   }
   techButtons.push([{ text: "\u{1F3B5} TikTok", callback_data: "tech_submenu_tiktok" }]);
   techButtons.push([{ text: "\u2B05\uFE0F Retour", callback_data: "menu_achat" }]);
-  return { inline_keyboard: techButtons };
+  _techMenuKb = { inline_keyboard: techButtons };
+  return _techMenuKb;
 }
+var _tiktokSubMenuKb = null;
 function tiktokSubMenuKeyboard() {
+  if (_tiktokSubMenuKb) return _tiktokSubMenuKb;
   const tiktokTechs = TECHS.filter((t) => TIKTOK_TECH_IDS.includes(t.id));
-  return {
+  _tiktokSubMenuKb = {
     inline_keyboard: [
       ...tiktokTechs.map((tech) => [{ text: tech.name, callback_data: `tech_${tech.id}` }]),
       [{ text: "\u2B05\uFE0F Retour aux Techs", callback_data: "menu_tech" }]
     ]
   };
+  return _tiktokSubMenuKb;
 }
+var _abonnementMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F3AC} Streaming", callback_data: "cat_streaming" }],
+    [{ text: "\u{1F916} IA", callback_data: "cat_ia" }],
+    [{ text: "\u{1F3B5} Musique", callback_data: "cat_musique" }],
+    [{ text: "\u26BD Sport", callback_data: "cat_sport" }],
+    [{ text: "\u2728 Autres", callback_data: "cat_autres" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_achat" }]
+  ]
+};
 function abonnementMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F3AC} Streaming", callback_data: "cat_streaming" }],
-      [{ text: "\u{1F916} IA", callback_data: "cat_ia" }],
-      [{ text: "\u{1F3B5} Musique", callback_data: "cat_musique" }],
-      [{ text: "\u26BD Sport", callback_data: "cat_sport" }],
-      [{ text: "\u2728 Autres", callback_data: "cat_autres" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_achat" }]
-    ]
-  };
+  return _abonnementMenuKb;
 }
+var _streamingMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u{1F37F} Netflix (avec pub)", callback_data: "sub_new_nf_pub" },
+      { text: "\u{1F37F} Netflix (sans pub)", callback_data: "sub_new_nf_nopub" }
+    ],
+    [
+      { text: "\u{1F3F0} Disney+", callback_data: "sub_new_disney" },
+      { text: "\u{1F338} Crunchyroll Mega Fan", callback_data: "sub_new_crunchyroll" }
+    ],
+    [
+      { text: "\u{1F4E6} Prime Video", callback_data: "sub_new_primevideo" },
+      { text: "\u{1F34F} Apple TV+", callback_data: "sub_new_appletv" }
+    ],
+    [{ text: "\u2B50 Paramount+", callback_data: "sub_new_paramount" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
+  ]
+};
 function streamingMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u{1F37F} Netflix (avec pub)", callback_data: "sub_new_nf_pub" },
-        { text: "\u{1F37F} Netflix (sans pub)", callback_data: "sub_new_nf_nopub" }
-      ],
-      [
-        { text: "\u{1F3F0} Disney+", callback_data: "sub_new_disney" },
-        { text: "\u{1F338} Crunchyroll Mega Fan", callback_data: "sub_new_crunchyroll" }
-      ],
-      [
-        { text: "\u{1F4E6} Prime Video", callback_data: "sub_new_primevideo" },
-        { text: "\u{1F34F} Apple TV+", callback_data: "sub_new_appletv" }
-      ],
-      [{ text: "\u2B50 Paramount+", callback_data: "sub_new_paramount" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
+  return _streamingMenuKb;
 }
+var _iaMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u2728 Gemini Pro+", callback_data: "sub_new_gemini" },
+      { text: "\u{1F916} ChatGPT", callback_data: "cat_chatgpt" }
+    ],
+    [{ text: "\u{1F9E0} Claude MAX", callback_data: "cat_claude" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
+  ]
+};
 function iaMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u2728 Gemini Pro+", callback_data: "sub_new_gemini" },
-        { text: "\u{1F916} ChatGPT", callback_data: "cat_chatgpt" }
-      ],
-      [{ text: "\u{1F9E0} Claude MAX", callback_data: "cat_claude" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
+  return _iaMenuKb;
 }
+var _claudeMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F9E0} Claude MAX \u2014 1 Mois \u2014 20\u20AC", callback_data: "sub_new_claude_1m" }],
+    [{ text: "\u26A1 Claude MAX \u2014 1 Jour \u2014 5\u20AC", callback_data: "sub_new_claude_1j" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
+  ]
+};
 function claudeMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F9E0} Claude MAX \u2014 1 Mois \u2014 20\u20AC", callback_data: "sub_new_claude_1m" }],
-      [{ text: "\u26A1 Claude MAX \u2014 1 Jour \u2014 5\u20AC", callback_data: "sub_new_claude_1j" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
-    ]
-  };
+  return _claudeMenuKb;
 }
+var _chatgptMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4AC} ChatGPT Plus \u2014 1 Mois \u2014 10\u20AC", callback_data: "sub_new_chatgpt" }],
+    [{ text: "\u{1F916} ChatGPT Go \u2014 1 An \u2014 20\u20AC", callback_data: "sub_new_chatgpt_go" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
+  ]
+};
 function chatgptMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u{1F4AC} ChatGPT Plus \u2014 1 Mois \u2014 10\u20AC", callback_data: "sub_new_chatgpt" }
-      ],
-      [
-        { text: "\u{1F916} ChatGPT Go \u2014 1 An \u2014 20\u20AC", callback_data: "sub_new_chatgpt_go" }
-      ],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
-    ]
-  };
+  return _chatgptMenuKb;
 }
+var _musiqueMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u{1F3B5} Spotify Premium", callback_data: "sub_new_spotify" },
+      { text: "\u25B6\uFE0F YouTube Premium", callback_data: "sub_new_youtube" }
+    ],
+    [{ text: "\u{1F3A7} Deezer Premium \u2014 Achat en lot", callback_data: "buy_deezer" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
+  ]
+};
 function musiqueMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u{1F3B5} Spotify Premium", callback_data: "sub_new_spotify" },
-        { text: "\u25B6\uFE0F YouTube Premium", callback_data: "sub_new_youtube" }
-      ],
-      [{ text: "\u{1F3A7} Deezer Premium \u2014 Achat en lot", callback_data: "buy_deezer" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
+  return _musiqueMenuKb;
 }
 function deezerBulkMenuKeyboard(stock) {
   const rows = DEEZER_LOTS.map((lot) => {
@@ -109500,29 +109528,31 @@ function deezerBulkConfirmKeyboard(lotId, price) {
     ]
   };
 }
+var _sportMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u{1F4AA} Basic-Fit", callback_data: "sub_bf" },
+      { text: "\u{1F3CB}\uFE0F Fitness Park", callback_data: "sub_fp" }
+    ],
+    [{ text: "\u{1F4FA} IPTV", callback_data: "menu_iptv" }],
+    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
+  ]
+};
 function sportMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u{1F4AA} Basic-Fit", callback_data: "sub_bf" },
-        { text: "\u{1F3CB}\uFE0F Fitness Park", callback_data: "sub_fp" }
-      ],
-      [{ text: "\u{1F4FA} IPTV", callback_data: "menu_iptv" }],
-      [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
+  return _sportMenuKb;
 }
+var _autresMenuKb = {
+  inline_keyboard: [
+    [
+      { text: "\u2702\uFE0F CapCut Pro", callback_data: "sub_new_capcut" },
+      { text: "\u{1F989} Duolingo Super", callback_data: "sub_new_duolingo" }
+    ],
+    [{ text: "\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys", callback_data: "sub_new_telepeage" }],
+    [{ text: "Retour", callback_data: "menu_abonnement" }]
+  ]
+};
 function autresMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u2702\uFE0F CapCut Pro", callback_data: "sub_new_capcut" },
-        { text: "\u{1F989} Duolingo Super", callback_data: "sub_new_duolingo" }
-      ],
-      [{ text: "\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys", callback_data: "sub_new_telepeage" }],
-      [{ text: "Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
+  return _autresMenuKb;
 }
 function subNewDetailKeyboard(subId, price) {
   return {
@@ -109573,14 +109603,15 @@ function iptvMenuKeyboard() {
     ]
   };
 }
+var _paymentMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1FA99} Crypto \u2014 Litecoin (LTC)", callback_data: "pay_ltc" }],
+    [{ text: "\u{1F17F}\uFE0F PayPal", callback_data: "pay_paypal" }],
+    [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+  ]
+};
 function paymentMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1FA99} Crypto \u2014 Litecoin (LTC)", callback_data: "pay_ltc" }],
-      [{ text: "\u{1F17F}\uFE0F PayPal", callback_data: "pay_paypal" }],
-      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-    ]
-  };
+  return _paymentMenuKb;
 }
 function paymentAmountKeyboard(method) {
   return {
@@ -109599,14 +109630,15 @@ function paymentAmountKeyboard(method) {
     ]
   };
 }
+var _supportMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4E6} Remplacement produit", callback_data: "support_replacement" }],
+    [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+    [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+  ]
+};
 function supportMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4E6} Remplacement produit", callback_data: "support_replacement" }],
-      [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-    ]
-  };
+  return _supportMenuKb;
 }
 function techConfirmKeyboard(techId) {
   return {
@@ -109619,10 +109651,11 @@ function techConfirmKeyboard(techId) {
     ]
   };
 }
+var _backToMainKb = {
+  inline_keyboard: [[{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]]
+};
 function backToMainKeyboard() {
-  return {
-    inline_keyboard: [[{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]]
-  };
+  return _backToMainKb;
 }
 function cartViewKeyboard(items, couponApplied) {
   const rows = [];
@@ -109653,19 +109686,20 @@ function cartEmptyKeyboard() {
     ]
   };
 }
+var _adminMainMenuKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4CA} Statistiques & Stock", callback_data: "admin_cat_stats" }],
+    [{ text: "\u{1F465} Utilisateurs", callback_data: "admin_cat_users" }],
+    [{ text: "\u{1F3A7} Deezer", callback_data: "admin_cat_deezer" }],
+    [{ text: "\u{1F39F}\uFE0F Coupons", callback_data: "admin_cat_coupons" }],
+    [{ text: "\u{1F6D2} Services", callback_data: "admin_cat_services" }],
+    [{ text: "\u{1F3B0} Mini-jeux", callback_data: "admin_cat_minigames" }],
+    [{ text: "\u{1F4E2} Communication", callback_data: "admin_cat_comm" }],
+    [{ text: "\u{1F527} Syst\xE8me", callback_data: "admin_cat_sys" }]
+  ]
+};
 function adminMainMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4CA} Statistiques & Stock", callback_data: "admin_cat_stats" }],
-      [{ text: "\u{1F465} Utilisateurs", callback_data: "admin_cat_users" }],
-      [{ text: "\u{1F3A7} Deezer", callback_data: "admin_cat_deezer" }],
-      [{ text: "\u{1F39F}\uFE0F Coupons", callback_data: "admin_cat_coupons" }],
-      [{ text: "\u{1F6D2} Services", callback_data: "admin_cat_services" }],
-      [{ text: "\u{1F3B0} Mini-jeux", callback_data: "admin_cat_minigames" }],
-      [{ text: "\u{1F4E2} Communication", callback_data: "admin_cat_comm" }],
-      [{ text: "\u{1F527} Syst\xE8me", callback_data: "admin_cat_sys" }]
-    ]
-  };
+  return _adminMainMenuKb;
 }
 function adminMinigamesKeyboard(ticketCount) {
   return {
@@ -109676,44 +109710,47 @@ function adminMinigamesKeyboard(ticketCount) {
     ]
   };
 }
+var _adminCouponsKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4CB} Panel complet (stats & \xE9dition)", callback_data: "admin_do_coupon_panel" }],
+    [{ text: "\u2795 Cr\xE9er un coupon", callback_data: "admin_do_coupon_add" }],
+    [{ text: "\u{1F4C4} Lister tous les coupons", callback_data: "admin_do_coupon_list" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminCouponsKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4CB} Panel complet (stats & \xE9dition)", callback_data: "admin_do_coupon_panel" }],
-      [{ text: "\u2795 Cr\xE9er un coupon", callback_data: "admin_do_coupon_add" }],
-      [{ text: "\u{1F4C4} Lister tous les coupons", callback_data: "admin_do_coupon_list" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminCouponsKb;
 }
+var _adminStatsKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4CA} Stats globales", callback_data: "admin_do_stats" }],
+    [{ text: "\u{1F4E6} \xC9tat du stock", callback_data: "admin_do_stock" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminStatsKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4CA} Stats globales", callback_data: "admin_do_stats" }],
-      [{ text: "\u{1F4E6} \xC9tat du stock", callback_data: "admin_do_stock" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminStatsKb;
 }
+var _adminUsersKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4B0} Ajouter du solde", callback_data: "admin_do_add_balance" }],
+    [
+      { text: "\u2B50 Ajouter des points", callback_data: "admin_do_add_points" },
+      { text: "\u2B50 Retirer des points", callback_data: "admin_do_remove_points" }
+    ],
+    [
+      { text: "\u{1F50D} Profil utilisateur", callback_data: "admin_do_profile" },
+      { text: "\u{1F4CB} Commandes", callback_data: "admin_do_orders" }
+    ],
+    [
+      { text: "\u{1F6AB} Bannir", callback_data: "admin_do_ban" },
+      { text: "\u2705 D\xE9bannir", callback_data: "admin_do_unban" }
+    ],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminUsersKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4B0} Ajouter du solde", callback_data: "admin_do_add_balance" }],
-      [
-        { text: "\u2B50 Ajouter des points", callback_data: "admin_do_add_points" },
-        { text: "\u2B50 Retirer des points", callback_data: "admin_do_remove_points" }
-      ],
-      [
-        { text: "\u{1F50D} Profil utilisateur", callback_data: "admin_do_profile" },
-        { text: "\u{1F4CB} Commandes", callback_data: "admin_do_orders" }
-      ],
-      [
-        { text: "\u{1F6AB} Bannir", callback_data: "admin_do_ban" },
-        { text: "\u2705 D\xE9bannir", callback_data: "admin_do_unban" }
-      ],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminUsersKb;
 }
 function adminDeezerKeyboard(stockCount) {
   return {
@@ -109725,39 +109762,43 @@ function adminDeezerKeyboard(stockCount) {
     ]
   };
 }
+var _adminDeezerClearConfirmKb = {
+  inline_keyboard: [
+    [
+      { text: "\u26A0\uFE0F Oui, vider tout", callback_data: "admin_do_deezer_clear_cnf" },
+      { text: "\u274C Annuler", callback_data: "admin_cat_deezer" }
+    ]
+  ]
+};
 function adminDeezerClearConfirmKeyboard() {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u26A0\uFE0F Oui, vider tout", callback_data: "admin_do_deezer_clear_cnf" },
-        { text: "\u274C Annuler", callback_data: "admin_cat_deezer" }
-      ]
-    ]
-  };
+  return _adminDeezerClearConfirmKb;
 }
+var _adminServicesKb = {
+  inline_keyboard: [
+    [{ text: "\u2699\uFE0F Activer / D\xE9sactiver des services", callback_data: "admin_do_services" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminServicesKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u2699\uFE0F Activer / D\xE9sactiver des services", callback_data: "admin_do_services" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminServicesKb;
 }
+var _adminCommKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F4E1} Broadcast (message \xE0 tous)", callback_data: "admin_do_broadcast" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminCommKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4E1} Broadcast (message \xE0 tous)", callback_data: "admin_do_broadcast" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminCommKb;
 }
+var _adminSysKb = {
+  inline_keyboard: [
+    [{ text: "\u{1F9EA} Tester les webhooks Discord", callback_data: "admin_do_discord" }],
+    [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
+  ]
+};
 function adminSysKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F9EA} Tester les webhooks Discord", callback_data: "admin_do_discord" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
+  return _adminSysKb;
 }
 
 // src/bot/subscriptions.ts

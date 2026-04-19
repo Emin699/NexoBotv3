@@ -4,48 +4,51 @@ import { WHEEL_PRIZES, DEEZER_LOTS } from "./minigames";
 
 export const SUPPORT_URL = "https://t.me/nexoshop6912";
 
+const _mainMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🏪 Boutique", callback_data: "menu_achat" }],
+    [
+      { text: "💳 Recharge", callback_data: "menu_payment" },
+      { text: "🛍️ Mon Panier", callback_data: "cart_view" },
+    ],
+    [
+      { text: "📢 Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
+      { text: "💎 Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" },
+    ],
+    [{ text: "ℹ️ Informations", callback_data: "menu_infos" }],
+  ],
+};
 export function mainMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🏪 Boutique", callback_data: "menu_achat" }],
-      [
-        { text: "💳 Recharge", callback_data: "menu_payment" },
-        { text: "🛍️ Mon Panier", callback_data: "cart_view" },
-      ],
-      [
-        { text: "📢 Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
-        { text: "💎 Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" },
-      ],
-      [{ text: "ℹ️ Informations", callback_data: "menu_infos" }],
-    ],
-  };
+  return _mainMenuKb;
 }
 
+const _informationsMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "🎁 Parrainage", callback_data: "menu_parrainage" },
+      { text: "⭐ Points de fidélité", callback_data: "menu_loyalty" },
+    ],
+    [
+      { text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" },
+      { text: "🏆 Palier", callback_data: "menu_palier" },
+    ],
+    [{ text: "💬 Contacter le support", callback_data: "menu_support" }],
+    [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+  ],
+};
 export function informationsMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "🎁 Parrainage", callback_data: "menu_parrainage" },
-        { text: "⭐ Points de fidélité", callback_data: "menu_loyalty" },
-      ],
-      [
-        { text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" },
-        { text: "🏆 Palier", callback_data: "menu_palier" },
-      ],
-      [{ text: "💬 Contacter le support", callback_data: "menu_support" }],
-      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-    ],
-  };
+  return _informationsMenuKb;
 }
 
+const _minijeuxMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🎡 Roue du Destin", callback_data: "menu_wheel" }],
+    [{ text: "🎰 Jackpot — Mes tickets", callback_data: "menu_jackpot_info" }],
+    [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
+  ],
+};
 export function minijeuxMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🎡 Roue du Destin", callback_data: "menu_wheel" }],
-      [{ text: "🎰 Jackpot — Mes tickets", callback_data: "menu_jackpot_info" }],
-      [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
-    ],
-  };
+  return _minijeuxMenuKb;
 }
 
 export function wheelMenuKeyboard(canSpin: boolean): TelegramBot.InlineKeyboardMarkup {
@@ -98,43 +101,46 @@ export function loyaltyConvertKeyboard(points: number): TelegramBot.InlineKeyboa
   return { inline_keyboard: rows };
 }
 
+const _achatMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "💳 Abonnement 💳", callback_data: "menu_abonnement" }],
+    [{ text: "🔧 Tech", callback_data: "menu_tech" }],
+    [{ text: "📦 Fournisseur", callback_data: "menu_fournisseur" }],
+    [{ text: "✨ Autres", callback_data: "menu_achat_autres" }],
+    [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+  ],
+};
 export function achatMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "💳 Abonnement 💳", callback_data: "menu_abonnement" }],
-      [{ text: "🔧 Tech", callback_data: "menu_tech" }],
-      [{ text: "📦 Fournisseur", callback_data: "menu_fournisseur" }],
-      [{ text: "✨ Autres", callback_data: "menu_achat_autres" }],
-      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-    ],
-  };
+  return _achatMenuKb;
 }
 
+const _achatAutresMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🎧 Générateur Deezer Premium à vie — 23€", callback_data: "buy_deezer_gen" }],
+    [{ text: "⬅️ Retour", callback_data: "menu_achat" }],
+  ],
+};
 export function achatAutresMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🎧 Générateur Deezer Premium à vie — 23€", callback_data: "buy_deezer_gen" }],
-      [{ text: "⬅️ Retour", callback_data: "menu_achat" }],
-    ],
-  };
+  return _achatAutresMenuKb;
 }
 
+const _deezerGenConfirmKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "✅ Acheter maintenant — 23€", callback_data: "buy_deezer_gen_cnf" }],
+    [{ text: "🛒 Ajouter au panier", callback_data: "cart_add_deezer_gen" }],
+    [{ text: "❌ Annuler", callback_data: "menu_achat_autres" }],
+  ],
+};
 export function deezerGenConfirmKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "✅ Acheter maintenant — 23€", callback_data: "buy_deezer_gen_cnf" }],
-      [{ text: "🛒 Ajouter au panier", callback_data: "cart_add_deezer_gen" }],
-      [{ text: "❌ Annuler", callback_data: "menu_achat_autres" }],
-    ],
-  };
+  return _deezerGenConfirmKb;
 }
 
+let _techMenuKb: TelegramBot.InlineKeyboardMarkup | null = null;
 export function techMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  if (_techMenuKb) return _techMenuKb;
   const techButtons: TelegramBot.InlineKeyboardButton[][] = [];
   const techsPerRow = 2;
-
   const nonTikTokTechs = TECHS.filter((t) => !TIKTOK_TECH_IDS.includes(t.id));
-
   for (let i = 0; i < nonTikTokTechs.length; i += techsPerRow) {
     const row: TelegramBot.InlineKeyboardButton[] = nonTikTokTechs.slice(i, i + techsPerRow).map((tech) => ({
       text: tech.name,
@@ -142,105 +148,109 @@ export function techMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
     }));
     techButtons.push(row);
   }
-
   techButtons.push([{ text: "🎵 TikTok", callback_data: "tech_submenu_tiktok" }]);
   techButtons.push([{ text: "⬅️ Retour", callback_data: "menu_achat" }]);
-
-  return { inline_keyboard: techButtons };
+  _techMenuKb = { inline_keyboard: techButtons };
+  return _techMenuKb;
 }
 
+let _tiktokSubMenuKb: TelegramBot.InlineKeyboardMarkup | null = null;
 export function tiktokSubMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  if (_tiktokSubMenuKb) return _tiktokSubMenuKb;
   const tiktokTechs = TECHS.filter((t) => TIKTOK_TECH_IDS.includes(t.id));
-  return {
+  _tiktokSubMenuKb = {
     inline_keyboard: [
       ...tiktokTechs.map((tech) => [{ text: tech.name, callback_data: `tech_${tech.id}` }]),
       [{ text: "⬅️ Retour aux Techs", callback_data: "menu_tech" }],
     ],
   };
+  return _tiktokSubMenuKb;
 }
 
+const _abonnementMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🎬 Streaming", callback_data: "cat_streaming" }],
+    [{ text: "🤖 IA", callback_data: "cat_ia" }],
+    [{ text: "🎵 Musique", callback_data: "cat_musique" }],
+    [{ text: "⚽ Sport", callback_data: "cat_sport" }],
+    [{ text: "✨ Autres", callback_data: "cat_autres" }],
+    [{ text: "↩️ Retour", callback_data: "menu_achat" }],
+  ],
+};
 export function abonnementMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🎬 Streaming", callback_data: "cat_streaming" }],
-      [{ text: "🤖 IA", callback_data: "cat_ia" }],
-      [{ text: "🎵 Musique", callback_data: "cat_musique" }],
-      [{ text: "⚽ Sport", callback_data: "cat_sport" }],
-      [{ text: "✨ Autres", callback_data: "cat_autres" }],
-      [{ text: "↩️ Retour", callback_data: "menu_achat" }],
-    ],
-  };
+  return _abonnementMenuKb;
 }
 
+const _streamingMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "🍿 Netflix (avec pub)", callback_data: "sub_new_nf_pub" },
+      { text: "🍿 Netflix (sans pub)", callback_data: "sub_new_nf_nopub" },
+    ],
+    [
+      { text: "🏰 Disney+", callback_data: "sub_new_disney" },
+      { text: "🌸 Crunchyroll Mega Fan", callback_data: "sub_new_crunchyroll" },
+    ],
+    [
+      { text: "📦 Prime Video", callback_data: "sub_new_primevideo" },
+      { text: "🍏 Apple TV+", callback_data: "sub_new_appletv" },
+    ],
+    [{ text: "⭐ Paramount+", callback_data: "sub_new_paramount" }],
+    [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+  ],
+};
 export function streamingMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "🍿 Netflix (avec pub)", callback_data: "sub_new_nf_pub" },
-        { text: "🍿 Netflix (sans pub)", callback_data: "sub_new_nf_nopub" },
-      ],
-      [
-        { text: "🏰 Disney+", callback_data: "sub_new_disney" },
-        { text: "🌸 Crunchyroll Mega Fan", callback_data: "sub_new_crunchyroll" },
-      ],
-      [
-        { text: "📦 Prime Video", callback_data: "sub_new_primevideo" },
-        { text: "🍏 Apple TV+", callback_data: "sub_new_appletv" },
-      ],
-      [{ text: "⭐ Paramount+", callback_data: "sub_new_paramount" }],
-      [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
-    ],
-  };
+  return _streamingMenuKb;
 }
 
+const _iaMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "✨ Gemini Pro+", callback_data: "sub_new_gemini" },
+      { text: "🤖 ChatGPT", callback_data: "cat_chatgpt" },
+    ],
+    [{ text: "🧠 Claude MAX", callback_data: "cat_claude" }],
+    [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+  ],
+};
 export function iaMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "✨ Gemini Pro+", callback_data: "sub_new_gemini" },
-        { text: "🤖 ChatGPT", callback_data: "cat_chatgpt" },
-      ],
-      [{ text: "🧠 Claude MAX", callback_data: "cat_claude" }],
-      [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
-    ],
-  };
+  return _iaMenuKb;
 }
 
+const _claudeMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🧠 Claude MAX — 1 Mois — 20€", callback_data: "sub_new_claude_1m" }],
+    [{ text: "⚡ Claude MAX — 1 Jour — 5€", callback_data: "sub_new_claude_1j" }],
+    [{ text: "↩️ Retour", callback_data: "cat_ia" }],
+  ],
+};
 export function claudeMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🧠 Claude MAX — 1 Mois — 20€", callback_data: "sub_new_claude_1m" }],
-      [{ text: "⚡ Claude MAX — 1 Jour — 5€", callback_data: "sub_new_claude_1j" }],
-      [{ text: "↩️ Retour", callback_data: "cat_ia" }],
-    ],
-  };
+  return _claudeMenuKb;
 }
 
+const _chatgptMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "💬 ChatGPT Plus — 1 Mois — 10€", callback_data: "sub_new_chatgpt" }],
+    [{ text: "🤖 ChatGPT Go — 1 An — 20€", callback_data: "sub_new_chatgpt_go" }],
+    [{ text: "↩️ Retour", callback_data: "cat_ia" }],
+  ],
+};
 export function chatgptMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "💬 ChatGPT Plus — 1 Mois — 10€", callback_data: "sub_new_chatgpt" },
-      ],
-      [
-        { text: "🤖 ChatGPT Go — 1 An — 20€", callback_data: "sub_new_chatgpt_go" },
-      ],
-      [{ text: "↩️ Retour", callback_data: "cat_ia" }],
-    ],
-  };
+  return _chatgptMenuKb;
 }
 
-export function musiqueMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "🎵 Spotify Premium", callback_data: "sub_new_spotify" },
-        { text: "▶️ YouTube Premium", callback_data: "sub_new_youtube" },
-      ],
-      [{ text: "🎧 Deezer Premium — Achat en lot", callback_data: "buy_deezer" }],
-      [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+const _musiqueMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "🎵 Spotify Premium", callback_data: "sub_new_spotify" },
+      { text: "▶️ YouTube Premium", callback_data: "sub_new_youtube" },
     ],
-  };
+    [{ text: "🎧 Deezer Premium — Achat en lot", callback_data: "buy_deezer" }],
+    [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+  ],
+};
+export function musiqueMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return _musiqueMenuKb;
 }
 
 export function deezerBulkMenuKeyboard(stock: number): TelegramBot.InlineKeyboardMarkup {
@@ -267,40 +277,43 @@ export function deezerBulkConfirmKeyboard(lotId: string, price: number): Telegra
   };
 }
 
+const _deezerBuyKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "✅ Acheter maintenant — 2€", callback_data: "buy_deezer_cnf" }],
+    [{ text: "🛒 Ajouter au panier", callback_data: "cart_add_deezer" }],
+    [{ text: "↩️ Retour", callback_data: "cat_musique" }],
+  ],
+};
 export function deezerBuyKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "✅ Acheter maintenant — 2€", callback_data: "buy_deezer_cnf" }],
-      [{ text: "🛒 Ajouter au panier", callback_data: "cart_add_deezer" }],
-      [{ text: "↩️ Retour", callback_data: "cat_musique" }],
-    ],
-  };
+  return _deezerBuyKb;
 }
 
+const _sportMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "💪 Basic-Fit", callback_data: "sub_bf" },
+      { text: "🏋️ Fitness Park", callback_data: "sub_fp" },
+    ],
+    [{ text: "📺 IPTV", callback_data: "menu_iptv" }],
+    [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
+  ],
+};
 export function sportMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "💪 Basic-Fit", callback_data: "sub_bf" },
-        { text: "🏋️ Fitness Park", callback_data: "sub_fp" },
-      ],
-      [{ text: "📺 IPTV", callback_data: "menu_iptv" }],
-      [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
-    ],
-  };
+  return _sportMenuKb;
 }
 
-export function autresMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "✂️ CapCut Pro", callback_data: "sub_new_capcut" },
-        { text: "🦉 Duolingo Super", callback_data: "sub_new_duolingo" },
-      ],
-      [{ text: "🗺️ Télépéage Ulys", callback_data: "sub_new_telepeage" }],
-      [{ text: "Retour", callback_data: "menu_abonnement" }],
+const _autresMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "✂️ CapCut Pro", callback_data: "sub_new_capcut" },
+      { text: "🦉 Duolingo Super", callback_data: "sub_new_duolingo" },
     ],
-  };
+    [{ text: "🗺️ Télépéage Ulys", callback_data: "sub_new_telepeage" }],
+    [{ text: "Retour", callback_data: "menu_abonnement" }],
+  ],
+};
+export function autresMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return _autresMenuKb;
 }
 
 export function subNewDetailKeyboard(subId: string, price: number): TelegramBot.InlineKeyboardMarkup {
@@ -357,14 +370,15 @@ export function iptvMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
   };
 }
 
+const _paymentMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🪙 Crypto — Litecoin (LTC)", callback_data: "pay_ltc" }],
+    [{ text: "🅿️ PayPal", callback_data: "pay_paypal" }],
+    [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+  ],
+};
 export function paymentMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🪙 Crypto — Litecoin (LTC)", callback_data: "pay_ltc" }],
-      [{ text: "🅿️ PayPal", callback_data: "pay_paypal" }],
-      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-    ],
-  };
+  return _paymentMenuKb;
 }
 
 export function paymentAmountKeyboard(method: string): TelegramBot.InlineKeyboardMarkup {
@@ -385,14 +399,15 @@ export function paymentAmountKeyboard(method: string): TelegramBot.InlineKeyboar
   };
 }
 
+const _supportMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "📦 Remplacement produit", callback_data: "support_replacement" }],
+    [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+    [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+  ],
+};
 export function supportMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "📦 Remplacement produit", callback_data: "support_replacement" }],
-      [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
-      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-    ],
-  };
+  return _supportMenuKb;
 }
 
 export function techConfirmKeyboard(techId: string): TelegramBot.InlineKeyboardMarkup {
@@ -407,35 +422,23 @@ export function techConfirmKeyboard(techId: string): TelegramBot.InlineKeyboardM
   };
 }
 
+const _backToMainKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [[{ text: "🏠 Menu Principal", callback_data: "menu_main" }]],
+};
 export function backToMainKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [[{ text: "🏠 Menu Principal", callback_data: "menu_main" }]],
-  };
+  return _backToMainKb;
 }
 
+const _backToPaymentKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "⬅️ Retour Paiement", callback_data: "menu_payment" }],
+    [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+  ],
+};
 export function backToPaymentKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "⬅️ Retour Paiement", callback_data: "menu_payment" }],
-      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-    ],
-  };
+  return _backToPaymentKb;
 }
 
-export function removeServKeyboard(disabledIds: Set<string>): TelegramBot.InlineKeyboardMarkup {
-  const ALL_SERVICE_IDS = [
-    "tech", "deezer", "deezer_gen", "iptv", "sub_new", "streaming", "ia", "musique",
-  ];
-  return {
-    inline_keyboard: [
-      ...ALL_SERVICE_IDS.map((id) => [{
-        text: disabledIds.has(id) ? `❌ ${id}` : `✅ ${id}`,
-        callback_data: `admin_toggle_${id}`,
-      }]),
-      [{ text: "✅ Fermer", callback_data: "admin_removeserv_close" }],
-    ],
-  };
-}
 
 // ── Panier ─────────────────────────────────────────────────────────────────
 
@@ -476,25 +479,22 @@ export function cartEmptyKeyboard(): TelegramBot.InlineKeyboardMarkup {
   };
 }
 
-export function buildRemoveServKeyboard(disabledIds: Set<string> = new Set()): TelegramBot.InlineKeyboardMarkup {
-  return removeServKeyboard(disabledIds);
-}
-
 // ── Admin Menu ──────────────────────────────────────────────────────────────
 
+const _adminMainMenuKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "📊 Statistiques & Stock", callback_data: "admin_cat_stats" }],
+    [{ text: "👥 Utilisateurs", callback_data: "admin_cat_users" }],
+    [{ text: "🎧 Deezer", callback_data: "admin_cat_deezer" }],
+    [{ text: "🎟️ Coupons", callback_data: "admin_cat_coupons" }],
+    [{ text: "🛒 Services", callback_data: "admin_cat_services" }],
+    [{ text: "🎰 Mini-jeux", callback_data: "admin_cat_minigames" }],
+    [{ text: "📢 Communication", callback_data: "admin_cat_comm" }],
+    [{ text: "🔧 Système", callback_data: "admin_cat_sys" }],
+  ],
+};
 export function adminMainMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "📊 Statistiques & Stock", callback_data: "admin_cat_stats" }],
-      [{ text: "👥 Utilisateurs", callback_data: "admin_cat_users" }],
-      [{ text: "🎧 Deezer", callback_data: "admin_cat_deezer" }],
-      [{ text: "🎟️ Coupons", callback_data: "admin_cat_coupons" }],
-      [{ text: "🛒 Services", callback_data: "admin_cat_services" }],
-      [{ text: "🎰 Mini-jeux", callback_data: "admin_cat_minigames" }],
-      [{ text: "📢 Communication", callback_data: "admin_cat_comm" }],
-      [{ text: "🔧 Système", callback_data: "admin_cat_sys" }],
-    ],
-  };
+  return _adminMainMenuKb;
 }
 
 export function adminMinigamesKeyboard(ticketCount: number): TelegramBot.InlineKeyboardMarkup {
@@ -507,46 +507,49 @@ export function adminMinigamesKeyboard(ticketCount: number): TelegramBot.InlineK
   };
 }
 
+const _adminCouponsKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "📋 Panel complet (stats & édition)", callback_data: "admin_do_coupon_panel" }],
+    [{ text: "➕ Créer un coupon", callback_data: "admin_do_coupon_add" }],
+    [{ text: "📄 Lister tous les coupons", callback_data: "admin_do_coupon_list" }],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
 export function adminCouponsKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "📋 Panel complet (stats & édition)", callback_data: "admin_do_coupon_panel" }],
-      [{ text: "➕ Créer un coupon", callback_data: "admin_do_coupon_add" }],
-      [{ text: "📄 Lister tous les coupons", callback_data: "admin_do_coupon_list" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
+  return _adminCouponsKb;
 }
 
+const _adminStatsKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "📊 Stats globales", callback_data: "admin_do_stats" }],
+    [{ text: "📦 État du stock", callback_data: "admin_do_stock" }],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
 export function adminStatsKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "📊 Stats globales", callback_data: "admin_do_stats" }],
-      [{ text: "📦 État du stock", callback_data: "admin_do_stock" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
+  return _adminStatsKb;
 }
 
-export function adminUsersKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "💰 Ajouter du solde", callback_data: "admin_do_add_balance" }],
-      [
-        { text: "⭐ Ajouter des points", callback_data: "admin_do_add_points" },
-        { text: "⭐ Retirer des points", callback_data: "admin_do_remove_points" },
-      ],
-      [
-        { text: "🔍 Profil utilisateur", callback_data: "admin_do_profile" },
-        { text: "📋 Commandes", callback_data: "admin_do_orders" },
-      ],
-      [
-        { text: "🚫 Bannir", callback_data: "admin_do_ban" },
-        { text: "✅ Débannir", callback_data: "admin_do_unban" },
-      ],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+const _adminUsersKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "💰 Ajouter du solde", callback_data: "admin_do_add_balance" }],
+    [
+      { text: "⭐ Ajouter des points", callback_data: "admin_do_add_points" },
+      { text: "⭐ Retirer des points", callback_data: "admin_do_remove_points" },
     ],
-  };
+    [
+      { text: "🔍 Profil utilisateur", callback_data: "admin_do_profile" },
+      { text: "📋 Commandes", callback_data: "admin_do_orders" },
+    ],
+    [
+      { text: "🚫 Bannir", callback_data: "admin_do_ban" },
+      { text: "✅ Débannir", callback_data: "admin_do_unban" },
+    ],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
+export function adminUsersKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return _adminUsersKb;
 }
 
 export function adminDeezerKeyboard(stockCount: number): TelegramBot.InlineKeyboardMarkup {
@@ -560,40 +563,44 @@ export function adminDeezerKeyboard(stockCount: number): TelegramBot.InlineKeybo
   };
 }
 
+const _adminDeezerClearConfirmKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [
+      { text: "⚠️ Oui, vider tout", callback_data: "admin_do_deezer_clear_cnf" },
+      { text: "❌ Annuler", callback_data: "admin_cat_deezer" },
+    ],
+  ],
+};
 export function adminDeezerClearConfirmKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [
-        { text: "⚠️ Oui, vider tout", callback_data: "admin_do_deezer_clear_cnf" },
-        { text: "❌ Annuler", callback_data: "admin_cat_deezer" },
-      ],
-    ],
-  };
+  return _adminDeezerClearConfirmKb;
 }
 
+const _adminServicesKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "⚙️ Activer / Désactiver des services", callback_data: "admin_do_services" }],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
 export function adminServicesKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "⚙️ Activer / Désactiver des services", callback_data: "admin_do_services" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
+  return _adminServicesKb;
 }
 
+const _adminCommKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "📡 Broadcast (message à tous)", callback_data: "admin_do_broadcast" }],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
 export function adminCommKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "📡 Broadcast (message à tous)", callback_data: "admin_do_broadcast" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
+  return _adminCommKb;
 }
 
+const _adminSysKb: TelegramBot.InlineKeyboardMarkup = {
+  inline_keyboard: [
+    [{ text: "🧪 Tester les webhooks Discord", callback_data: "admin_do_discord" }],
+    [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
+  ],
+};
 export function adminSysKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: "🧪 Tester les webhooks Discord", callback_data: "admin_do_discord" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
+  return _adminSysKb;
 }
