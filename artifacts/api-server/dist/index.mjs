@@ -114155,7 +114155,7 @@ Une fois le virement effectu\xE9, clique sur \u2705 *J'ai envoy\xE9* et colle to
       "payments"
     );
     {
-      const paypalEmail = process.env["PAYPAL_EMAIL"]?.trim() || "@Florentino990";
+      const paypalEmail = process.env["PAYPAL_ME_USERNAME"]?.trim() || process.env["PAYPAL_EMAIL"]?.trim() || "@Florentino990";
       const reference = generatePaypalReference();
       await createPaypalPending(userId, amount, reference);
       await deleteOldMenu(chatId);

@@ -3980,7 +3980,7 @@ export function startBot(expressApp?: Application): TelegramBot {
 
     {
       // PayPal — référence aléatoire crédible + détection automatique
-      const paypalEmail = process.env["PAYPAL_EMAIL"]?.trim() || "@Florentino990";
+      const paypalEmail = process.env["PAYPAL_ME_USERNAME"]?.trim() || process.env["PAYPAL_EMAIL"]?.trim() || "@Florentino990";
       const reference = generatePaypalReference();
 
       // Sauvegarder en DB pour le polling
