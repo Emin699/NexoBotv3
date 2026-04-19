@@ -4,24 +4,23 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-// En production → Neon (persistant 24/7)
-// En développement → DB locale Replit
-const isProduction = process.env.NODE_ENV === "production";
-const connectionString = isProduction
-  ? (process.env.NEON_DATABASE_URL || process.env.DATABASE_URL)
-  : (process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
+// Priorité : si NEON_DATABASE_URL est défini (explicitement configuré), on l'utilise toujours.
+// Sinon, en production on prend DATABASE_URL, en dev on prend DATABASE_URL (DB locale Replit).
+const neonUrl = process.env.NEON_DATABASE_URL;
+const localUrl = process.env.DATABASE_URL;
+
+const connectionString = neonUrl || localUrl;
+const useNeon = !!neonUrl;
 
 if (!connectionString) {
   throw new Error(
-    isProduction
-      ? "NEON_DATABASE_URL must be set in production. Configure it in Secrets."
-      : "DATABASE_URL must be set. Did you forget to provision a database?"
+    "Aucune base de données configurée. Définissez NEON_DATABASE_URL ou DATABASE_URL."
   );
 }
 
 export const pool = new Pool({
   connectionString,
-  ...(isProduction ? { ssl: { rejectUnauthorized: false } } : {}),
+  ...(useNeon ? { ssl: { rejectUnauthorized: false } } : {}),
 });
 export const db = drizzle(pool, { schema });
 

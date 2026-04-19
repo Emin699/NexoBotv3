@@ -108246,16 +108246,18 @@ var reviewsTable = pgTable("reviews", {
 
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
-var isProduction2 = process.env.NODE_ENV === "production";
-var connectionString = isProduction2 ? process.env.NEON_DATABASE_URL || process.env.DATABASE_URL : process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+var neonUrl = process.env.NEON_DATABASE_URL;
+var localUrl = process.env.DATABASE_URL;
+var connectionString = neonUrl || localUrl;
+var useNeon = !!neonUrl;
 if (!connectionString) {
   throw new Error(
-    isProduction2 ? "NEON_DATABASE_URL must be set in production. Configure it in Secrets." : "DATABASE_URL must be set. Did you forget to provision a database?"
+    "Aucune base de donn\xE9es configur\xE9e. D\xE9finissez NEON_DATABASE_URL ou DATABASE_URL."
   );
 }
 var pool = new Pool3({
   connectionString,
-  ...isProduction2 ? { ssl: { rejectUnauthorized: false } } : {}
+  ...useNeon ? { ssl: { rejectUnauthorized: false } } : {}
 });
 var db = drizzle(pool, { schema: schema_exports });
 
