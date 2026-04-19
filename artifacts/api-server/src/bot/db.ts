@@ -538,6 +538,14 @@ export async function getJackpotTicketCount(): Promise<number> {
   return Number(row?.cnt ?? 0);
 }
 
+export async function getUserJackpotTicketCount(telegramId: number): Promise<number> {
+  const [row] = await db
+    .select({ cnt: count() })
+    .from(jackpotTicketsTable)
+    .where(sql`${jackpotTicketsTable.drawnAt} IS NULL AND ${jackpotTicketsTable.telegramId} = ${telegramId}`);
+  return Number(row?.cnt ?? 0);
+}
+
 export async function getJackpotStats(): Promise<{ totalTickets: number; uniqueUsers: number }> {
   const tickets = await db
     .select({ telegramId: jackpotTicketsTable.telegramId })

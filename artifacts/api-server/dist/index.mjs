@@ -108533,6 +108533,10 @@ async function recordWheelSpin(telegramId) {
 async function addJackpotTicket(telegramId) {
   await db.insert(jackpotTicketsTable).values({ telegramId });
 }
+async function getUserJackpotTicketCount(telegramId) {
+  const [row] = await db.select({ cnt: count() }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL AND ${jackpotTicketsTable.telegramId} = ${telegramId}`);
+  return Number(row?.cnt ?? 0);
+}
 async function getJackpotStats() {
   const tickets = await db.select({ telegramId: jackpotTicketsTable.telegramId }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
   const uniqueUsers = new Set(tickets.map((t) => t.telegramId)).size;
@@ -109266,9 +109270,12 @@ function mainMenuKeyboard() {
       [{ text: "\u{1F3EA} Boutique", callback_data: "menu_achat" }],
       [
         { text: "\u{1F4B3} Recharge", callback_data: "menu_payment" },
-        { text: "\u{1F198} Support", callback_data: "menu_support" }
+        { text: "\u{1F6CD}\uFE0F Mon Panier", callback_data: "cart_view" }
       ],
-      [{ text: "\u{1F6CD}\uFE0F Mon Panier", callback_data: "cart_view" }],
+      [
+        { text: "\u{1F4E2} Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
+        { text: "\u{1F48E} Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" }
+      ],
       [{ text: "\u2139\uFE0F Informations", callback_data: "menu_infos" }]
     ]
   };
@@ -109277,13 +109284,24 @@ function informationsMenuKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: "\u{1F4E2} Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
-        { text: "\u{1F48E} Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" }
+        { text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" },
+        { text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }
       ],
-      [{ text: "\u{1F3A1} Roue du Destin \u2014 R\xE9compense quotidienne", callback_data: "menu_wheel" }],
-      [{ text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" }],
-      [{ text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }],
+      [
+        { text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" },
+        { text: "\u{1F3C6} Palier", callback_data: "menu_palier" }
+      ],
+      [{ text: "\u{1F4AC} Contacter le support", callback_data: "menu_support" }],
       [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+    ]
+  };
+}
+function minijeuxMenuKeyboard() {
+  return {
+    inline_keyboard: [
+      [{ text: "\u{1F3A1} Roue du Destin", callback_data: "menu_wheel" }],
+      [{ text: "\u{1F3B0} Jackpot \u2014 Mes tickets", callback_data: "menu_jackpot_info" }],
+      [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
     ]
   };
 }
@@ -112054,7 +112072,7 @@ Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
       if (data === "menu_infos") {
         const caption = `\u2139\uFE0F *Informations*
 
-Retrouvez ici notre canal, nos preuves de vente, la \u{1F3A1} *Roue du Destin* quotidienne, le parrainage et vos points de fid\xE9lit\xE9.`;
+Retrouvez ici votre parrainage, vos points de fid\xE9lit\xE9, les mini-jeux, vos paliers de r\xE9compenses et le support.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption,
@@ -112065,6 +112083,74 @@ Retrouvez ici notre canal, nos preuves de vente, la \u{1F3A1} *Roue du Destin* q
           logger.warn({ err, path: `${PUBLIC_PATH}/infos.png` }, "menu_infos: \xE9chec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: informationsMenuKeyboard() });
         }
+        return;
+      }
+      if (data === "menu_minijeux") {
+        const ticketCount = await getUserJackpotTicketCount(userId);
+        await sendMenu(
+          chatId,
+          `\u{1F3AE} *Mini-Jeux NexoShop*
+
+\u{1F3A1} *Roue du Destin* \u2014 Tourne chaque jour pour gagner des r\xE9compenses.
+
+\u{1F3B0} *Jackpot hebdomadaire* \u2014 Tu as *${ticketCount} ticket${ticketCount > 1 ? "s" : ""}* en jeu. Un tirage est effectu\xE9 chaque semaine par l'admin parmi tous les acheteurs.
+
+Choisis ci-dessous :`,
+          minijeuxMenuKeyboard()
+        );
+        return;
+      }
+      if (data === "menu_jackpot_info") {
+        const count2 = await getUserJackpotTicketCount(userId);
+        const { totalTickets, uniqueUsers } = await getJackpotStats();
+        await sendMenu(
+          chatId,
+          `\u{1F3B0} *Jackpot NexoShop*
+
+Chaque achat te rapporte *1 ticket* pour le tirage au sort hebdomadaire.
+
+\u{1F39F}\uFE0F *Tes tickets :* ${count2}
+\u{1F465} Participants actuels : ${uniqueUsers}
+\u{1F4CA} Total tickets en jeu : ${totalTickets}
+
+_Plus tu ach\xE8tes, plus tu as de chances de gagner !_`,
+          { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_minijeux" }]] }
+        );
+        return;
+      }
+      if (data === "menu_palier") {
+        const userProfile = await getUserProfile(userId);
+        const purchaseCount = userProfile?.purchaseCount ?? 0;
+        const milestones = [
+          { count: 1, reward: "20 pts de fid\xE9lit\xE9", emoji: "\u{1F31F}" },
+          { count: 5, reward: "Coupon -5%", emoji: "\u{1F39F}\uFE0F" },
+          { count: 10, reward: "100 pts de fid\xE9lit\xE9", emoji: "\u{1F4AB}" },
+          { count: 15, reward: "Coupon -10%", emoji: "\u{1F39F}\uFE0F" },
+          { count: 20, reward: "200 pts de fid\xE9lit\xE9", emoji: "\u2B50" },
+          { count: 30, reward: "Coupon -15\u20AC", emoji: "\u{1F4B8}" },
+          { count: 50, reward: "Lien Deezer Premium", emoji: "\u{1F3A7}" }
+        ];
+        const lines = milestones.map((m) => {
+          const done = purchaseCount >= m.count;
+          const isCurrent = !done && purchaseCount < m.count;
+          const remaining = Math.max(0, m.count - purchaseCount);
+          if (done) return `\u2705 ${m.emoji} *${m.count} achats* \u2014 ${m.reward}`;
+          if (isCurrent && remaining === m.count - purchaseCount) {
+            return `\u2B1C ${m.emoji} *${m.count} achats* \u2014 ${m.reward} _(encore ${remaining})_`;
+          }
+          return `\u2B1C ${m.emoji} *${m.count} achats* \u2014 ${m.reward} _(encore ${remaining})_`;
+        });
+        await sendMenu(
+          chatId,
+          `\u{1F3C6} *Paliers de r\xE9compenses*
+
+Tu as effectu\xE9 *${purchaseCount} achat${purchaseCount > 1 ? "s" : ""}*.
+
+${lines.join("\n")}
+
+_Les r\xE9compenses sont attribu\xE9es automatiquement \xE0 chaque achat._`,
+          { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
+        );
         return;
       }
       if (data === "menu_wheel") {

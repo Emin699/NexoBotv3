@@ -10,9 +10,12 @@ export function mainMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
       [{ text: "🏪 Boutique", callback_data: "menu_achat" }],
       [
         { text: "💳 Recharge", callback_data: "menu_payment" },
-        { text: "🆘 Support", callback_data: "menu_support" },
+        { text: "🛍️ Mon Panier", callback_data: "cart_view" },
       ],
-      [{ text: "🛍️ Mon Panier", callback_data: "cart_view" }],
+      [
+        { text: "📢 Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
+        { text: "💎 Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" },
+      ],
       [{ text: "ℹ️ Informations", callback_data: "menu_infos" }],
     ],
   };
@@ -22,13 +25,25 @@ export function informationsMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: "📢 Canal", url: "https://t.me/+GD3nD3yT0XUxYmQ0" },
-        { text: "💎 Preuves", url: "https://t.me/+7goUQusx2_83Mzg0" },
+        { text: "🎁 Parrainage", callback_data: "menu_parrainage" },
+        { text: "⭐ Points de fidélité", callback_data: "menu_loyalty" },
       ],
-      [{ text: "🎡 Roue du Destin — Récompense quotidienne", callback_data: "menu_wheel" }],
-      [{ text: "🎁 Parrainage", callback_data: "menu_parrainage" }],
-      [{ text: "⭐ Points de fidélité", callback_data: "menu_loyalty" }],
+      [
+        { text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" },
+        { text: "🏆 Palier", callback_data: "menu_palier" },
+      ],
+      [{ text: "💬 Contacter le support", callback_data: "menu_support" }],
       [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+    ],
+  };
+}
+
+export function minijeuxMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: "🎡 Roue du Destin", callback_data: "menu_wheel" }],
+      [{ text: "🎰 Jackpot — Mes tickets", callback_data: "menu_jackpot_info" }],
+      [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
     ],
   };
 }

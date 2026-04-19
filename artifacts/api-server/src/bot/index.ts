@@ -14,7 +14,7 @@ import {
   getLoyaltyPoints, addLoyaltyPoints, deductLoyaltyPoints,
   incrementPurchaseCount,
   getLastWheelSpin, recordWheelSpin,
-  addJackpotTicket, getJackpotTicketCount, getJackpotStats, drawJackpotWinner,
+  addJackpotTicket, getJackpotTicketCount, getUserJackpotTicketCount, getJackpotStats, drawJackpotWinner,
 } from "./db";
 import { WHEEL_PRIZES, spinWheel, getMilestoneForCount, DEEZER_LOTS, getDeezerLotById } from "./minigames";
 import {
@@ -63,6 +63,7 @@ import {
   wheelMenuKeyboard,
   deezerBulkMenuKeyboard,
   deezerBulkConfirmKeyboard,
+  minijeuxMenuKeyboard,
 } from "./keyboards";
 import { getNewSubById } from "./subscriptions";
 import { getTechById } from "./techs";
@@ -1888,7 +1889,7 @@ export function startBot(expressApp?: Application): TelegramBot {
       if (data === "menu_infos") {
         const caption =
           `ℹ️ *Informations*\n\n` +
-          `Retrouvez ici notre canal, nos preuves de vente, la 🎡 *Roue du Destin* quotidienne, le parrainage et vos points de fidélité.`;
+          `Retrouvez ici votre parrainage, vos points de fidélité, les mini-jeux, vos paliers de récompenses et le support.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption, parse_mode: "Markdown", reply_markup: informationsMenuKeyboard(),
@@ -1897,6 +1898,72 @@ export function startBot(expressApp?: Application): TelegramBot {
           logger.warn({ err, path: `${PUBLIC_PATH}/infos.png` }, "menu_infos: échec envoi photo");
           await bot.sendMessage(chatId, caption, { parse_mode: "Markdown", reply_markup: informationsMenuKeyboard() });
         }
+        return;
+      }
+
+      // ── Mini-Jeux — Menu ──────────────────────────────────────────
+      if (data === "menu_minijeux") {
+        const ticketCount = await getUserJackpotTicketCount(userId);
+        await sendMenu(
+          chatId,
+          `🎮 *Mini-Jeux NexoShop*\n\n` +
+          `🎡 *Roue du Destin* — Tourne chaque jour pour gagner des récompenses.\n\n` +
+          `🎰 *Jackpot hebdomadaire* — Tu as *${ticketCount} ticket${ticketCount > 1 ? "s" : ""}* en jeu. ` +
+          `Un tirage est effectué chaque semaine par l'admin parmi tous les acheteurs.\n\n` +
+          `Choisis ci-dessous :`,
+          minijeuxMenuKeyboard()
+        );
+        return;
+      }
+
+      // ── Jackpot — Info tickets ────────────────────────────────────
+      if (data === "menu_jackpot_info") {
+        const count = await getUserJackpotTicketCount(userId);
+        const { totalTickets, uniqueUsers } = await getJackpotStats();
+        await sendMenu(
+          chatId,
+          `🎰 *Jackpot NexoShop*\n\n` +
+          `Chaque achat te rapporte *1 ticket* pour le tirage au sort hebdomadaire.\n\n` +
+          `🎟️ *Tes tickets :* ${count}\n` +
+          `👥 Participants actuels : ${uniqueUsers}\n` +
+          `📊 Total tickets en jeu : ${totalTickets}\n\n` +
+          `_Plus tu achètes, plus tu as de chances de gagner !_`,
+          { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_minijeux" }]] }
+        );
+        return;
+      }
+
+      // ── Palier — Progression ──────────────────────────────────────
+      if (data === "menu_palier") {
+        const userProfile = await getUserProfile(userId);
+        const purchaseCount = userProfile?.purchaseCount ?? 0;
+        const milestones = [
+          { count: 1,  reward: "20 pts de fidélité",    emoji: "🌟" },
+          { count: 5,  reward: "Coupon -5%",             emoji: "🎟️" },
+          { count: 10, reward: "100 pts de fidélité",    emoji: "💫" },
+          { count: 15, reward: "Coupon -10%",            emoji: "🎟️" },
+          { count: 20, reward: "200 pts de fidélité",    emoji: "⭐" },
+          { count: 30, reward: "Coupon -15€",            emoji: "💸" },
+          { count: 50, reward: "Lien Deezer Premium",    emoji: "🎧" },
+        ];
+        const lines = milestones.map((m) => {
+          const done = purchaseCount >= m.count;
+          const isCurrent = !done && purchaseCount < m.count;
+          const remaining = Math.max(0, m.count - purchaseCount);
+          if (done) return `✅ ${m.emoji} *${m.count} achats* — ${m.reward}`;
+          if (isCurrent && remaining === m.count - purchaseCount) {
+            return `⬜ ${m.emoji} *${m.count} achats* — ${m.reward} _(encore ${remaining})_`;
+          }
+          return `⬜ ${m.emoji} *${m.count} achats* — ${m.reward} _(encore ${remaining})_`;
+        });
+        await sendMenu(
+          chatId,
+          `🏆 *Paliers de récompenses*\n\n` +
+          `Tu as effectué *${purchaseCount} achat${purchaseCount > 1 ? "s" : ""}*.\n\n` +
+          `${lines.join("\n")}\n\n` +
+          `_Les récompenses sont attribuées automatiquement à chaque achat._`,
+          { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] }
+        );
         return;
       }
 
