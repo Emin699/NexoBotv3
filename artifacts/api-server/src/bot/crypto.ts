@@ -24,7 +24,6 @@ export async function getLtcEurRate(): Promise<number> {
     return rate;
   } catch (err) {
     logger.error({ err }, "Failed to fetch LTC/EUR rate");
-    // Retourne le cache périmé si dispo, sinon erreur
     if (rateCache) return rateCache.ltcEur;
     throw new Error("Impossible de récupérer le taux LTC/EUR. Réessaie dans quelques secondes.");
   }
@@ -49,4 +48,82 @@ export function getLtcAddress(): string {
 
 export function ltcExplorerUrl(txHash: string): string {
   return `https://blockchair.com/litecoin/transaction/${txHash}`;
+}
+
+// ── Vérification automatique d'une transaction LTC via Blockchair ──────────
+
+interface BlockchairTxOutput {
+  recipient: string;
+  value: number; // en satoshis
+}
+
+interface BlockchairTx {
+  transaction: {
+    hash: string;
+    confirmations: number;
+  };
+  outputs: BlockchairTxOutput[];
+}
+
+interface BlockchairResponse {
+  data: Record<string, BlockchairTx | null>;
+}
+
+export async function verifyLtcTransaction(
+  txHash: string,
+  expectedAddress: string,
+  expectedLtc: number
+): Promise<{
+  found: boolean;
+  confirmed: boolean;
+  amount?: number;
+  errorMsg?: string;
+}> {
+  try {
+    const url = `https://api.blockchair.com/litecoin/dashboards/transaction/${txHash.toLowerCase()}`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (res.status === 404) return { found: false, confirmed: false };
+    if (!res.ok) {
+      return { found: false, confirmed: false, errorMsg: `Blockchair API erreur HTTP ${res.status}` };
+    }
+
+    const raw = await res.json() as BlockchairResponse;
+    const tx = raw?.data?.[txHash.toLowerCase()];
+    if (!tx) return { found: false, confirmed: false };
+
+    const confirmations = tx.transaction?.confirmations ?? 0;
+    const outputs = tx.outputs ?? [];
+
+    // Cherche une sortie vers notre adresse LTC
+    const addrLower = expectedAddress.toLowerCase();
+    const output = outputs.find((o) => (o.recipient ?? "").toLowerCase() === addrLower);
+
+    if (!output) {
+      return {
+        found: true,
+        confirmed: false,
+        errorMsg: "Adresse de destination incorrecte dans la transaction",
+      };
+    }
+
+    const receivedLtc = output.value / 1e8; // satoshis → LTC
+    const tolerance = expectedLtc * 0.02; // 2% de tolérance
+    if (Math.abs(receivedLtc - expectedLtc) > tolerance) {
+      return {
+        found: true,
+        confirmed: false,
+        amount: receivedLtc,
+        errorMsg: `Montant incorrect (reçu: ${receivedLtc.toFixed(6)} LTC, attendu: ${expectedLtc.toFixed(6)} LTC)`,
+      };
+    }
+
+    return { found: true, confirmed: confirmations >= 1, amount: receivedLtc };
+  } catch (err) {
+    logger.error({ err }, "LTC TX verification error");
+    return { found: false, confirmed: false, errorMsg: "Erreur connexion blockchain" };
+  }
 }

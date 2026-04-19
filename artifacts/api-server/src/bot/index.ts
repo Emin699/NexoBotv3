@@ -70,7 +70,7 @@ import {
   checkPayPalTransactions,
   isPayPalConfigured,
 } from "./paypal";
-import { eurToLtc, getLtcAddress, ltcExplorerUrl } from "./crypto";
+import { eurToLtc, getLtcAddress, ltcExplorerUrl, verifyLtcTransaction } from "./crypto";
 import {
   createReferral,
   getReferralStats,
@@ -138,6 +138,16 @@ const pendingTelepeage = new Map<number, TelepeageState>();
 
 // ── Paiement Crypto LTC en attente de TX hash ──────────────────────────────
 const pendingCryptoTx = new Map<number, { amount: number; ltc: number; ltcAddress: string }>();
+
+// ── LTC transactions soumises en attente de confirmation blockchain ─────────
+const pendingLtcVerification = new Map<number, {
+  txHash: string;
+  amount: number;
+  ltc: number;
+  ltcAddress: string;
+  submittedAt: number;
+  attempts: number;
+}>();
 
 // ── Services désactivés par l'admin ────────────────────────────────────────
 const disabledServices = new Set<string>();
@@ -708,6 +718,87 @@ export function startBot(expressApp?: Application): TelegramBot {
   if (isPayPalConfigured()) {
     setInterval(pollPayPalPayments, 45_000);
     logger.info("PayPal payment polling started");
+  }
+
+  // ── Polling vérification LTC toutes les 2 minutes ──────────────────────────
+  async function pollLtcPayments() {
+    for (const [userId, pending] of pendingLtcVerification) {
+      // Expiration après 2h
+      if (Date.now() - pending.submittedAt > 2 * 60 * 60 * 1000) {
+        pendingLtcVerification.delete(userId);
+        try {
+          await bot.sendMessage(
+            userId,
+            `⌛ *Délai dépassé*\n\nTa transaction LTC \`${pending.txHash.slice(0, 16)}...\` n'a pas pu être confirmée dans les 2h.\nContacte le support si le paiement a bien été effectué.`,
+            { parse_mode: "Markdown", reply_markup: backToMainKeyboard() }
+          );
+        } catch { /* user may have blocked bot */ }
+        continue;
+      }
+
+      pending.attempts++;
+      try {
+        const result = await verifyLtcTransaction(pending.txHash, pending.ltcAddress, pending.ltc);
+        logger.info({ txHash: pending.txHash, ...result }, "LTC TX check");
+
+        if (result.confirmed && result.amount !== undefined) {
+          pendingLtcVerification.delete(userId);
+          await addBalance(userId, pending.amount, `Rechargement LTC — ${pending.txHash.slice(0, 12)}...`);
+          const newBal = await getBalance(userId);
+          const ltcUser = await getOrCreateUser(userId);
+          sendCreditLog(
+            userId,
+            ltcUser?.username,
+            ltcUser?.firstName,
+            pending.amount,
+            newBal - pending.amount,
+            newBal,
+            { type: "Admin", ref: `LTC:${pending.txHash.slice(0, 12)}` }
+          ).catch((err) => logger.error({ err }, "Error sendCreditLog LTC"));
+          sendDiscordLog(
+            "🪙 Paiement LTC confirmé",
+            `Transaction Litecoin confirmée et créditée automatiquement.`,
+            0xf7931a,
+            [
+              { name: "User ID", value: `\`${userId}\``, inline: true },
+              { name: "Montant", value: `**+${pending.amount.toFixed(2)}€**`, inline: true },
+              { name: "LTC reçu", value: `${result.amount.toFixed(6)} LTC`, inline: true },
+              { name: "Nouveau solde", value: `${newBal.toFixed(2)}€`, inline: true },
+              { name: "TX Hash", value: `[${pending.txHash.slice(0, 16)}...](${ltcExplorerUrl(pending.txHash)})`, inline: false },
+            ],
+            "payments"
+          );
+          try {
+            await bot.sendMessage(
+              userId,
+              `✅ *Paiement LTC confirmé !*\n\n` +
+              `🪙 Ta transaction a été vérifiée sur la blockchain.\n` +
+              `+${pending.amount.toFixed(2)}€ crédités sur ton solde.\n` +
+              `💰 Nouveau solde : *${newBal.toFixed(2)}€*\n\n` +
+              `TX : \`${pending.txHash}\``,
+              { parse_mode: "Markdown", reply_markup: backToMainKeyboard() }
+            );
+          } catch { /* user may have blocked bot */ }
+          checkAndPayReferralBonus(userId, async (referrerId, filleulId) => {
+            const parrainBal = await getBalance(referrerId);
+            try {
+              await bot.sendMessage(
+                referrerId,
+                `🎁 *Bonus parrainage reçu !*\n\nTon filleul \`${filleulId}\` a rechargé et ton compte a été crédité de *+${REFERRAL_BONUS}€* !\n💰 Solde : *${parrainBal.toFixed(2)}€*`,
+                { parse_mode: "Markdown", reply_markup: backToMainKeyboard() }
+              );
+            } catch { /* ignore */ }
+          }).catch((err) => logger.error({ err }, "Error paying referral bonus (LTC)"));
+        }
+      } catch (err) {
+        logger.error({ err, txHash: pending.txHash }, "Error polling LTC TX");
+      }
+    }
+  }
+
+  if (process.env["LTC_ADDRESS"]?.trim()) {
+    setInterval(pollLtcPayments, 2 * 60 * 1000); // toutes les 2 minutes
+    logger.info("LTC payment polling started");
   }
 
   // ── Commandes ─────────────────────────────────────────────────────────────
@@ -3896,25 +3987,49 @@ export function startBot(expressApp?: Application): TelegramBot {
       await createPaypalPending(userId, amount, reference);
 
       await deleteOldMenu(chatId);
-      await sendReceipt(
-        chatId,
-        `🅿️ *Paiement PayPal — ${amount.toFixed(2)}€*\n\n` +
-        `👤 Envoie *${amount.toFixed(2)}€* à ce compte PayPal :\n` +
-        `\`${paypalEmail}\`\n\n` +
-        `📌 *Instructions :*\n` +
-        `1. Ouvre PayPal → Envoyer de l'argent\n` +
-        `2. Entre le nom ci-dessus dans la barre de recherche\n` +
-        `3. Montant exact : *${amount.toFixed(2)}€*\n` +
-        `4. Confirme le paiement\n` +
-        `5. Clique sur ✅ *J'ai payé* ci-dessous pour notifier l'admin\n\n` +
-        `_Votre solde sera crédité après vérification (généralement sous 5 min)._`,
-        {
-          inline_keyboard: [
-            [{ text: "✅ J'ai payé", callback_data: `proof_${userId}_${amount.toFixed(2)}` }],
-            [{ text: "❌ Annuler", callback_data: `cancel_pay_paypal_${userId}` }],
-          ],
-        }
-      );
+
+      if (isPayPalConfigured()) {
+        // API PayPal configurée → vérification automatique, pas de screenshot nécessaire
+        await sendReceipt(
+          chatId,
+          `🅿️ *Paiement PayPal — ${amount.toFixed(2)}€*\n\n` +
+          `👤 Envoie exactement *${amount.toFixed(2)}€* à :\n` +
+          `\`${paypalEmail}\`\n\n` +
+          `📌 *Instructions :*\n` +
+          `1. Ouvre PayPal → Envoyer de l'argent\n` +
+          `2. Recherche : \`${paypalEmail}\`\n` +
+          `3. Montant exact : *${amount.toFixed(2)}€*\n` +
+          `4. Note de paiement : \`${reference}\`\n` +
+          `5. Confirme le paiement\n\n` +
+          `⚡ *Détection automatique* — Ton solde sera crédité automatiquement dès réception du paiement (généralement sous 2 min). Tu recevras une notification.`,
+          {
+            inline_keyboard: [
+              [{ text: "❌ Annuler", callback_data: `cancel_pay_paypal_${userId}` }],
+            ],
+          }
+        );
+      } else {
+        // Pas d'API PayPal → demande screenshot pour validation manuelle
+        await sendReceipt(
+          chatId,
+          `🅿️ *Paiement PayPal — ${amount.toFixed(2)}€*\n\n` +
+          `👤 Envoie *${amount.toFixed(2)}€* à ce compte PayPal :\n` +
+          `\`${paypalEmail}\`\n\n` +
+          `📌 *Instructions :*\n` +
+          `1. Ouvre PayPal → Envoyer de l'argent\n` +
+          `2. Entre le nom ci-dessus dans la barre de recherche\n` +
+          `3. Montant exact : *${amount.toFixed(2)}€*\n` +
+          `4. Confirme le paiement\n` +
+          `5. Clique sur ✅ *J'ai payé* ci-dessous pour notifier l'admin\n\n` +
+          `_Votre solde sera crédité après vérification (généralement sous 5 min)._`,
+          {
+            inline_keyboard: [
+              [{ text: "✅ J'ai payé", callback_data: `proof_${userId}_${amount.toFixed(2)}` }],
+              [{ text: "❌ Annuler", callback_data: `cancel_pay_paypal_${userId}` }],
+            ],
+          }
+        );
+      }
     }
   }
 
@@ -4511,11 +4626,11 @@ export function startBot(expressApp?: Application): TelegramBot {
       const { amount, ltc, ltcAddress } = pendingCryptoTx.get(userId)!;
       const txHash = text.trim().replace(/\s+/g, "");
 
-      // Validation basique : un TX hash LTC fait 64 caractères hex
+      // Validation basique : un TX hash LTC fait 40 à 80 caractères hex
       if (!/^[a-fA-F0-9]{40,80}$/.test(txHash)) {
         await sendMenu(
           chatId,
-          `❌ *ID de transaction invalide.*\n\nUn TX hash Litecoin est une suite de 64 caractères alphanumériques.\nTu le trouves dans ton historique Coinbase → clique sur la transaction → "ID de transaction".\n\nRéessaie :`,
+          `❌ *ID de transaction invalide.*\n\nUn TX hash Litecoin est une suite de 64 caractères alphanumériques.\nTu le trouves dans ton historique de ton wallet → clique sur la transaction → "ID de transaction".\n\nRéessaie :`,
           { inline_keyboard: [[{ text: "❌ Annuler", callback_data: "menu_payment" }]] }
         );
         return;
@@ -4523,53 +4638,148 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       pendingCryptoTx.delete(userId);
 
-      const user = await getOrCreateUser(userId);
-      const explorerLink = ltcExplorerUrl(txHash);
-
-      // Notification admin via Discord
-      await sendDiscordLog(
-        "🪙 Paiement LTC en attente de vérification",
-        `Un utilisateur a soumis un paiement Litecoin.`,
-        0xf5a623,
-        [
-          { name: "Utilisateur", value: `${user.firstName ?? "?"} (ID: ${userId})`, inline: true },
-          { name: "Montant demandé", value: `${amount}€ (${ltc} LTC)`, inline: true },
-          { name: "Adresse LTC", value: `\`${ltcAddress}\``, inline: false },
-          { name: "TX Hash", value: `\`${txHash}\``, inline: false },
-          { name: "Vérifier", value: `[Voir sur Blockchair](${explorerLink})`, inline: false },
-        ],
-        "payments"
-      );
-
-      // Notif Telegram admin si possible
-      const adminId = getAdminId();
-      if (adminId) {
-        try {
-          await bot.sendMessage(
-            adminId,
-            `🪙 *Paiement LTC à vérifier*\n\n` +
-            `👤 Utilisateur : *${user.firstName ?? "?"}* (ID: \`${userId}\`)\n` +
-            `💰 Montant : *${amount}€* (${ltc} LTC)\n` +
-            `🔗 TX Hash : \`${txHash}\`\n\n` +
-            `[🔍 Vérifier sur Blockchair](${explorerLink})\n\n` +
-            `Si la transaction est confirmée, crédite l'utilisateur via /adminmenu → Utilisateurs → Ajouter crédit.`,
-            { parse_mode: "Markdown" }
-          );
-        } catch {}
-      }
-
+      // Vérification immédiate sur la blockchain
       await sendMenu(
         chatId,
-        `✅ *Transaction soumise !*\n\n` +
-        `Ton paiement de *${ltc} LTC* (≈ ${amount}€) est en cours de vérification.\n\n` +
-        `⏳ L'admin vérifie ta transaction sous peu et créditera ton solde manuellement.\n\n` +
-        `TX : \`${txHash}\``,
-        {
-          inline_keyboard: [
-            [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
-          ],
-        }
+        `🔍 *Vérification en cours...*\n\nNous consultons la blockchain Litecoin pour confirmer ta transaction.\nCela peut prendre quelques secondes ⏳`,
+        { inline_keyboard: [] }
       );
+
+      let result;
+      try {
+        result = await verifyLtcTransaction(txHash, ltcAddress, ltc);
+      } catch {
+        result = { found: false, confirmed: false, errorMsg: "Erreur réseau" };
+      }
+
+      const explorerLink = ltcExplorerUrl(txHash);
+
+      // Transaction introuvable ou mauvaise adresse
+      if (!result.found) {
+        // Ajouter quand même en file d'attente pour re-vérification (TX peut-être pas encore propagée)
+        pendingLtcVerification.set(userId, {
+          txHash, amount, ltc, ltcAddress, submittedAt: Date.now(), attempts: 1,
+        });
+
+        sendDiscordLog(
+          "🪙 LTC soumis (non trouvé encore)",
+          `Transaction LTC soumise mais pas encore détectée — en attente de propagation.`,
+          0xf5a623,
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "Montant", value: `${amount}€ (${ltc} LTC)`, inline: true },
+            { name: "TX Hash", value: `[${txHash.slice(0, 16)}...](${explorerLink})`, inline: false },
+          ],
+          "payments"
+        );
+
+        await sendMenu(
+          chatId,
+          `⏳ *Transaction non encore détectée*\n\n` +
+          `TX : \`${txHash}\`\n\n` +
+          `La transaction n'est pas encore visible sur la blockchain (propagation en cours).\n\n` +
+          `✅ Nous vérifions automatiquement toutes les *2 minutes* pendant **2 heures**.\n` +
+          `Tu recevras une notification dès confirmation.`,
+          { inline_keyboard: [[{ text: "🏠 Menu Principal", callback_data: "menu_main" }]] }
+        );
+        return;
+      }
+
+      // Transaction trouvée mais mauvaise adresse ou mauvais montant
+      if (result.found && !result.confirmed && result.errorMsg) {
+        sendDiscordLog(
+          "⚠️ LTC — Problème transaction",
+          result.errorMsg,
+          "red",
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "TX Hash", value: `[${txHash.slice(0, 16)}...](${explorerLink})`, inline: false },
+          ],
+          "payments"
+        );
+        await sendMenu(
+          chatId,
+          `❌ *Problème avec ta transaction*\n\n${result.errorMsg}\n\nContacte le support si tu penses à une erreur.`,
+          { inline_keyboard: [
+            [{ text: "💬 Support", url: `https://t.me/NexoShop_Support` }],
+            [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+          ] }
+        );
+        return;
+      }
+
+      // Transaction trouvée mais pas encore confirmée (0 confirmations)
+      if (result.found && !result.confirmed) {
+        pendingLtcVerification.set(userId, {
+          txHash, amount, ltc, ltcAddress, submittedAt: Date.now(), attempts: 1,
+        });
+
+        sendDiscordLog(
+          "🪙 LTC en attente de confirmation",
+          `Transaction détectée sur la blockchain, en attente de confirmation.`,
+          0xf5a623,
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "Montant", value: `${amount}€ (${ltc} LTC)`, inline: true },
+            { name: "TX Hash", value: `[${txHash.slice(0, 16)}...](${explorerLink})`, inline: false },
+          ],
+          "payments"
+        );
+
+        await sendMenu(
+          chatId,
+          `⏳ *Transaction détectée — en attente de confirmation*\n\n` +
+          `TX : \`${txHash}\`\n\n` +
+          `Ta transaction est visible sur la blockchain mais n'a pas encore de confirmation.\n\n` +
+          `✅ Nous te notifions automatiquement dès qu'elle est confirmée (généralement sous 2-5 min).`,
+          { inline_keyboard: [[{ text: "🏠 Menu Principal", callback_data: "menu_main" }]] }
+        );
+        return;
+      }
+
+      // Transaction confirmée immédiatement 🎉
+      if (result.confirmed && result.amount !== undefined) {
+        await addBalance(userId, amount, `Rechargement LTC — ${txHash.slice(0, 12)}...`);
+        const newBal = await getBalance(userId);
+        const ltcUser = await getOrCreateUser(userId);
+        sendCreditLog(
+          userId, ltcUser?.username, ltcUser?.firstName,
+          amount, newBal - amount, newBal,
+          { type: "Admin", ref: `LTC:${txHash.slice(0, 12)}` }
+        ).catch((err) => logger.error({ err }, "Error sendCreditLog LTC immediate"));
+        sendDiscordLog(
+          "🪙 Paiement LTC confirmé instantanément",
+          `Transaction Litecoin confirmée et créditée.`,
+          0xf7931a,
+          [
+            { name: "User ID", value: `\`${userId}\``, inline: true },
+            { name: "Montant", value: `**+${amount.toFixed(2)}€**`, inline: true },
+            { name: "LTC reçu", value: `${result.amount.toFixed(6)} LTC`, inline: true },
+            { name: "Nouveau solde", value: `${newBal.toFixed(2)}€`, inline: true },
+            { name: "TX Hash", value: `[${txHash.slice(0, 16)}...](${explorerLink})`, inline: false },
+          ],
+          "payments"
+        );
+        await sendMenu(
+          chatId,
+          `✅ *Paiement LTC confirmé !*\n\n` +
+          `🪙 Transaction vérifiée sur la blockchain.\n` +
+          `+${amount.toFixed(2)}€ crédités sur ton solde.\n` +
+          `💰 Nouveau solde : *${newBal.toFixed(2)}€*\n\n` +
+          `TX : \`${txHash}\``,
+          { inline_keyboard: [[{ text: "🏠 Menu Principal", callback_data: "menu_main" }]] }
+        );
+        checkAndPayReferralBonus(userId, async (referrerId, filleulId) => {
+          const parrainBal = await getBalance(referrerId);
+          try {
+            await bot.sendMessage(
+              referrerId,
+              `🎁 *Bonus parrainage reçu !*\n\nTon filleul \`${filleulId}\` a rechargé et ton compte a été crédité de *+${REFERRAL_BONUS}€* !\n💰 Solde : *${parrainBal.toFixed(2)}€*`,
+              { parse_mode: "Markdown", reply_markup: backToMainKeyboard() }
+            );
+          } catch { /* ignore */ }
+        }).catch((err) => logger.error({ err }, "Error referral bonus LTC immediate"));
+      }
       return;
     }
 
