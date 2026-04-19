@@ -112195,10 +112195,11 @@ _Les r\xE9compenses sont attribu\xE9es automatiquement \xE0 chaque achat._`,
         return;
       }
       if (data === "menu_wheel") {
-        const spinStatus = await getLastWheelSpin(userId);
+        const adminUser = isAdmin(userId);
+        const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
-        const canSpin = !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        const canSpin = adminUser || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
         const nextSpinMs = spinStatus && !canSpin ? spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now : 0;
         const nextSpinHours = Math.floor(nextSpinMs / (60 * 60 * 1e3));
         const nextSpinMins = Math.floor(nextSpinMs % (60 * 60 * 1e3) / 6e4);
@@ -112214,16 +112215,17 @@ Tourne la roue chaque jour pour gagner des r\xE9compenses !
 *\u{1F381} Prix disponibles :*
 ${prizeListText}
 
-` + (canSpin ? `\u2705 *Tu peux tourner la roue maintenant !*` : `\u23F3 *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
+` + (canSpin ? `\u2705 *Tu peux tourner la roue maintenant !*${adminUser ? " _(mode admin \u2014 illimit\xE9)_" : ""}` : `\u23F3 *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
           wheelMenuKeyboard(canSpin)
         );
         return;
       }
       if (data === "wheel_spin") {
-        const spinStatus = await getLastWheelSpin(userId);
+        const adminUser = isAdmin(userId);
+        const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
-        const canSpin = !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        const canSpin = adminUser || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
         if (!canSpin) {
           const nextSpinMs = spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now;
           const h = Math.floor(nextSpinMs / (60 * 60 * 1e3));
@@ -112237,7 +112239,7 @@ ${prizeListText}
           }
           return;
         }
-        await recordWheelSpin(userId);
+        if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
         const emojis = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(

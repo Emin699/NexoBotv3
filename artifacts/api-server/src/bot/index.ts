@@ -1969,10 +1969,11 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       // ── Roue du Destin — Menu ─────────────────────────────────────
       if (data === "menu_wheel") {
-        const spinStatus = await getLastWheelSpin(userId);
+        const adminUser = isAdmin(userId);
+        const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-        const canSpin = !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        const canSpin = adminUser || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
         const nextSpinMs = spinStatus && !canSpin
           ? (spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now
           : 0;
@@ -1987,7 +1988,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           `Tourne la roue chaque jour pour gagner des récompenses !\n\n` +
           `*🎁 Prix disponibles :*\n${prizeListText}\n\n` +
           (canSpin
-            ? `✅ *Tu peux tourner la roue maintenant !*`
+            ? `✅ *Tu peux tourner la roue maintenant !*${adminUser ? " _(mode admin — illimité)_" : ""}`
             : `⏳ *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
           wheelMenuKeyboard(canSpin)
         );
@@ -1996,10 +1997,11 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       // ── Roue du Destin — Tourner ──────────────────────────────────
       if (data === "wheel_spin") {
-        const spinStatus = await getLastWheelSpin(userId);
+        const adminUser = isAdmin(userId);
+        const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-        const canSpin = !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        const canSpin = adminUser || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
         if (!canSpin) {
           const nextSpinMs = (spinStatus!.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now;
           const h = Math.floor(nextSpinMs / (60 * 60 * 1000));
@@ -2012,8 +2014,8 @@ export function startBot(expressApp?: Application): TelegramBot {
           } catch {}
           return;
         }
-        // Enregistrer le spin immédiatement pour éviter le double-spin
-        await recordWheelSpin(userId);
+        // Enregistrer le spin (ignoré pour l'admin — cooldown infini)
+        if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
         // Animation
         const emojis = WHEEL_PRIZES.map((p) => p.emoji);
