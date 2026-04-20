@@ -159,6 +159,9 @@ const pendingLtcVerification = new Map<number, {
   attempts: number;
 }>();
 
+// ── Reroll roue du destin — utilisateurs ayant gagné une relance gratuite ──
+const pendingRerolls = new Set<number>();
+
 // ── Services désactivés par l'admin ────────────────────────────────────────
 const disabledServices = new Set<string>();
 
@@ -2120,7 +2123,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-        const canSpin = adminUser || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        const hasReroll = pendingRerolls.has(userId);
+        const canSpin = adminUser || hasReroll || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
         if (!canSpin) {
           const nextSpinMs = (spinStatus!.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now;
           const h = Math.floor(nextSpinMs / (60 * 60 * 1000));
@@ -2133,8 +2137,9 @@ export function startBot(expressApp?: Application): TelegramBot {
           } catch {}
           return;
         }
-        // Enregistrer le spin (ignoré pour l'admin — cooldown infini)
-        if (!adminUser) await recordWheelSpin(userId);
+        // Enregistrer le spin — si c'est un reroll, on consomme le token sans remettre le cooldown
+        if (!adminUser && !hasReroll) await recordWheelSpin(userId);
+        if (hasReroll) pendingRerolls.delete(userId);
         const prize = spinWheel();
 
         // ── Frame initiale (bande à l'arrêt, avant lancement) ────────
@@ -2153,37 +2158,97 @@ export function startBot(expressApp?: Application): TelegramBot {
 
         // ── Calcul et affichage de la récompense ──────────────────────
         let resultMsg = `🎡 *Résultat !*\n\n${prize.emoji} *${prize.label}*\n\n`;
+        let resultKeyboard: { inline_keyboard: { text: string; callback_data: string }[][] } = {
+          inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]],
+        };
+
         if (prize.type === "nothing") {
-          resultMsg += `😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+          resultMsg += prize.message || `😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+
+        } else if (prize.type === "balance_add" && prize.value) {
+          await addBalance(userId, prize.value, `Gain Roue du Destin — ${prize.label}`);
+          const newBal = await getBalance(userId);
+          resultMsg += (prize.message || `🎉 *Félicitations !* *+${prize.value.toFixed(2)}€* ont été crédités sur ton solde !`) +
+            `\n\n💰 Nouveau solde : *${newBal.toFixed(2)}€*`;
+
         } else if (prize.type === "coupon_pct" && prize.value) {
           const code = createMiniGameCoupon(userId, "pct", prize.value);
-          resultMsg += `🎉 *Félicitations !* Voici ton coupon :\n\n🎟️ Code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+          resultMsg += (prize.message || `🎉 *Félicitations !* Voici ton coupon :`) +
+            `\n\n🎟️ Code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+
         } else if (prize.type === "coupon_fixed" && prize.value) {
           const code = createMiniGameCoupon(userId, "fixed", prize.value);
-          resultMsg += `🎉 *Félicitations !* Voici ton coupon :\n\n🎟️ Code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
+          resultMsg += (prize.message || `🎉 *Félicitations !* Voici ton coupon :`) +
+            `\n\n🏷️ Code : \`${code}\`\n_Valable 30 jours sur ton prochain panier._`;
+
         } else if (prize.type === "loyalty_pts" && prize.value) {
           await addLoyaltyPoints(userId, prize.value);
           const newPts = await getLoyaltyPoints(userId);
-          resultMsg += `🎉 *Félicitations !* *${prize.value} points* ont été ajoutés à ton compte.\n⭐ Total : *${newPts} points*`;
+          resultMsg += (prize.message || `🎉 *Félicitations !* *${prize.value} points* ont été ajoutés à ton compte.`) +
+            `\n⭐ Total : *${newPts} points*`;
+
         } else if (prize.type === "deezer_link") {
           const link = await popDeezerLink(userId);
           if (link) {
-            resultMsg += `🎉 *Incroyable !* Voici ton lien Deezer :\n\n\`${link}\`\n\n_Ce lien est personnel, ne le partagez pas._`;
+            resultMsg += (prize.message || `🎧 *Incroyable !* Tu as gagné un lien Deezer Premium à vie !`) +
+              `\n\n\`${link}\`\n\n_Ce lien est personnel, ne le partage pas._`;
           } else {
-            resultMsg += `🎉 Tu as gagné un lien Deezer ! Contacte le support pour le récupérer 🎧`;
+            resultMsg += `🎧 *Incroyable !* Tu as gagné un lien Deezer ! Contacte le support pour le récupérer.`;
           }
+
+        } else if (prize.type === "reroll") {
+          pendingRerolls.add(userId);
+          resultMsg += prize.message || `🔄 *Chance insolente !* Tu peux relancer la roue immédiatement !`;
+          resultKeyboard = {
+            inline_keyboard: [
+              [{ text: "🎡 Relancer la roue !", callback_data: "wheel_spin" }],
+              [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
+            ],
+          };
+
+        } else if (prize.type === "jackpot_paypal" && prize.value) {
+          resultMsg += prize.message ||
+            `🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+${prize.value}€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉`;
+          // Notifier l'admin Telegram
+          const adminId = getAdminId();
+          if (adminId) {
+            try {
+              await bot.sendMessage(
+                adminId,
+                `🏆 *JACKPOT ROUE DU DESTIN !*\n\n` +
+                `Un joueur a décroché le jackpot !\n\n` +
+                `👤 User ID : \`${userId}\`\n` +
+                `💶 Montant à envoyer : *${prize.value}€ via PayPal*\n\n` +
+                `Envoie le virement et confirme au client via le bot.`,
+                { parse_mode: "Markdown" }
+              );
+            } catch { /* ignore */ }
+          }
+          // Notifier Discord
+          sendDiscordLog(
+            "🏆 JACKPOT — Roue du Destin",
+            `Un joueur a décroché le jackpot de la Roue du Destin !`,
+            "yellow",
+            [
+              { name: "User ID", value: `\`${userId}\``, inline: true },
+              { name: "Gain", value: `**+${prize.value}€ PayPal**`, inline: true },
+              { name: "Action requise", value: `Envoyer ${prize.value}€ PayPal au joueur`, inline: false },
+            ],
+            "payments"
+          ).catch(() => {});
         }
+
         try {
           await bot.editMessageText(resultMsg, {
             chat_id: chatId,
             message_id: spinMsg.message_id,
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] },
+            reply_markup: resultKeyboard,
           });
         } catch {
           await bot.sendMessage(chatId, resultMsg, {
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] },
+            reply_markup: resultKeyboard,
           });
         }
         return;

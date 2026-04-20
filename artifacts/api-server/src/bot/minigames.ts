@@ -1,62 +1,167 @@
-// ── Configuration Mini-jeux NexoShop ─────────────────────────────────────
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║              CONFIGURATION MINI-JEUX NEXOSHOP                           ║
+// ║                                                                          ║
+// ║  Pour modifier la ROUE DU DESTIN :                                       ║
+// ║    → Modifie WHEEL_PRIZES ci-dessous                                     ║
+// ║    → realChance  = probabilité réelle (doit totaliser EXACTEMENT 100)    ║
+// ║    → displayedChance = % affiché aux joueurs (décoratif, libre)         ║
+// ║    → label / emoji = texte affiché dans l'animation et le résultat       ║
+// ║    → message = texte envoyé après le résultat (laisser "" pour défaut)   ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
 
-// ── Roue du Destin ────────────────────────────────────────────────────────
+export type WheelPrizeType =
+  | "nothing"
+  | "balance_add"
+  | "coupon_pct"
+  | "coupon_fixed"
+  | "loyalty_pts"
+  | "deezer_link"
+  | "reroll"
+  | "jackpot_paypal";
+
 export interface WheelPrize {
   id: string;
-  label: string;
-  emoji: string;
-  displayedChance: number;
-  realChance: number;
-  type: "nothing" | "coupon_pct" | "coupon_fixed" | "loyalty_pts" | "deezer_link";
-  value?: number;
+  label: string;         // Affiché dans l'animation et le résultat
+  emoji: string;         // Affiché dans la bande de la roue
+  displayedChance: number; // % montré aux joueurs (décoratif)
+  realChance: number;      // % réel (tous doivent totaliser 100)
+  type: WheelPrizeType;
+  value?: number;        // montant €, pts, ou % selon le type
+  message?: string;      // Message personnalisé après le résultat (optionnel)
 }
 
-// realChance doit totaliser 100
+// ════════════════════════════════════════════════════════════════════════════
+//  ROUE DU DESTIN — Modifie ici les prix, pourcentages et messages
+//  ⚠️  La somme de tous les realChance DOIT être égale à 100
+// ════════════════════════════════════════════════════════════════════════════
 export const WHEEL_PRIZES: WheelPrize[] = [
   {
     id: "nothing",
     label: "Dommage, reviens demain !",
     emoji: "😔",
-    displayedChance: 50,
-    realChance: 70,
+    displayedChance: 55,   // % affiché aux joueurs
+    realChance: 60,        // % réel
     type: "nothing",
+    message: "😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !",
   },
   {
-    id: "coupon5pct",
+    id: "balance_50c",
+    label: "+0,50€ sur ton solde",
+    emoji: "💰",
+    displayedChance: 15,
+    realChance: 12,
+    type: "balance_add",
+    value: 0.50,
+    message: "🎉 *Félicitations !* *+0,50€* ont été crédités sur ton solde !",
+  },
+  {
+    id: "balance_1e",
+    label: "+1€ sur ton solde",
+    emoji: "💵",
+    displayedChance: 10,
+    realChance: 8,
+    type: "balance_add",
+    value: 1,
+    message: "🎉 *Félicitations !* *+1€* a été crédité sur ton solde !",
+  },
+  {
+    id: "balance_5e",
+    label: "+5€ sur ton solde",
+    emoji: "💸",
+    displayedChance: 5,
+    realChance: 4,
+    type: "balance_add",
+    value: 5,
+    message: "🤑 *Jackpot partiel !* *+5€* ont été crédités sur ton solde ! Bien joué !",
+  },
+  {
+    id: "coupon_5pct",
     label: "Coupon -5% sur toute la boutique",
     emoji: "🎟️",
-    displayedChance: 40,
-    realChance: 20,
+    displayedChance: 8,
+    realChance: 5,
     type: "coupon_pct",
     value: 5,
+    message: "🎉 *Félicitations !* Ton coupon de -5% sur toute la boutique est prêt :",
   },
   {
-    id: "coupon10eur",
-    label: "Coupon -10€ sur toute la boutique",
-    emoji: "💶",
-    displayedChance: 20,
-    realChance: 5,
+    id: "coupon_5eur",
+    label: "Coupon -5€ sur ton panier",
+    emoji: "🏷️",
+    displayedChance: 5,
+    realChance: 3.5,
     type: "coupon_fixed",
-    value: 10,
+    value: 5,
+    message: "🎉 *Félicitations !* Ton coupon de -5€ sur ton panier est prêt :",
   },
   {
-    id: "loyalty_pts",
-    label: "50 Points de fidélité bonus !",
-    emoji: "⭐",
-    displayedChance: 30,
+    id: "reroll",
+    label: "Relance la roue !",
+    emoji: "🔄",
+    displayedChance: 5,
     realChance: 3,
+    type: "reroll",
+    message: "🔄 *Chance insolente !* Tu peux relancer la roue immédiatement !",
+  },
+  {
+    id: "loyalty_10",
+    label: "+10 pts de fidélité",
+    emoji: "⭐",
+    displayedChance: 4,
+    realChance: 2,
+    type: "loyalty_pts",
+    value: 10,
+    message: "🎉 *Félicitations !* *+10 points de fidélité* ont été ajoutés à ton compte !",
+  },
+  {
+    id: "loyalty_50",
+    label: "+50 pts de fidélité",
+    emoji: "🌟",
+    displayedChance: 3,
+    realChance: 1.5,
     type: "loyalty_pts",
     value: 50,
+    message: "🌟 *Super !* *+50 points de fidélité* ont été ajoutés à ton compte !",
   },
   {
     id: "deezer",
     label: "Lien Deezer Premium à vie offert !",
     emoji: "🎧",
-    displayedChance: 10,
-    realChance: 2,
+    displayedChance: 2,
+    realChance: 0.5,
     type: "deezer_link",
+    message: "🎧 *Incroyable !* Tu as gagné un lien Deezer Premium à vie !",
+  },
+  {
+    id: "loyalty_100",
+    label: "+100 pts de fidélité",
+    emoji: "💎",
+    displayedChance: 1,
+    realChance: 0.3,
+    type: "loyalty_pts",
+    value: 100,
+    message: "💎 *Exceptionnel !* *+100 points de fidélité* ont été ajoutés à ton compte !",
+  },
+  {
+    id: "jackpot_paypal",
+    label: "🏆 JACKPOT ! +20€ PayPal",
+    emoji: "🏆",
+    displayedChance: 0.5,
+    realChance: 0.2,
+    type: "jackpot_paypal",
+    value: 20,
+    message: "🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+20€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉",
   },
 ];
+// ════════════════════════════════════════════════════════════════════════════
+//  FIN DE LA CONFIGURATION — Ne modifie pas le reste sauf si tu sais ce que tu fais
+// ════════════════════════════════════════════════════════════════════════════
+
+// Vérification à l'exécution que les probabilités totalisent 100
+const _totalRealChance = WHEEL_PRIZES.reduce((s, p) => s + p.realChance, 0);
+if (Math.abs(_totalRealChance - 100) > 0.01) {
+  console.error(`[WHEEL] ⚠️  Les realChance totalisent ${_totalRealChance} au lieu de 100 !`);
+}
 
 export function spinWheel(): WheelPrize {
   const rand = Math.random() * 100;

@@ -108571,46 +108571,126 @@ var WHEEL_PRIZES = [
     id: "nothing",
     label: "Dommage, reviens demain !",
     emoji: "\u{1F614}",
-    displayedChance: 50,
-    realChance: 70,
-    type: "nothing"
+    displayedChance: 55,
+    // % affiché aux joueurs
+    realChance: 60,
+    // % réel
+    type: "nothing",
+    message: "\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !"
   },
   {
-    id: "coupon5pct",
+    id: "balance_50c",
+    label: "+0,50\u20AC sur ton solde",
+    emoji: "\u{1F4B0}",
+    displayedChance: 15,
+    realChance: 12,
+    type: "balance_add",
+    value: 0.5,
+    message: "\u{1F389} *F\xE9licitations !* *+0,50\u20AC* ont \xE9t\xE9 cr\xE9dit\xE9s sur ton solde !"
+  },
+  {
+    id: "balance_1e",
+    label: "+1\u20AC sur ton solde",
+    emoji: "\u{1F4B5}",
+    displayedChance: 10,
+    realChance: 8,
+    type: "balance_add",
+    value: 1,
+    message: "\u{1F389} *F\xE9licitations !* *+1\u20AC* a \xE9t\xE9 cr\xE9dit\xE9 sur ton solde !"
+  },
+  {
+    id: "balance_5e",
+    label: "+5\u20AC sur ton solde",
+    emoji: "\u{1F4B8}",
+    displayedChance: 5,
+    realChance: 4,
+    type: "balance_add",
+    value: 5,
+    message: "\u{1F911} *Jackpot partiel !* *+5\u20AC* ont \xE9t\xE9 cr\xE9dit\xE9s sur ton solde ! Bien jou\xE9 !"
+  },
+  {
+    id: "coupon_5pct",
     label: "Coupon -5% sur toute la boutique",
     emoji: "\u{1F39F}\uFE0F",
-    displayedChance: 40,
-    realChance: 20,
-    type: "coupon_pct",
-    value: 5
-  },
-  {
-    id: "coupon10eur",
-    label: "Coupon -10\u20AC sur toute la boutique",
-    emoji: "\u{1F4B6}",
-    displayedChance: 20,
+    displayedChance: 8,
     realChance: 5,
-    type: "coupon_fixed",
-    value: 10
+    type: "coupon_pct",
+    value: 5,
+    message: "\u{1F389} *F\xE9licitations !* Ton coupon de -5% sur toute la boutique est pr\xEAt :"
   },
   {
-    id: "loyalty_pts",
-    label: "50 Points de fid\xE9lit\xE9 bonus !",
-    emoji: "\u2B50",
-    displayedChance: 30,
+    id: "coupon_5eur",
+    label: "Coupon -5\u20AC sur ton panier",
+    emoji: "\u{1F3F7}\uFE0F",
+    displayedChance: 5,
+    realChance: 3.5,
+    type: "coupon_fixed",
+    value: 5,
+    message: "\u{1F389} *F\xE9licitations !* Ton coupon de -5\u20AC sur ton panier est pr\xEAt :"
+  },
+  {
+    id: "reroll",
+    label: "Relance la roue !",
+    emoji: "\u{1F504}",
+    displayedChance: 5,
     realChance: 3,
+    type: "reroll",
+    message: "\u{1F504} *Chance insolente !* Tu peux relancer la roue imm\xE9diatement !"
+  },
+  {
+    id: "loyalty_10",
+    label: "+10 pts de fid\xE9lit\xE9",
+    emoji: "\u2B50",
+    displayedChance: 4,
+    realChance: 2,
     type: "loyalty_pts",
-    value: 50
+    value: 10,
+    message: "\u{1F389} *F\xE9licitations !* *+10 points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !"
+  },
+  {
+    id: "loyalty_50",
+    label: "+50 pts de fid\xE9lit\xE9",
+    emoji: "\u{1F31F}",
+    displayedChance: 3,
+    realChance: 1.5,
+    type: "loyalty_pts",
+    value: 50,
+    message: "\u{1F31F} *Super !* *+50 points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !"
   },
   {
     id: "deezer",
     label: "Lien Deezer Premium \xE0 vie offert !",
     emoji: "\u{1F3A7}",
-    displayedChance: 10,
-    realChance: 2,
-    type: "deezer_link"
+    displayedChance: 2,
+    realChance: 0.5,
+    type: "deezer_link",
+    message: "\u{1F3A7} *Incroyable !* Tu as gagn\xE9 un lien Deezer Premium \xE0 vie !"
+  },
+  {
+    id: "loyalty_100",
+    label: "+100 pts de fid\xE9lit\xE9",
+    emoji: "\u{1F48E}",
+    displayedChance: 1,
+    realChance: 0.3,
+    type: "loyalty_pts",
+    value: 100,
+    message: "\u{1F48E} *Exceptionnel !* *+100 points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !"
+  },
+  {
+    id: "jackpot_paypal",
+    label: "\u{1F3C6} JACKPOT ! +20\u20AC PayPal",
+    emoji: "\u{1F3C6}",
+    displayedChance: 0.5,
+    realChance: 0.2,
+    type: "jackpot_paypal",
+    value: 20,
+    message: "\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+20\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}"
   }
 ];
+var _totalRealChance = WHEEL_PRIZES.reduce((s, p) => s + p.realChance, 0);
+if (Math.abs(_totalRealChance - 100) > 0.01) {
+  console.error(`[WHEEL] \u26A0\uFE0F  Les realChance totalisent ${_totalRealChance} au lieu de 100 !`);
+}
 function spinWheel() {
   const rand = Math.random() * 100;
   let cumulative = 0;
@@ -110489,6 +110569,7 @@ var pendingCouponEdit = /* @__PURE__ */ new Map();
 var pendingTelepeage = /* @__PURE__ */ new Map();
 var pendingCryptoTx = /* @__PURE__ */ new Map();
 var pendingLtcVerification = /* @__PURE__ */ new Map();
+var pendingRerolls = /* @__PURE__ */ new Set();
 var disabledServices = /* @__PURE__ */ new Set();
 var ALL_SERVICES = [
   { id: "nf_pub", name: "\u{1F3AC} Netflix (avec pub)" },
@@ -112337,7 +112418,8 @@ ${prizeListText}
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
-        const canSpin = adminUser || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        const hasReroll = pendingRerolls.has(userId);
+        const canSpin = adminUser || hasReroll || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
         if (!canSpin) {
           const nextSpinMs = spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now;
           const h = Math.floor(nextSpinMs / (60 * 60 * 1e3));
@@ -112351,7 +112433,8 @@ ${prizeListText}
           }
           return;
         }
-        if (!adminUser) await recordWheelSpin(userId);
+        if (!adminUser && !hasReroll) await recordWheelSpin(userId);
+        if (hasReroll) pendingRerolls.delete(userId);
         const prize = spinWheel();
         const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(
@@ -112368,48 +112451,98 @@ ${_buildWheelFrame(initPrizes, 0)}`,
 ${prize.emoji} *${prize.label}*
 
 `;
+        let resultKeyboard = {
+          inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]]
+        };
         if (prize.type === "nothing") {
-          resultMsg += `\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+          resultMsg += prize.message || `\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !`;
+        } else if (prize.type === "balance_add" && prize.value) {
+          await addBalance(userId, prize.value, `Gain Roue du Destin \u2014 ${prize.label}`);
+          const newBal = await getBalance(userId);
+          resultMsg += (prize.message || `\u{1F389} *F\xE9licitations !* *+${prize.value.toFixed(2)}\u20AC* ont \xE9t\xE9 cr\xE9dit\xE9s sur ton solde !`) + `
+
+\u{1F4B0} Nouveau solde : *${newBal.toFixed(2)}\u20AC*`;
         } else if (prize.type === "coupon_pct" && prize.value) {
           const code = createMiniGameCoupon(userId, "pct", prize.value);
-          resultMsg += `\u{1F389} *F\xE9licitations !* Voici ton coupon :
+          resultMsg += (prize.message || `\u{1F389} *F\xE9licitations !* Voici ton coupon :`) + `
 
 \u{1F39F}\uFE0F Code : \`${code}\`
 _Valable 30 jours sur toute la boutique._`;
         } else if (prize.type === "coupon_fixed" && prize.value) {
           const code = createMiniGameCoupon(userId, "fixed", prize.value);
-          resultMsg += `\u{1F389} *F\xE9licitations !* Voici ton coupon :
+          resultMsg += (prize.message || `\u{1F389} *F\xE9licitations !* Voici ton coupon :`) + `
 
-\u{1F39F}\uFE0F Code : \`${code}\`
-_Valable 30 jours sur toute la boutique._`;
+\u{1F3F7}\uFE0F Code : \`${code}\`
+_Valable 30 jours sur ton prochain panier._`;
         } else if (prize.type === "loyalty_pts" && prize.value) {
           await addLoyaltyPoints(userId, prize.value);
           const newPts = await getLoyaltyPoints(userId);
-          resultMsg += `\u{1F389} *F\xE9licitations !* *${prize.value} points* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte.
+          resultMsg += (prize.message || `\u{1F389} *F\xE9licitations !* *${prize.value} points* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte.`) + `
 \u2B50 Total : *${newPts} points*`;
         } else if (prize.type === "deezer_link") {
           const link = await popDeezerLink(userId);
           if (link) {
-            resultMsg += `\u{1F389} *Incroyable !* Voici ton lien Deezer :
+            resultMsg += (prize.message || `\u{1F3A7} *Incroyable !* Tu as gagn\xE9 un lien Deezer Premium \xE0 vie !`) + `
 
 \`${link}\`
 
-_Ce lien est personnel, ne le partagez pas._`;
+_Ce lien est personnel, ne le partage pas._`;
           } else {
-            resultMsg += `\u{1F389} Tu as gagn\xE9 un lien Deezer ! Contacte le support pour le r\xE9cup\xE9rer \u{1F3A7}`;
+            resultMsg += `\u{1F3A7} *Incroyable !* Tu as gagn\xE9 un lien Deezer ! Contacte le support pour le r\xE9cup\xE9rer.`;
           }
+        } else if (prize.type === "reroll") {
+          pendingRerolls.add(userId);
+          resultMsg += prize.message || `\u{1F504} *Chance insolente !* Tu peux relancer la roue imm\xE9diatement !`;
+          resultKeyboard = {
+            inline_keyboard: [
+              [{ text: "\u{1F3A1} Relancer la roue !", callback_data: "wheel_spin" }],
+              [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
+            ]
+          };
+        } else if (prize.type === "jackpot_paypal" && prize.value) {
+          resultMsg += prize.message || `\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+${prize.value}\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}`;
+          const adminId = getAdminId();
+          if (adminId) {
+            try {
+              await bot.sendMessage(
+                adminId,
+                `\u{1F3C6} *JACKPOT ROUE DU DESTIN !*
+
+Un joueur a d\xE9croch\xE9 le jackpot !
+
+\u{1F464} User ID : \`${userId}\`
+\u{1F4B6} Montant \xE0 envoyer : *${prize.value}\u20AC via PayPal*
+
+Envoie le virement et confirme au client via le bot.`,
+                { parse_mode: "Markdown" }
+              );
+            } catch {
+            }
+          }
+          sendDiscordLog(
+            "\u{1F3C6} JACKPOT \u2014 Roue du Destin",
+            `Un joueur a d\xE9croch\xE9 le jackpot de la Roue du Destin !`,
+            "yellow",
+            [
+              { name: "User ID", value: `\`${userId}\``, inline: true },
+              { name: "Gain", value: `**+${prize.value}\u20AC PayPal**`, inline: true },
+              { name: "Action requise", value: `Envoyer ${prize.value}\u20AC PayPal au joueur`, inline: false }
+            ],
+            "payments"
+          ).catch(() => {
+          });
         }
         try {
           await bot.editMessageText(resultMsg, {
             chat_id: chatId,
             message_id: spinMsg.message_id,
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
+            reply_markup: resultKeyboard
           });
         } catch {
           await bot.sendMessage(chatId, resultMsg, {
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
+            reply_markup: resultKeyboard
           });
         }
         return;
