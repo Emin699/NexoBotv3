@@ -1,0 +1,379 @@
+PS C:\Users\33667> ssh root@82.165.242.173
+root@82.165.242.173's password:
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-110-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Mon Apr 20 22:44:36 UTC 2026
+
+  System load:  0.0               Processes:             108
+  Usage of /:   4.9% of 76.45GB   Users logged in:       0
+  Memory usage: 31%               IPv4 address for ens6: 82.165.242.173
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+Last login: Mon Apr 20 20:12:01 2026 from 82.165.242.173
+root@ubuntu:~# cd /root/bot
+git pull
+remote: Enumerating objects: 87, done.
+remote: Counting objects: 100% (87/87), done.
+remote: Compressing objects: 100% (10/10), done.
+remote: Total 71 (delta 61), reused 71 (delta 61), pack-reused 0 (from 0)
+Unpacking objects: 100% (71/71), 42.04 KiB | 49.00 KiB/s, done.
+From https://github.com/Emin699/NexoBotv3
+   79728aeb..9656f306  main       -> origin/main
+Updating 79728aeb..9656f306
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# cd /root/bot/artifacts/api-server
+pnpm run build
+
+> @workspace/api-server@0.0.0 build /root/bot/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       4.6mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   7.7mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           203.9kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 424ms
+root@ubuntu:~/bot/artifacts/api-server# pm2 restart nexoshop-bot
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [nexoshop-bot](ids: [ 0 ])
+[PM2] [nexoshop-bot](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexoshop-bot       │ fork     │ 14   │ online    │ 0%       │ 10.6mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@ubuntu:~/bot/artifacts/api-server# git pull
+pnpm run build
+pm2 restart nexoshop-bot
+Updating 79728aeb..9656f306
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+
+> @workspace/api-server@0.0.0 build /root/bot/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       4.6mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   7.7mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           203.9kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 340ms
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [nexoshop-bot](ids: [ 0 ])
+[PM2] [nexoshop-bot](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexoshop-bot       │ fork     │ 15   │ online    │ 0%       │ 10.1mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@ubuntu:~/bot/artifacts/api-server# cd /root/bot
+git pull
+Updating 79728aeb..9656f306
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# cd /root/bot/artifacts/api-server
+pnpm run build
+
+> @workspace/api-server@0.0.0 build /root/bot/artifacts/api-server
+> node ./build.mjs
+
+
+  dist/index.mjs                       4.6mb ⚠️
+  dist/pino-worker.mjs               153.4kb
+  dist/pino-file.mjs                 142.0kb
+  dist/pino-pretty.mjs               114.6kb
+  dist/thread-stream-worker.mjs        7.3kb
+  dist/index.mjs.map                   7.7mb
+  dist/pino-worker.mjs.map           256.9kb
+  dist/pino-file.mjs.map             229.0kb
+  dist/pino-pretty.mjs.map           203.9kb
+  dist/thread-stream-worker.mjs.map   12.0kb
+
+⚡ Done in 374ms
+root@ubuntu:~/bot/artifacts/api-server# pm2 restart nexoshop-bot
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [nexoshop-bot](ids: [ 0 ])
+[PM2] [nexoshop-bot](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexoshop-bot       │ fork     │ 16   │ online    │ 0%       │ 14.0mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@ubuntu:~/bot/artifacts/api-server# pm2 logs nexoshop-bot
+[TAILING] Tailing last 15 lines for [nexoshop-bot] process (change the value with --lines option)
+/root/.pm2/logs/nexoshop-bot-out.log last 15 lines:
+0|nexoshop | {"level":30,"time":1776725201077,"pid":14834,"hostname":"ubuntu","msg":"Telegram bot démarré en mode POLLING"}
+0|nexoshop | {"level":30,"time":1776725201078,"pid":14834,"hostname":"ubuntu","msg":"PayPal payment polling started"}
+0|nexoshop | {"level":30,"time":1776725201078,"pid":14834,"hostname":"ubuntu","msg":"LTC payment polling started"}
+0|nexoshop | {"level":30,"time":1776725201078,"pid":14834,"hostname":"ubuntu","msg":"NexoShop69 Telegram bot started successfully"}
+0|nexoshop | {"level":30,"time":1776725201084,"pid":14834,"hostname":"ubuntu","port":8080,"msg":"Server listening"}
+0|nexoshop | {"level":40,"time":1776725201084,"pid":14834,"hostname":"ubuntu","msg":"Keepalive désactivé (pas de domaine .replit.app détecté — mode dev)"}
+0|nexoshop | {"level":30,"time":1776725201837,"pid":14834,"hostname":"ubuntu","count":2,"msg":"Banned users loaded"}
+0|nexoshop | {"level":30,"time":1776725275287,"pid":14834,"hostname":"ubuntu","msg":"SIGINT reçu — arrêt propre"}
+0|nexoshop | {"level":30,"time":1776725275677,"pid":14910,"hostname":"ubuntu","msg":"Telegram bot démarré en mode POLLING"}
+0|nexoshop | {"level":30,"time":1776725275678,"pid":14910,"hostname":"ubuntu","msg":"PayPal payment polling started"}
+0|nexoshop | {"level":30,"time":1776725275678,"pid":14910,"hostname":"ubuntu","msg":"LTC payment polling started"}
+0|nexoshop | {"level":30,"time":1776725275678,"pid":14910,"hostname":"ubuntu","msg":"NexoShop69 Telegram bot started successfully"}
+0|nexoshop | {"level":30,"time":1776725275684,"pid":14910,"hostname":"ubuntu","port":8080,"msg":"Server listening"}
+0|nexoshop | {"level":40,"time":1776725275684,"pid":14910,"hostname":"ubuntu","msg":"Keepalive désactivé (pas de domaine .replit.app détecté — mode dev)"}
+0|nexoshop | {"level":30,"time":1776725276437,"pid":14910,"hostname":"ubuntu","count":2,"msg":"Banned users loaded"}
+
+/root/.pm2/logs/nexoshop-bot-error.log last 15 lines:
+0|nexoshop | - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+0|nexoshop |
+0|nexoshop | See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+0|nexoshop | (Use `node --trace-warnings ...` to show where the warning was created)
+0|nexoshop | (node:14834) [node-telegram-bot-api] DeprecationWarning: In the future, content-type of files you send will default to "application/octet-stream". See https://github.com/yagop/node-telegram-bot-api/blob/master/doc/usage.md#sending-files for more information on how sending files has been improved and on how to disable this deprecation message altogether.
+0|nexoshop | (node:14910) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+0|nexoshop | In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+0|nexoshop |
+0|nexoshop | To prepare for this change:
+0|nexoshop | - If you want the current behavior, explicitly use 'sslmode=verify-full'
+0|nexoshop | - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+0|nexoshop |
+0|nexoshop | See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+0|nexoshop | (Use `node --trace-warnings ...` to show where the warning was created)
+0|nexoshop | (node:14910) [node-telegram-bot-api] DeprecationWarning: In the future, content-type of files you send will default to "application/octet-stream". See https://github.com/yagop/node-telegram-bot-api/blob/master/doc/usage.md#sending-files for more information on how sending files has been improved and on how to disable this deprecation message altogether.
+
+^C
+root@ubuntu:~/bot/artifacts/api-server# cd /root/bot && git pull && cd artifacts/api-server && pnpm run build && pm2 restart nexoshop-bot
+Updating 79728aeb..9656f306
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# pm2 restart nexoshop-bot
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [nexoshop-bot](ids: [ 0 ])
+[PM2] [nexoshop-bot](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexoshop-bot       │ fork     │ 17   │ online    │ 0%       │ 12.5mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@ubuntu:~/bot# git pull
+Updating 79728aeb..9656f306
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# git commit -m "mini jeux fini"
+On branch main
+Your branch is behind 'origin/main' by 8 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   artifacts/api-server/dist/index.mjs
+        modified:   artifacts/api-server/dist/index.mjs.map
+        modified:   artifacts/api-server/dist/pino-file.mjs
+        modified:   artifacts/api-server/dist/pino-file.mjs.map
+        modified:   artifacts/api-server/dist/pino-worker.mjs
+        modified:   artifacts/api-server/dist/pino-worker.mjs.map
+
+no changes added to commit (use "git add" and/or "git commit -a")
+root@ubuntu:~/bot# pnpm run build
+
+> workspace@0.0.0 build /root/bot
+> pnpm run typecheck && pnpm -r --if-present run build
+
+
+> workspace@0.0.0 typecheck /root/bot
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs /root/bot
+> tsc --build
+
+Scope: 4 of 9 workspace projects
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+└─ Running...
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+│ src/bot/index.ts(417,10): error TS2304: Cannot find name 'WheelPrize'.
+│ src/bot/index.ts(876,30): error TS2353: Object literal may only specify known properties, and 'ref' does not exist …
+│ src/bot/index.ts(881,13): error TS2345: Argument of type '16225050' is not assignable to parameter of type 'Color |…
+│ src/bot/index.ts(2000,44): error TS2339: Property 'purchaseCount' does not exist on type '{ user: { telegramId: num…
+│ src/bot/index.ts(2223,39): error TS2322: Type 'null' is not assignable to type 'Date | undefined'.
+│ src/bot/index.ts(2390,53): error TS2554: Expected 1 arguments, but got 0.
+│ src/bot/index.ts(2614,77): error TS2554: Expected 0 arguments, but got 1.
+│ src/bot/index.ts(3697,15): error TS2322: Type '"Admin (validation manuelle)"' is not assignable to type '"PayPal" |…
+│ src/bot/index.ts(4387,11): error TS2345: Argument of type '"orders"' is not assignable to parameter of type 'Discor…
+│ src/bot/index.ts(5180,11): error TS2345: Argument of type '16098851' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5233,11): error TS2345: Argument of type '16098851' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5261,28): error TS2353: Object literal may only specify known properties, and 'ref' does not exist…
+│ src/bot/index.ts(5266,11): error TS2345: Argument of type '16225050' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5367,9): error TS2554: Expected 2-4 arguments, but got 1.
+└─ Failed in 4.5s at /root/bot/artifacts/api-server
+/root/bot/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+artifacts/status typecheck$ tsc -p tsconfig.json --noEmit
+└─ Running...
+ ELIFECYCLE  Command failed with exit code 2.
+ ELIFECYCLE  Command failed with exit code 2.
+root@ubuntu:~/bot# pm2 restart nexoshop-bot
+Use --update-env to update environment variables
+[PM2] Applying action restartProcessId on app [nexoshop-bot](ids: [ 0 ])
+[PM2] [nexoshop-bot](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexoshop-bot       │ fork     │ 18   │ online    │ 0%       │ 3.1mb    │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+root@ubuntu:~/bot# pnpm run build
+
+> workspace@0.0.0 build /root/bot
+> pnpm run typecheck && pnpm -r --if-present run build
+
+
+> workspace@0.0.0 typecheck /root/bot
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs /root/bot
+> tsc --build
+
+Scope: 4 of 9 workspace projects
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+│ src/bot/index.ts(417,10): error TS2304: Cannot find name 'WheelPrize'.
+│ src/bot/index.ts(876,30): error TS2353: Object literal may only specify known properties, and 'ref' does not exist …
+│ src/bot/index.ts(881,13): error TS2345: Argument of type '16225050' is not assignable to parameter of type 'Color |…
+│ src/bot/index.ts(2000,44): error TS2339: Property 'purchaseCount' does not exist on type '{ user: { telegramId: num…
+│ src/bot/index.ts(2223,39): error TS2322: Type 'null' is not assignable to type 'Date | undefined'.
+│ src/bot/index.ts(2390,53): error TS2554: Expected 1 arguments, but got 0.
+│ src/bot/index.ts(2614,77): error TS2554: Expected 0 arguments, but got 1.
+│ src/bot/index.ts(3697,15): error TS2322: Type '"Admin (validation manuelle)"' is not assignable to type '"PayPal" |…
+│ src/bot/index.ts(4387,11): error TS2345: Argument of type '"orders"' is not assignable to parameter of type 'Discor…
+│ src/bot/index.ts(5180,11): error TS2345: Argument of type '16098851' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5233,11): error TS2345: Argument of type '16098851' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5261,28): error TS2353: Object literal may only specify known properties, and 'ref' does not exist…
+│ src/bot/index.ts(5266,11): error TS2345: Argument of type '16225050' is not assignable to parameter of type 'Color …
+│ src/bot/index.ts(5367,9): error TS2554: Expected 2-4 arguments, but got 1.
+└─ Failed in 4.6s at /root/bot/artifacts/api-server
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+└─ Running...
+/root/bot/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+artifacts/status typecheck$ tsc -p tsconfig.json --noEmit
+└─ Running...
+ ELIFECYCLE  Command failed with exit code 2.
+ ELIFECYCLE  Command failed with exit code 2.
+root@ubuntu:~/bot# cd /root/bot && git pull && cd artifacts/api-server && pnpm run build && pm2 restart nexoshop-bot
+remote: Enumerating objects: 65, done.
+remote: Counting objects: 100% (65/65), done.
+remote: Compressing objects: 100% (11/11), done.
+remote: Total 44 (delta 33), reused 44 (delta 33), pack-reused 0 (from 0)
+Unpacking objects: 100% (44/44), 17.19 KiB | 106.00 KiB/s, done.
+From https://github.com/Emin699/NexoBotv3
+   9656f306..d6396e74  main       -> origin/main
+Updating 79728aeb..d6396e74
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+        lib/db/dist/index.d.ts.map
+        lib/db/dist/schema/index.d.ts
+        lib/db/dist/schema/index.d.ts.map
+        lib/db/tsconfig.tsbuildinfo
+Please commit your changes or stash them before you merge.
+error: The following untracked working tree files would be overwritten by merge:
+        lib/db/dist/schema/deezer_links.d.ts
+        lib/db/dist/schema/deezer_links.d.ts.map
+        lib/db/dist/schema/iptv_stock.d.ts
+        lib/db/dist/schema/iptv_stock.d.ts.map
+        lib/db/dist/schema/minigames.d.ts
+        lib/db/dist/schema/minigames.d.ts.map
+        lib/db/dist/schema/paypal_payments.d.ts
+        lib/db/dist/schema/paypal_payments.d.ts.map
+        lib/db/dist/schema/referrals.d.ts
+        lib/db/dist/schema/referrals.d.ts.map
+        lib/db/dist/schema/reviews.d.ts
+        lib/db/dist/schema/reviews.d.ts.map
+        lib/db/dist/schema/sumup_checkouts.d.ts
+        lib/db/dist/schema/sumup_checkouts.d.ts.map
+        lib/db/dist/schema/transactions.d.ts
+        lib/db/dist/schema/transactions.d.ts.map
+        lib/db/dist/schema/users.d.ts
+        lib/db/dist/schema/users.d.ts.map
+Please move or remove them before you merge.
+Aborting
+root@ubuntu:~/bot# git pull
+pnpm install
+pnpm --filter @workspace/api-server run build
+pm2 restart all   # ou le nom de ton process si tu utilises pm2
+Updating 79728aeb..d6396e74
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+        lib/db/dist/index.d.ts.map
+        lib/db/dist/schema/index.d.ts
+        lib/db/dist/schema/index.d.ts.map
+        lib/db/tsconfig.tsbuildinfo
+Please commit your changes or stash them before you merge.
+error: The following untracked working tree files would be overwritten by merge:
+        lib/db/dist/schema/deezer_links.d.ts
+        lib/db/dist/schema/deezer_links.d.ts.map
+        lib/db/dist/schema/iptv_stock.d.ts
+        lib/db/dist/schema/iptv_stock.d.ts.map
+        lib/db/dist/schema/minigames.d.ts
+        lib/db/dist/schema/minigames.d.ts.map
+        lib/db/dist/schema/paypal_payments.d.ts
+        lib/db/dist/schema/paypal_payments.d.ts.map
+        lib/db/dist/schema/referrals.d.ts
+        lib/db/dist/schema/referrals.d.ts.map
+        lib/db/dist/schema/reviews.d.ts
+        lib/db/dist/schema/reviews.d.ts.map
+        lib/db/dist/schema/sumup_checkouts.d.ts
+        lib/db/dist/schema/sumup_checkouts.d.ts.map
+        lib/db/dist/schema/transactions.d.ts
+        lib/db/dist/schema/transactions.d.ts.map
+        lib/db/dist/schema/users.d.ts
+        lib/db/dist/schema/users.d.ts.map
+Please move or remove them before you merge.
+Aborting
+Scope: all 9 workspace projects
+? The modules directories will be removed and reinstalled from scratch. Proceed? (Y/n) ‣ true
