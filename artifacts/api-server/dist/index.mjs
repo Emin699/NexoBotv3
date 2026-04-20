@@ -108360,6 +108360,18 @@ async function deductLoyaltyPoints(telegramId, points) {
   ).returning({ id: usersTable.telegramId });
   return result.length > 0;
 }
+async function getTotalRecharged(telegramId) {
+  const [row] = await db.select({ total: sql`COALESCE(SUM(amount::numeric), 0)` }).from(transactionsTable).where(
+    and(
+      eq(transactionsTable.telegramId, telegramId),
+      eq(transactionsTable.type, "credit"),
+      sql`${transactionsTable.description} NOT LIKE 'Gain Roue du Destin%'`,
+      sql`${transactionsTable.description} NOT LIKE 'Conversion%points fidélité%'`,
+      sql`${transactionsTable.description} NOT LIKE 'Réduction panier%'`
+    )
+  );
+  return parseFloat(row?.total ?? "0");
+}
 async function incrementPurchaseCount(telegramId) {
   const result = await db.update(usersTable).set({
     purchaseCount: sql`${usersTable.purchaseCount} + 1`,
@@ -108703,16 +108715,65 @@ function spinWheel() {
   return WHEEL_PRIZES[0];
 }
 var MILESTONES = [
-  { purchaseCount: 1, label: "\u{1F389} Premier achat !", rewardType: "loyalty_pts", value: 20, description: "+20 Points de fid\xE9lit\xE9 offerts" },
-  { purchaseCount: 5, label: "\u{1F31F} 5 achats accomplis", rewardType: "coupon_pct", value: 5, description: "Coupon -5% sur toute la boutique" },
-  { purchaseCount: 10, label: "\u{1F4AB} 10 achats accomplis", rewardType: "loyalty_pts", value: 100, description: "+100 Points de fid\xE9lit\xE9 offerts" },
-  { purchaseCount: 15, label: "\u{1F525} 15 achats accomplis", rewardType: "coupon_pct", value: 10, description: "Coupon -10% sur toute la boutique" },
-  { purchaseCount: 20, label: "\u{1F48E} 20 achats accomplis", rewardType: "loyalty_pts", value: 200, description: "+200 Points de fid\xE9lit\xE9 offerts" },
-  { purchaseCount: 30, label: "\u{1F451} 30 achats accomplis", rewardType: "coupon_fixed", value: 15, description: "Coupon -15\u20AC sur toute la boutique" },
-  { purchaseCount: 50, label: "\u{1F3C6} L\xE9gende NexoShop !", rewardType: "deezer_link", description: "Lien Deezer Premium \xE0 vie offert !" }
+  {
+    id: "m10",
+    rechargeThreshold: 10,
+    label: "\u{1F331} Palier 1 \u2014 10\u20AC",
+    rewardType: "reroll_spins",
+    spinCount: 1
+  },
+  {
+    id: "m30",
+    rechargeThreshold: 30,
+    label: "\u{1F525} Palier 2 \u2014 30\u20AC",
+    rewardType: "deezer_link"
+  },
+  {
+    id: "m60",
+    rechargeThreshold: 60,
+    label: "\u2B50 Palier 3 \u2014 60\u20AC",
+    rewardType: "multi",
+    couponType: "fixed",
+    couponValue: 10,
+    spinCount: 2
+  },
+  {
+    id: "m100",
+    rechargeThreshold: 100,
+    label: "\u{1F949} Palier 4 \u2014 100\u20AC",
+    rewardType: "multi",
+    couponType: "pct",
+    couponValue: 30,
+    spinCount: 5
+  },
+  {
+    id: "m200",
+    rechargeThreshold: 200,
+    label: "\u{1F948} Palier 5 \u2014 200\u20AC",
+    rewardType: "multi",
+    couponType: "fixed",
+    couponValue: 20,
+    spinCount: 10
+  },
+  {
+    id: "m350",
+    rechargeThreshold: 350,
+    label: "\u{1F947} Palier 6 \u2014 350\u20AC",
+    rewardType: "multi",
+    couponType: "pct",
+    couponValue: 50,
+    spinCount: 20
+  },
+  {
+    id: "m500",
+    rechargeThreshold: 500,
+    label: "\u{1F48E} Palier 7 \u2014 500\u20AC",
+    rewardType: "support_contact",
+    supportMessage: "1 an IPTV offert \u2014 contacte le support pour r\xE9cup\xE9rer ta r\xE9compense."
+  }
 ];
-function getMilestoneForCount(count2) {
-  return MILESTONES.find((m) => m.purchaseCount === count2) ?? null;
+function getMilestonesInRange(prevTotal, newTotal) {
+  return MILESTONES.filter((m) => prevTotal < m.rechargeThreshold && newTotal >= m.rechargeThreshold);
 }
 var DEEZER_LOTS = [
   { id: "1", quantity: 1, price: 2, label: "1 lien", pricePerUnit: "2,00\u20AC/lien" },
@@ -110571,7 +110632,7 @@ var pendingCouponEdit = /* @__PURE__ */ new Map();
 var pendingTelepeage = /* @__PURE__ */ new Map();
 var pendingCryptoTx = /* @__PURE__ */ new Map();
 var pendingLtcVerification = /* @__PURE__ */ new Map();
-var pendingRerolls = /* @__PURE__ */ new Set();
+var pendingRerolls = /* @__PURE__ */ new Map();
 var disabledServices = /* @__PURE__ */ new Set();
 var ALL_SERVICES = [
   { id: "nf_pub", name: "\u{1F3AC} Netflix (avec pub)" },
@@ -110861,51 +110922,80 @@ function startBot(expressApp) {
     return code;
   }
   async function onPurchaseComplete(userId) {
-    const newCount = await incrementPurchaseCount(userId);
+    await incrementPurchaseCount(userId);
     await addJackpotTicket(userId);
-    const milestone = getMilestoneForCount(newCount);
-    if (!milestone) return;
-    let rewardMsg = "";
-    if (milestone.rewardType === "loyalty_pts" && milestone.value) {
-      await addLoyaltyPoints(userId, milestone.value);
-      rewardMsg = `\u2B50 *+${milestone.value} Points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !`;
-    } else if (milestone.rewardType === "coupon_pct" && milestone.value) {
-      const code = createMiniGameCoupon(userId, "pct", milestone.value);
-      rewardMsg = `\u{1F39F}\uFE0F *Coupon -${milestone.value}%* g\xE9n\xE9r\xE9 !
-
-Ton code : \`${code}\`
-_Valable 30 jours sur toute la boutique._`;
-    } else if (milestone.rewardType === "coupon_fixed" && milestone.value) {
-      const code = createMiniGameCoupon(userId, "fixed", milestone.value);
-      rewardMsg = `\u{1F4B6} *Coupon -${milestone.value}\u20AC* g\xE9n\xE9r\xE9 !
-
-Ton code : \`${code}\`
-_Valable 30 jours sur toute la boutique._`;
-    } else if (milestone.rewardType === "deezer_link") {
-      const link = await popDeezerLink(userId);
-      if (link) {
-        rewardMsg = `\u{1F3A7} *Lien Deezer Premium offert !*
-
+  }
+  async function checkRechargeMilestones(userId, prevTotal, newTotal) {
+    const triggered = getMilestonesInRange(prevTotal, newTotal);
+    if (triggered.length === 0) return;
+    for (const milestone of triggered) {
+      const parts = [];
+      if (milestone.rewardType === "reroll_spins" && milestone.spinCount) {
+        const prev = pendingRerolls.get(userId) ?? 0;
+        pendingRerolls.set(userId, prev + milestone.spinCount);
+        parts.push(`\u{1F3A1} *+${milestone.spinCount} tour${milestone.spinCount > 1 ? "s" : ""} de roue gratuit${milestone.spinCount > 1 ? "s" : ""}* ajout\xE9${milestone.spinCount > 1 ? "s" : ""} \xE0 ton compte !`);
+      } else if (milestone.rewardType === "deezer_link") {
+        const link = await popDeezerLink(userId);
+        if (link) {
+          parts.push(`\u{1F3A7} *Lien Deezer Premium \xE0 vie !*
 \`${link}\`
-
-_Lien personnel, ne le partagez pas._`;
-      } else {
-        rewardMsg = `\u{1F3A7} Tu as gagn\xE9 un lien Deezer Premium ! Contacte le support pour le r\xE9cup\xE9rer.`;
+_Lien personnel, ne le partage pas._`);
+        } else {
+          parts.push(`\u{1F3A7} *Lien Deezer Premium \xE0 vie !*
+Contacte le support pour r\xE9cup\xE9rer ton lien.`);
+        }
+      } else if (milestone.rewardType === "coupon_fixed" && milestone.couponValue) {
+        const code = createMiniGameCoupon(userId, "fixed", milestone.couponValue);
+        parts.push(`\u{1F4B6} *Coupon -${milestone.couponValue}\u20AC*
+Code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`);
+      } else if (milestone.rewardType === "coupon_pct" && milestone.couponValue) {
+        const code = createMiniGameCoupon(userId, "pct", milestone.couponValue);
+        parts.push(`\u{1F39F}\uFE0F *Coupon -${milestone.couponValue}%*
+Code : \`${code}\`
+_Valable 30 jours sur toute la boutique._`);
+      } else if (milestone.rewardType === "support_contact") {
+        parts.push(`\u{1F451} *R\xE9compense exclusive !*
+${milestone.supportMessage ?? "Contacte le support pour r\xE9cup\xE9rer ta r\xE9compense."}`);
+      } else if (milestone.rewardType === "multi") {
+        if (milestone.couponType && milestone.couponValue) {
+          const code = createMiniGameCoupon(userId, milestone.couponType, milestone.couponValue);
+          if (milestone.couponType === "fixed") {
+            parts.push(`\u{1F4B6} *Coupon -${milestone.couponValue}\u20AC*
+Code : \`${code}\`
+_Valable 30 jours._`);
+          } else {
+            parts.push(`\u{1F39F}\uFE0F *Coupon -${milestone.couponValue}%*
+Code : \`${code}\`
+_Valable 30 jours._`);
+          }
+        }
+        if (milestone.spinCount) {
+          const prev = pendingRerolls.get(userId) ?? 0;
+          pendingRerolls.set(userId, prev + milestone.spinCount);
+          parts.push(`\u{1F3A1} *+${milestone.spinCount} tour${milestone.spinCount > 1 ? "s" : ""} de roue gratuit${milestone.spinCount > 1 ? "s" : ""}* !`);
+        }
       }
-    }
-    try {
-      await bot.sendMessage(
-        userId,
-        `\u{1F3C6} *Palier atteint : ${milestone.label}*
+      const rewardBlock = parts.join("\n\n");
+      try {
+        await bot.sendMessage(
+          userId,
+          `\u{1F381} *Un coffre myst\xE8re vient de s'ouvrir !*
 
-*${newCount} achat(s)* accomplis sur NexoShop !
+Tu as atteint *${milestone.rechargeThreshold}\u20AC* recharg\xE9s sur NexoShop...
 
-\u{1F381} *R\xE9compense :* ${milestone.description}
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
+\u2551   \u{1F4E6} COFFRE      \u2551
+\u2551  [ OUVERT ! ]    \u2551
+\u255A\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255D
 
-${rewardMsg}`,
-        { parse_mode: "Markdown" }
-      );
-    } catch {
+\u2728 *Ta r\xE9compense surprise :*
+
+${rewardBlock}`,
+          { parse_mode: "Markdown" }
+        );
+      } catch {
+      }
     }
   }
   const PUBLIC_PATH = path2.resolve(__dirname, "..", "public");
@@ -111063,6 +111153,8 @@ Vous pouvez initier un nouveau rechargement via /menu.`,
         if (result.found && result.txId) {
           await markPaypalPaid(p.reference, result.txId);
           await addBalance(p.telegramId, amount, `Rechargement PayPal \u2014 ${p.reference}`, result.txId);
+          const newTotalRp = await getTotalRecharged(p.telegramId);
+          await checkRechargeMilestones(p.telegramId, newTotalRp - amount, newTotalRp);
           const newBal = await getBalance(p.telegramId);
           const paypalUser = await getOrCreateUser(p.telegramId);
           sendCreditLog(
@@ -111227,6 +111319,8 @@ Contacte le support si le paiement a bien \xE9t\xE9 effectu\xE9.`,
         if (result.confirmed && result.amount !== void 0) {
           pendingLtcVerification.delete(userId);
           await addBalance(userId, pending.amount, `Rechargement LTC \u2014 ${pending.txHash.slice(0, 12)}...`);
+          const newTotalRl = await getTotalRecharged(userId);
+          await checkRechargeMilestones(userId, newTotalRl - pending.amount, newTotalRl);
           const newBal = await getBalance(userId);
           const ltcUser = await getOrCreateUser(userId);
           sendCreditLog(
@@ -111439,6 +111533,8 @@ ${deleted} lien(s) supprim\xE9(s). Stock actuel : *0*.`,
     try {
       const targetUser = await getOrCreateUser(targetId);
       await addBalance(targetId, amount, `Rechargement admin par ${senderId}`, `admin_${senderId}_${Date.now()}`);
+      const newTotalRa = await getTotalRecharged(targetId);
+      await checkRechargeMilestones(targetId, newTotalRa - amount, newTotalRa);
       const newBal = await getBalance(targetId);
       const adminName = msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : "");
       sendCreditLog(
@@ -112420,7 +112516,7 @@ ${prizeListText}
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
-        const hasReroll = pendingRerolls.has(userId);
+        const hasReroll = (pendingRerolls.get(userId) ?? 0) > 0;
         const canSpin = adminUser || hasReroll || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
         if (!canSpin) {
           const nextSpinMs = spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now;
@@ -112436,7 +112532,11 @@ ${prizeListText}
           return;
         }
         if (!adminUser && !hasReroll) await recordWheelSpin(userId);
-        if (hasReroll) pendingRerolls.delete(userId);
+        if (hasReroll) {
+          const remaining = (pendingRerolls.get(userId) ?? 1) - 1;
+          if (remaining <= 0) pendingRerolls.delete(userId);
+          else pendingRerolls.set(userId, remaining);
+        }
         const prize = spinWheel();
         const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(
@@ -112493,7 +112593,7 @@ _Ce lien est personnel, ne le partage pas._`;
             resultMsg += `\u{1F3A7} *Incroyable !* Tu as gagn\xE9 un lien Deezer ! Contacte le support pour le r\xE9cup\xE9rer.`;
           }
         } else if (prize.type === "reroll") {
-          pendingRerolls.add(userId);
+          pendingRerolls.set(userId, (pendingRerolls.get(userId) ?? 0) + 1);
           resultMsg += prize.message || `\u{1F504} *Chance insolente !* Tu peux relancer la roue imm\xE9diatement !`;
           resultKeyboard = {
             inline_keyboard: [
@@ -114255,6 +114355,8 @@ Vous pouvez en initier une nouvelle depuis le menu de paiement.`,
         if (action === "ok") {
           await getOrCreateUser(targetId);
           await addBalance(targetId, amount, `Rechargement confirm\xE9 par admin`, `admin_${Date.now()}`);
+          const newTotalRc = await getTotalRecharged(targetId);
+          await checkRechargeMilestones(targetId, newTotalRc - amount, newTotalRc);
           const newBal = await getBalance(targetId);
           const targetUser = await getOrCreateUser(targetId);
           sendCreditLog(
@@ -115463,6 +115565,8 @@ Ex : \`123456789 10\``, { parse_mode: "Markdown" });
           return;
         }
         await addBalance(targetId, amount, `Rechargement admin`, `admin_menu_${senderUserId}_${Date.now()}`);
+        const newTotalRam = await getTotalRecharged(targetId);
+        await checkRechargeMilestones(targetId, newTotalRam - amount, newTotalRam);
         const newBal = await getBalance(targetId);
         await bot.sendMessage(
           senderChatId,
@@ -115956,6 +116060,8 @@ Ta transaction est visible sur la blockchain mais n'a pas encore de confirmation
       }
       if (result.confirmed && result.amount !== void 0) {
         await addBalance(userId, amount, `Rechargement LTC \u2014 ${txHash.slice(0, 12)}...`);
+        const newTotalRlt = await getTotalRecharged(userId);
+        await checkRechargeMilestones(userId, newTotalRlt - amount, newTotalRlt);
         const newBal = await getBalance(userId);
         const ltcUser = await getOrCreateUser(userId);
         sendCreditLog(

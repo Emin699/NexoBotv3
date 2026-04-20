@@ -15,8 +15,9 @@ import {
   incrementPurchaseCount,
   getLastWheelSpin, recordWheelSpin,
   addJackpotTicket, getJackpotTicketCount, getUserJackpotTicketCount, getJackpotStats, drawJackpotWinner,
+  getTotalRecharged,
 } from "./db";
-import { WHEEL_PRIZES, spinWheel, getMilestoneForCount, DEEZER_LOTS, getDeezerLotById } from "./minigames";
+import { WHEEL_PRIZES, spinWheel, getMilestonesInRange, DEEZER_LOTS, getDeezerLotById } from "./minigames";
 import {
   mainMenuKeyboard,
   achatMenuKeyboard,
@@ -160,7 +161,7 @@ const pendingLtcVerification = new Map<number, {
 }>();
 
 // ── Reroll roue du destin — utilisateurs ayant gagné une relance gratuite ──
-const pendingRerolls = new Set<number>();
+const pendingRerolls = new Map<number, number>();
 
 // ── Services désactivés par l'admin ────────────────────────────────────────
 const disabledServices = new Set<string>();
@@ -556,37 +557,71 @@ export function startBot(expressApp?: Application): TelegramBot {
   }
 
   async function onPurchaseComplete(userId: number): Promise<void> {
-    const newCount = await incrementPurchaseCount(userId);
+    await incrementPurchaseCount(userId);
     await addJackpotTicket(userId);
-    const milestone = getMilestoneForCount(newCount);
-    if (!milestone) return;
-    let rewardMsg = "";
-    if (milestone.rewardType === "loyalty_pts" && milestone.value) {
-      await addLoyaltyPoints(userId, milestone.value);
-      rewardMsg = `⭐ *+${milestone.value} Points de fidélité* ont été ajoutés à ton compte !`;
-    } else if (milestone.rewardType === "coupon_pct" && milestone.value) {
-      const code = createMiniGameCoupon(userId, "pct", milestone.value);
-      rewardMsg = `🎟️ *Coupon -${milestone.value}%* généré !\n\nTon code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
-    } else if (milestone.rewardType === "coupon_fixed" && milestone.value) {
-      const code = createMiniGameCoupon(userId, "fixed", milestone.value);
-      rewardMsg = `💶 *Coupon -${milestone.value}€* généré !\n\nTon code : \`${code}\`\n_Valable 30 jours sur toute la boutique._`;
-    } else if (milestone.rewardType === "deezer_link") {
-      const link = await popDeezerLink(userId);
-      if (link) {
-        rewardMsg = `🎧 *Lien Deezer Premium offert !*\n\n\`${link}\`\n\n_Lien personnel, ne le partagez pas._`;
-      } else {
-        rewardMsg = `🎧 Tu as gagné un lien Deezer Premium ! Contacte le support pour le récupérer.`;
+  }
+
+  async function checkRechargeMilestones(userId: number, prevTotal: number, newTotal: number): Promise<void> {
+    const triggered = getMilestonesInRange(prevTotal, newTotal);
+    if (triggered.length === 0) return;
+    for (const milestone of triggered) {
+      const parts: string[] = [];
+
+      if (milestone.rewardType === "reroll_spins" && milestone.spinCount) {
+        const prev = pendingRerolls.get(userId) ?? 0;
+        pendingRerolls.set(userId, prev + milestone.spinCount);
+        parts.push(`🎡 *+${milestone.spinCount} tour${milestone.spinCount > 1 ? "s" : ""} de roue gratuit${milestone.spinCount > 1 ? "s" : ""}* ajouté${milestone.spinCount > 1 ? "s" : ""} à ton compte !`);
+
+      } else if (milestone.rewardType === "deezer_link") {
+        const link = await popDeezerLink(userId);
+        if (link) {
+          parts.push(`🎧 *Lien Deezer Premium à vie !*\n\`${link}\`\n_Lien personnel, ne le partage pas._`);
+        } else {
+          parts.push(`🎧 *Lien Deezer Premium à vie !*\nContacte le support pour récupérer ton lien.`);
+        }
+
+      } else if (milestone.rewardType === "coupon_fixed" && milestone.couponValue) {
+        const code = createMiniGameCoupon(userId, "fixed", milestone.couponValue);
+        parts.push(`💶 *Coupon -${milestone.couponValue}€*\nCode : \`${code}\`\n_Valable 30 jours sur toute la boutique._`);
+
+      } else if (milestone.rewardType === "coupon_pct" && milestone.couponValue) {
+        const code = createMiniGameCoupon(userId, "pct", milestone.couponValue);
+        parts.push(`🎟️ *Coupon -${milestone.couponValue}%*\nCode : \`${code}\`\n_Valable 30 jours sur toute la boutique._`);
+
+      } else if (milestone.rewardType === "support_contact") {
+        parts.push(`👑 *Récompense exclusive !*\n${milestone.supportMessage ?? "Contacte le support pour récupérer ta récompense."}`);
+
+      } else if (milestone.rewardType === "multi") {
+        if (milestone.couponType && milestone.couponValue) {
+          const code = createMiniGameCoupon(userId, milestone.couponType, milestone.couponValue);
+          if (milestone.couponType === "fixed") {
+            parts.push(`💶 *Coupon -${milestone.couponValue}€*\nCode : \`${code}\`\n_Valable 30 jours._`);
+          } else {
+            parts.push(`🎟️ *Coupon -${milestone.couponValue}%*\nCode : \`${code}\`\n_Valable 30 jours._`);
+          }
+        }
+        if (milestone.spinCount) {
+          const prev = pendingRerolls.get(userId) ?? 0;
+          pendingRerolls.set(userId, prev + milestone.spinCount);
+          parts.push(`🎡 *+${milestone.spinCount} tour${milestone.spinCount > 1 ? "s" : ""} de roue gratuit${milestone.spinCount > 1 ? "s" : ""}* !`);
+        }
       }
+
+      const rewardBlock = parts.join("\n\n");
+      try {
+        await bot.sendMessage(
+          userId,
+          `🎁 *Un coffre mystère vient de s'ouvrir !*\n\n` +
+          `Tu as atteint *${milestone.rechargeThreshold}€* rechargés sur NexoShop...\n\n` +
+          `╔══════════════════╗\n` +
+          `║   📦 COFFRE      ║\n` +
+          `║  [ OUVERT ! ]    ║\n` +
+          `╚══════════════════╝\n\n` +
+          `✨ *Ta récompense surprise :*\n\n${rewardBlock}`,
+          { parse_mode: "Markdown" }
+        );
+      } catch { /* ignore */ }
     }
-    try {
-      await bot.sendMessage(
-        userId,
-        `🏆 *Palier atteint : ${milestone.label}*\n\n` +
-        `*${newCount} achat(s)* accomplis sur NexoShop !\n\n` +
-        `🎁 *Récompense :* ${milestone.description}\n\n${rewardMsg}`,
-        { parse_mode: "Markdown" }
-      );
-    } catch { /* ignore */ }
   }
 
   // Photo principale du menu
@@ -767,6 +802,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (result.found && result.txId) {
           await markPaypalPaid(p.reference, result.txId);
           await addBalance(p.telegramId, amount, `Rechargement PayPal — ${p.reference}`, result.txId);
+          const newTotalRp = await getTotalRecharged(p.telegramId);
+          await checkRechargeMilestones(p.telegramId, newTotalRp - amount, newTotalRp);
           const newBal = await getBalance(p.telegramId);
           const paypalUser = await getOrCreateUser(p.telegramId);
           sendCreditLog(
@@ -925,6 +962,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (result.confirmed && result.amount !== undefined) {
           pendingLtcVerification.delete(userId);
           await addBalance(userId, pending.amount, `Rechargement LTC — ${pending.txHash.slice(0, 12)}...`);
+          const newTotalRl = await getTotalRecharged(userId);
+          await checkRechargeMilestones(userId, newTotalRl - pending.amount, newTotalRl);
           const newBal = await getBalance(userId);
           const ltcUser = await getOrCreateUser(userId);
           sendCreditLog(
@@ -1136,6 +1175,8 @@ export function startBot(expressApp?: Application): TelegramBot {
     try {
       const targetUser = await getOrCreateUser(targetId);
       await addBalance(targetId, amount, `Rechargement admin par ${senderId}`, `admin_${senderId}_${Date.now()}`);
+      const newTotalRa = await getTotalRecharged(targetId);
+      await checkRechargeMilestones(targetId, newTotalRa - amount, newTotalRa);
       const newBal = await getBalance(targetId);
       const adminName = msg.from!.first_name + (msg.from!.last_name ? ` ${msg.from!.last_name}` : "");
       sendCreditLog(
@@ -2123,7 +2164,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-        const hasReroll = pendingRerolls.has(userId);
+        const hasReroll = (pendingRerolls.get(userId) ?? 0) > 0;
         const canSpin = adminUser || hasReroll || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
         if (!canSpin) {
           const nextSpinMs = (spinStatus!.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now;
@@ -2139,7 +2180,11 @@ export function startBot(expressApp?: Application): TelegramBot {
         }
         // Enregistrer le spin — si c'est un reroll, on consomme le token sans remettre le cooldown
         if (!adminUser && !hasReroll) await recordWheelSpin(userId);
-        if (hasReroll) pendingRerolls.delete(userId);
+        if (hasReroll) {
+          const remaining = (pendingRerolls.get(userId) ?? 1) - 1;
+          if (remaining <= 0) pendingRerolls.delete(userId);
+          else pendingRerolls.set(userId, remaining);
+        }
         const prize = spinWheel();
 
         // ── Frame initiale (bande à l'arrêt, avant lancement) ────────
@@ -2197,7 +2242,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           }
 
         } else if (prize.type === "reroll") {
-          pendingRerolls.add(userId);
+          pendingRerolls.set(userId, (pendingRerolls.get(userId) ?? 0) + 1);
           resultMsg += prize.message || `🔄 *Chance insolente !* Tu peux relancer la roue immédiatement !`;
           resultKeyboard = {
             inline_keyboard: [
@@ -3808,6 +3853,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (action === "ok") {
           await getOrCreateUser(targetId);
           await addBalance(targetId, amount, `Rechargement confirmé par admin`, `admin_${Date.now()}`);
+          const newTotalRc = await getTotalRecharged(targetId);
+          await checkRechargeMilestones(targetId, newTotalRc - amount, newTotalRc);
           const newBal = await getBalance(targetId);
           const targetUser = await getOrCreateUser(targetId);
           sendCreditLog(
@@ -4936,6 +4983,8 @@ export function startBot(expressApp?: Application): TelegramBot {
           return;
         }
         await addBalance(targetId, amount, `Rechargement admin`, `admin_menu_${senderUserId}_${Date.now()}`);
+        const newTotalRam = await getTotalRecharged(targetId);
+        await checkRechargeMilestones(targetId, newTotalRam - amount, newTotalRam);
         const newBal = await getBalance(targetId);
         await bot.sendMessage(senderChatId,
           `✅ *Solde ajouté !*\n\n👤 User : \`${targetId}\`\n💰 Ajouté : *+${amount.toFixed(2)}€*\n💳 Nouveau solde : *${newBal.toFixed(2)}€*`,
@@ -5376,6 +5425,8 @@ export function startBot(expressApp?: Application): TelegramBot {
       // Transaction confirmée immédiatement 🎉
       if (result.confirmed && result.amount !== undefined) {
         await addBalance(userId, amount, `Rechargement LTC — ${txHash.slice(0, 12)}...`);
+        const newTotalRlt = await getTotalRecharged(userId);
+        await checkRechargeMilestones(userId, newTotalRlt - amount, newTotalRlt);
         const newBal = await getBalance(userId);
         const ltcUser = await getOrCreateUser(userId);
         sendCreditLog(

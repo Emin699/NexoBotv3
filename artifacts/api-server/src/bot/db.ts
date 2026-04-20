@@ -168,6 +168,24 @@ export async function deductLoyaltyPoints(telegramId: number, points: number): P
   return result.length > 0;
 }
 
+// ── Total rechargé (crédits hors roue / conversion pts) ─────────────────────
+
+export async function getTotalRecharged(telegramId: number): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+    .from(transactionsTable)
+    .where(
+      and(
+        eq(transactionsTable.telegramId, telegramId),
+        eq(transactionsTable.type, "credit"),
+        sql`${transactionsTable.description} NOT LIKE 'Gain Roue du Destin%'`,
+        sql`${transactionsTable.description} NOT LIKE 'Conversion%points fidélité%'`,
+        sql`${transactionsTable.description} NOT LIKE 'Réduction panier%'`
+      )
+    );
+  return parseFloat(row?.total ?? "0");
+}
+
 // ── Compteur d'achats ────────────────────────────────────────────────────────
 
 export async function incrementPurchaseCount(telegramId: number): Promise<number> {

@@ -173,27 +173,92 @@ export function spinWheel(): WheelPrize {
   return WHEEL_PRIZES[0]!;
 }
 
-// ── Paliers d'achat ───────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+// ║  PALIERS DE FIDÉLITÉ — basés sur le TOTAL RECHARGÉ                       ║
+// ║                                                                           ║
+// ║  Chaque palier se déclenche UNE SEULE FOIS quand le client franchit       ║
+// ║  le seuil de recharge. Les récompenses sont cachées (effet surprise).     ║
+// ║                                                                           ║
+// ║  rewardType :                                                             ║
+// ║    "reroll_spins"   → Tours de roue gratuits (spinCount)                  ║
+// ║    "deezer_link"    → Lien Deezer depuis le stock DB                      ║
+// ║    "coupon_fixed"   → Coupon montant fixe (couponValue en €)              ║
+// ║    "coupon_pct"     → Coupon pourcentage (couponValue en %)               ║
+// ║    "support_contact"→ Client doit contacter le support                    ║
+// ║    "multi"          → Combinaison coupon + spins                          ║
+// ════════════════════════════════════════════════════════════════════════════
 export interface Milestone {
-  purchaseCount: number;
+  id: string;
+  rechargeThreshold: number;
   label: string;
-  rewardType: "loyalty_pts" | "coupon_pct" | "coupon_fixed" | "deezer_link";
-  value?: number;
-  description: string;
+  rewardType: "reroll_spins" | "deezer_link" | "coupon_fixed" | "coupon_pct" | "support_contact" | "multi";
+  couponType?: "fixed" | "pct";
+  couponValue?: number;
+  spinCount?: number;
+  supportMessage?: string;
 }
 
 export const MILESTONES: Milestone[] = [
-  { purchaseCount: 1, label: "🎉 Premier achat !", rewardType: "loyalty_pts", value: 20, description: "+20 Points de fidélité offerts" },
-  { purchaseCount: 5, label: "🌟 5 achats accomplis", rewardType: "coupon_pct", value: 5, description: "Coupon -5% sur toute la boutique" },
-  { purchaseCount: 10, label: "💫 10 achats accomplis", rewardType: "loyalty_pts", value: 100, description: "+100 Points de fidélité offerts" },
-  { purchaseCount: 15, label: "🔥 15 achats accomplis", rewardType: "coupon_pct", value: 10, description: "Coupon -10% sur toute la boutique" },
-  { purchaseCount: 20, label: "💎 20 achats accomplis", rewardType: "loyalty_pts", value: 200, description: "+200 Points de fidélité offerts" },
-  { purchaseCount: 30, label: "👑 30 achats accomplis", rewardType: "coupon_fixed", value: 15, description: "Coupon -15€ sur toute la boutique" },
-  { purchaseCount: 50, label: "🏆 Légende NexoShop !", rewardType: "deezer_link", description: "Lien Deezer Premium à vie offert !" },
+  {
+    id: "m10",
+    rechargeThreshold: 10,
+    label: "🌱 Palier 1 — 10€",
+    rewardType: "reroll_spins",
+    spinCount: 1,
+  },
+  {
+    id: "m30",
+    rechargeThreshold: 30,
+    label: "🔥 Palier 2 — 30€",
+    rewardType: "deezer_link",
+  },
+  {
+    id: "m60",
+    rechargeThreshold: 60,
+    label: "⭐ Palier 3 — 60€",
+    rewardType: "multi",
+    couponType: "fixed",
+    couponValue: 10,
+    spinCount: 2,
+  },
+  {
+    id: "m100",
+    rechargeThreshold: 100,
+    label: "🥉 Palier 4 — 100€",
+    rewardType: "multi",
+    couponType: "pct",
+    couponValue: 30,
+    spinCount: 5,
+  },
+  {
+    id: "m200",
+    rechargeThreshold: 200,
+    label: "🥈 Palier 5 — 200€",
+    rewardType: "multi",
+    couponType: "fixed",
+    couponValue: 20,
+    spinCount: 10,
+  },
+  {
+    id: "m350",
+    rechargeThreshold: 350,
+    label: "🥇 Palier 6 — 350€",
+    rewardType: "multi",
+    couponType: "pct",
+    couponValue: 50,
+    spinCount: 20,
+  },
+  {
+    id: "m500",
+    rechargeThreshold: 500,
+    label: "💎 Palier 7 — 500€",
+    rewardType: "support_contact",
+    supportMessage: "1 an IPTV offert — contacte le support pour récupérer ta récompense.",
+  },
 ];
 
-export function getMilestoneForCount(count: number): Milestone | null {
-  return MILESTONES.find((m) => m.purchaseCount === count) ?? null;
+export function getMilestonesInRange(prevTotal: number, newTotal: number): Milestone[] {
+  return MILESTONES.filter((m) => prevTotal < m.rechargeThreshold && newTotal >= m.rechargeThreshold);
 }
 
 // ── Lots Deezer ───────────────────────────────────────────────────────────
