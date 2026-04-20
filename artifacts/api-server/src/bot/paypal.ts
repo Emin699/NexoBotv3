@@ -127,10 +127,17 @@ interface PayPalTx {
   };
 }
 
+export interface PayPalNearMatch {
+  txId: string;
+  amount: number;
+  note: string;
+  date: string;
+}
+
 export async function checkPayPalTransactions(
   reference: string,
   expectedAmount: number
-): Promise<{ found: boolean; txId?: string }> {
+): Promise<{ found: boolean; txId?: string; nearMatch?: PayPalNearMatch }> {
   const token = await getPayPalToken();
   if (!token) return { found: false };
 
@@ -158,6 +165,7 @@ export async function checkPayPalTransactions(
     const txs = data.transaction_details || [];
 
     const refLower = reference.toLowerCase();
+    let nearMatch: PayPalNearMatch | undefined;
 
     for (const tx of txs) {
       const info = tx.transaction_info;
@@ -172,9 +180,19 @@ export async function checkPayPalTransactions(
       if (statusOk && amountMatch && refMatch) {
         return { found: true, txId: info.transaction_id };
       }
+
+      // Quasi-correspondance : montant OK mais référence absente/incorrecte
+      if (statusOk && amountMatch && !refMatch && !nearMatch) {
+        nearMatch = {
+          txId: info.transaction_id,
+          amount,
+          note: (info.transaction_note || info.transaction_subject || "").slice(0, 200),
+          date: info.transaction_initiation_date,
+        };
+      }
     }
 
-    return { found: false };
+    return { found: false, nearMatch };
   } catch (err) {
     logger.error({ err }, "PayPal checkTransactions error");
     return { found: false };

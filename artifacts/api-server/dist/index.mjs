@@ -110309,6 +110309,7 @@ async function checkPayPalTransactions(reference, expectedAmount) {
     const data = await res.json();
     const txs = data.transaction_details || [];
     const refLower = reference.toLowerCase();
+    let nearMatch;
     for (const tx of txs) {
       const info = tx.transaction_info;
       const note = (info.transaction_note || "").toLowerCase();
@@ -110320,8 +110321,16 @@ async function checkPayPalTransactions(reference, expectedAmount) {
       if (statusOk && amountMatch && refMatch) {
         return { found: true, txId: info.transaction_id };
       }
+      if (statusOk && amountMatch && !refMatch && !nearMatch) {
+        nearMatch = {
+          txId: info.transaction_id,
+          amount,
+          note: (info.transaction_note || info.transaction_subject || "").slice(0, 200),
+          date: info.transaction_initiation_date
+        };
+      }
     }
-    return { found: false };
+    return { found: false, nearMatch };
   } catch (err) {
     logger.error({ err }, "PayPal checkTransactions error");
     return { found: false };
@@ -110648,6 +110657,7 @@ function checkPaymentRateLimit(userId) {
 }
 var usedScreenshots = /* @__PURE__ */ new Set();
 var screenshotBlacklist = /* @__PURE__ */ new Map();
+var reportedNearMatches = /* @__PURE__ */ new Set();
 function generateOrderId() {
   const ts = Math.floor(Date.now() / 1e3) % 1e5;
   const rnd = Math.floor(Math.random() * 1e3);
@@ -111043,6 +111053,63 @@ Votre filleul \`${filleulId}\` a recharg\xE9 +${MIN_DEPOSIT_FOR_BONUS}\u20AC et 
             } catch {
             }
           }).catch((err) => logger.error({ err }, "Error paying referral bonus (PayPal)"));
+        } else if (!result.found && result.nearMatch) {
+          const nm = result.nearMatch;
+          if (!reportedNearMatches.has(nm.txId)) {
+            reportedNearMatches.add(nm.txId);
+            if (reportedNearMatches.size > 500) {
+              const oldest = reportedNearMatches.values().next().value;
+              if (oldest !== void 0) reportedNearMatches.delete(oldest);
+            }
+            logger.warn({ txId: nm.txId, amount: nm.amount, reference: p.reference }, "PayPal near-match d\xE9tect\xE9");
+            sendDiscordLog(
+              "\u26A0\uFE0F PayPal \u2014 Paiement sans r\xE9f\xE9rence",
+              `Un paiement du bon montant a \xE9t\xE9 re\xE7u mais la **note de transaction est incorrecte ou absente**.
+
+Le client a peut-\xEAtre oubli\xE9 de copier la r\xE9f\xE9rence.`,
+              "orange",
+              [
+                { name: "User Telegram", value: `\`${p.telegramId}\``, inline: true },
+                { name: "Montant attendu", value: `**${amount.toFixed(2)}\u20AC**`, inline: true },
+                { name: "R\xE9f\xE9rence attendue", value: `\`${p.reference}\``, inline: false },
+                { name: "TX ID PayPal", value: `\`${nm.txId}\``, inline: true },
+                { name: "Note envoy\xE9e", value: nm.note ? `\`${nm.note}\`` : "_vide_", inline: false },
+                { name: "Date transaction", value: nm.date, inline: true },
+                { name: "Action requise", value: `Valider manuellement : \`/addbalance ${p.telegramId} ${amount.toFixed(2)}\``, inline: false }
+              ],
+              "payments"
+            ).catch((err) => logger.error({ err }, "Error sending near-match Discord alert"));
+            const adminId = getAdminId();
+            if (adminId) {
+              try {
+                await bot.sendMessage(
+                  adminId,
+                  `\u26A0\uFE0F *Paiement PayPal sans r\xE9f\xE9rence d\xE9tect\xE9 !*
+
+Un client a envoy\xE9 le bon montant mais sans mettre la bonne note.
+
+\u{1F464} User ID : \`${p.telegramId}\`
+\u{1F4B0} Montant : *${amount.toFixed(2)}\u20AC*
+\u{1F4CC} R\xE9f\xE9rence attendue : \`${p.reference}\`
+\u{1F517} TX PayPal : \`${nm.txId}\`
+\u{1F4DD} Note envoy\xE9e : ${nm.note ? `\`${nm.note}\`` : "_vide_"}
+
+Pour valider manuellement :
+/addbalance ${p.telegramId} ${amount.toFixed(2)}`,
+                  {
+                    parse_mode: "Markdown",
+                    reply_markup: {
+                      inline_keyboard: [[
+                        { text: "\u2705 Valider et cr\xE9diter", callback_data: `admin_ok_${p.telegramId}_${amount.toFixed(2)}` },
+                        { text: "\u274C Refuser", callback_data: `admin_no_${p.telegramId}_${amount.toFixed(2)}` }
+                      ]]
+                    }
+                  }
+                );
+              } catch {
+              }
+            }
+          }
         }
       }
     } catch (err) {

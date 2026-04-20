@@ -78,6 +78,7 @@ import {
   cancelPaypalPayment,
   checkPayPalTransactions,
   isPayPalConfigured,
+  type PayPalNearMatch,
 } from "./paypal";
 import { eurToLtc, getLtcAddress, ltcExplorerUrl, verifyLtcTransaction } from "./crypto";
 import {
@@ -381,6 +382,9 @@ const screenshotBlacklist = new Map<string, number>(); // uid → userId l'ayant
 
 // ── Anti-fraude : blacklist de références PayPal ─────────────────────────
 const usedPaypalReferences = new Set<string>();
+
+// ── Anti-spam : near-matches PayPal déjà signalés (pour ne pas répéter l'alerte) ──
+const reportedNearMatches = new Set<string>(); // txId déjà signalé sur Discord
 
 function generateOrderId(): string {
   const ts = Math.floor(Date.now() / 1000) % 100000;
@@ -828,6 +832,60 @@ export function startBot(expressApp?: Application): TelegramBot {
               );
             } catch { /* ignore */ }
           }).catch((err) => logger.error({ err }, "Error paying referral bonus (PayPal)"));
+        } else if (!result.found && result.nearMatch) {
+          // ── Quasi-correspondance : montant reçu mais référence incorrecte ──────
+          const nm: PayPalNearMatch = result.nearMatch;
+          if (!reportedNearMatches.has(nm.txId)) {
+            reportedNearMatches.add(nm.txId);
+            // Limite mémoire : on garde les 500 dernières entrées
+            if (reportedNearMatches.size > 500) {
+              const oldest = reportedNearMatches.values().next().value;
+              if (oldest !== undefined) reportedNearMatches.delete(oldest);
+            }
+            logger.warn({ txId: nm.txId, amount: nm.amount, reference: p.reference }, "PayPal near-match détecté");
+            sendDiscordLog(
+              "⚠️ PayPal — Paiement sans référence",
+              `Un paiement du bon montant a été reçu mais la **note de transaction est incorrecte ou absente**.\n\nLe client a peut-être oublié de copier la référence.`,
+              "orange",
+              [
+                { name: "User Telegram", value: `\`${p.telegramId}\``, inline: true },
+                { name: "Montant attendu", value: `**${amount.toFixed(2)}€**`, inline: true },
+                { name: "Référence attendue", value: `\`${p.reference}\``, inline: false },
+                { name: "TX ID PayPal", value: `\`${nm.txId}\``, inline: true },
+                { name: "Note envoyée", value: nm.note ? `\`${nm.note}\`` : "_vide_", inline: false },
+                { name: "Date transaction", value: nm.date, inline: true },
+                { name: "Action requise", value: `Valider manuellement : \`/addbalance ${p.telegramId} ${amount.toFixed(2)}\``, inline: false },
+              ],
+              "payments"
+            ).catch((err) => logger.error({ err }, "Error sending near-match Discord alert"));
+            // Notifier l'admin sur Telegram également
+            const adminId = getAdminId();
+            if (adminId) {
+              try {
+                await bot.sendMessage(
+                  adminId,
+                  `⚠️ *Paiement PayPal sans référence détecté !*\n\n` +
+                  `Un client a envoyé le bon montant mais sans mettre la bonne note.\n\n` +
+                  `👤 User ID : \`${p.telegramId}\`\n` +
+                  `💰 Montant : *${amount.toFixed(2)}€*\n` +
+                  `📌 Référence attendue : \`${p.reference}\`\n` +
+                  `🔗 TX PayPal : \`${nm.txId}\`\n` +
+                  `📝 Note envoyée : ${nm.note ? `\`${nm.note}\`` : "_vide_"}\n\n` +
+                  `Pour valider manuellement :\n` +
+                  `/addbalance ${p.telegramId} ${amount.toFixed(2)}`,
+                  {
+                    parse_mode: "Markdown",
+                    reply_markup: {
+                      inline_keyboard: [[
+                        { text: "✅ Valider et créditer", callback_data: `admin_ok_${p.telegramId}_${amount.toFixed(2)}` },
+                        { text: "❌ Refuser", callback_data: `admin_no_${p.telegramId}_${amount.toFixed(2)}` },
+                      ]],
+                    },
+                  }
+                );
+              } catch { /* ignore */ }
+            }
+          }
         }
       }
     } catch (err) {
