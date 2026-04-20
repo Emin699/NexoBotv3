@@ -111566,6 +111566,121 @@ Utilisez /menu pour vos achats.`,
       await bot.sendMessage(chatId, "\u274C Erreur lors du rechargement.");
     }
   });
+  bot.onText(/\/addspins (\d+) (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const senderId = msg.from.id;
+    if (!isAdmin(senderId)) return;
+    const targetId = parseInt(match[1]);
+    const count2 = parseInt(match[2]);
+    if (isNaN(targetId) || isNaN(count2) || count2 <= 0) {
+      await bot.sendMessage(chatId, "\u274C Usage : `/addspins <userId> <nombre>`", { parse_mode: "Markdown" });
+      return;
+    }
+    try {
+      const prev = pendingRerolls.get(targetId) ?? 0;
+      pendingRerolls.set(targetId, prev + count2);
+      const targetUser = await getOrCreateUser(targetId).catch(() => null);
+      const adminName = msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : "");
+      await bot.sendMessage(
+        chatId,
+        `\u2705 *${count2} spin${count2 > 1 ? "s" : ""} gratuit${count2 > 1 ? "s" : ""}* ajout\xE9${count2 > 1 ? "s" : ""} \xE0 \`${targetId}\`.
+\u{1F3A1} Total disponible : *${prev + count2} spin${prev + count2 > 1 ? "s" : ""}*`,
+        { parse_mode: "Markdown" }
+      );
+      try {
+        await bot.sendMessage(
+          targetId,
+          `\u{1F3A1} *Cadeau de l'admin !*
+
+Tu viens de recevoir *${count2} tour${count2 > 1 ? "s" : ""} de roue gratuit${count2 > 1 ? "s" : ""}* sur la Roue du Destin !
+
+\u{1F3B0} Rends-toi dans *Mini-jeux \u2192 Roue du Destin* pour en profiter maintenant.`,
+          { parse_mode: "Markdown" }
+        );
+      } catch {
+      }
+      sendDiscordLog(
+        `\u{1F3A1} Spins offerts \u2014 Admin`,
+        `**${adminName}** a offert des tours de roue \xE0 un utilisateur.`,
+        "purple",
+        [
+          { name: "\u{1F451} Admin", value: `${adminName} (\`${senderId}\`)`, inline: true },
+          { name: "\u{1F464} Cible", value: targetUser?.firstName ? `${targetUser.firstName} (\`${targetId}\`)` : `\`${targetId}\``, inline: true },
+          { name: "\u{1F3A1} Spins offerts", value: `**+${count2}**`, inline: true },
+          { name: "\u{1F3B0} Total spins dispo", value: `**${prev + count2}**`, inline: true }
+        ],
+        "admin"
+      ).catch(() => {
+      });
+    } catch (err) {
+      logger.error({ err }, "Error /addspins");
+      await bot.sendMessage(chatId, "\u274C Erreur lors de l'ajout de spins.");
+    }
+  });
+  bot.onText(/\/addspinsall (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const senderId = msg.from.id;
+    if (!isAdmin(senderId)) return;
+    const count2 = parseInt(match[1]);
+    if (isNaN(count2) || count2 <= 0) {
+      await bot.sendMessage(chatId, "\u274C Usage : `/addspinsall <nombre>`", { parse_mode: "Markdown" });
+      return;
+    }
+    try {
+      const allIds = await getAllUserIds();
+      const adminName = msg.from.first_name + (msg.from.last_name ? ` ${msg.from.last_name}` : "");
+      const statusMsg = await bot.sendMessage(
+        chatId,
+        `\u23F3 Envoi de *${count2} spin${count2 > 1 ? "s" : ""}* \xE0 *${allIds.length} utilisateurs*...`,
+        { parse_mode: "Markdown" }
+      );
+      let sent = 0;
+      let failed = 0;
+      for (const uid of allIds) {
+        const prev = pendingRerolls.get(uid) ?? 0;
+        pendingRerolls.set(uid, prev + count2);
+        try {
+          await bot.sendMessage(
+            uid,
+            `\u{1F3A1} *Cadeau pour tous !*
+
+NexoShop t'offre *${count2} tour${count2 > 1 ? "s" : ""} de roue gratuit${count2 > 1 ? "s" : ""}* sur la Roue du Destin !
+
+\u{1F3B0} Rends-toi dans *Mini-jeux \u2192 Roue du Destin* pour en profiter maintenant.`,
+            { parse_mode: "Markdown" }
+          );
+          sent++;
+        } catch {
+          failed++;
+        }
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      await bot.editMessageText(
+        `\u2705 *${count2} spin${count2 > 1 ? "s" : ""}* envoy\xE9${count2 > 1 ? "s" : ""} \xE0 tous !
+
+\u{1F4E4} Messages envoy\xE9s : *${sent}*
+\u274C \xC9checs (bot bloqu\xE9) : *${failed}*`,
+        { chat_id: chatId, message_id: statusMsg.message_id, parse_mode: "Markdown" }
+      );
+      sendDiscordLog(
+        `\u{1F3A1} Spins offerts \u2014 Tout le monde`,
+        `**${adminName}** a offert des tours de roue \xE0 tous les utilisateurs.`,
+        "purple",
+        [
+          { name: "\u{1F451} Admin", value: `${adminName} (\`${senderId}\`)`, inline: true },
+          { name: "\u{1F3A1} Spins par user", value: `**+${count2}**`, inline: true },
+          { name: "\u{1F465} Utilisateurs cibl\xE9s", value: `**${allIds.length}**`, inline: true },
+          { name: "\u{1F4E4} Messages envoy\xE9s", value: `${sent}`, inline: true },
+          { name: "\u274C \xC9checs", value: `${failed}`, inline: true }
+        ],
+        "admin"
+      ).catch(() => {
+      });
+    } catch (err) {
+      logger.error({ err }, "Error /addspinsall");
+      await bot.sendMessage(chatId, "\u274C Erreur lors de l'envoi global de spins.");
+    }
+  });
   bot.onText(/\/addpoints (\d+) (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
     const senderId = msg.from.id;
@@ -111951,6 +112066,8 @@ ${order.emoji} *${order.subLabel}*
 \u251C /profile \`<id>\` \u2014 Voir profil & transactions
 \u251C /order \`<ref>\` \u2014 D\xE9tails d'une commande
 \u251C /say \`<id|all>\` \`<message>\`
+\u251C /addspins \`<id>\` \`<nb>\` \u2014 Spins roue \xE0 un user
+\u251C /addspinsall \`<nb>\` \u2014 Spins roue \xE0 tout le monde
 \u251C /ban \`<id>\` \`[raison]\`
 \u2514 /unban \`<id>\`
 
@@ -112633,6 +112750,46 @@ Envoie le virement et confirme au client via le bot.`,
             "payments"
           ).catch(() => {
           });
+        }
+        {
+          const spinUser = await getOrCreateUser(userId).catch(() => null);
+          const userDisplay = [
+            spinUser?.firstName ?? "",
+            spinUser?.username ? `(@${spinUser.username})` : "",
+            `\u2014 \`${userId}\``
+          ].filter(Boolean).join(" ");
+          const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
+          const spinColor = prize.type === "nothing" ? "grey" : prize.type === "jackpot_paypal" ? "yellow" : prize.type === "reroll" ? "blue" : "green";
+          const spinFields = [
+            { name: "\u{1F464} Joueur", value: userDisplay, inline: false },
+            { name: "\u{1F381} Prix gagn\xE9", value: `**${prize.label}**`, inline: true },
+            { name: "\u{1F3B0} Type", value: prize.type, inline: true },
+            { name: "\u{1F504} Tour bonus", value: hasReroll ? "Oui" : "Non", inline: true }
+          ];
+          if (prize.type === "coupon_pct" || prize.type === "coupon_fixed") {
+            spinFields.push({ name: "\u{1F4B6} Valeur coupon", value: prize.type === "coupon_pct" ? `-${prize.value}%` : `-${prize.value}\u20AC`, inline: true });
+          }
+          if (prize.type === "balance_add") {
+            spinFields.push({ name: "\u{1F4B0} Cr\xE9dit", value: `+${prize.value?.toFixed(2)}\u20AC`, inline: true });
+          }
+          sendDiscordLog(
+            `\u{1F3A1} Roue du Destin \u2014 ${prize.label}`,
+            `**${userDisplay}** a tourn\xE9 la Roue du Destin.`,
+            spinColor,
+            spinFields,
+            "activity"
+          ).catch(() => {
+          });
+          if (isNotable) {
+            sendDiscordLog(
+              `\u{1F381} Gain notable \u2014 Roue du Destin`,
+              `Un joueur a remport\xE9 un prix significatif sur la Roue du Destin.`,
+              spinColor,
+              spinFields,
+              "admin"
+            ).catch(() => {
+            });
+          }
         }
         try {
           await bot.editMessageText(resultMsg, {

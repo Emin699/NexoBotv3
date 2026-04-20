@@ -1202,6 +1202,114 @@ export function startBot(expressApp?: Application): TelegramBot {
     }
   });
 
+  // /addspins <userId> <count>  (admin) — ajouter des spins gratuits à un utilisateur
+  bot.onText(/\/addspins (\d+) (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const senderId = msg.from!.id;
+    if (!isAdmin(senderId)) return;
+    const targetId = parseInt(match![1]);
+    const count = parseInt(match![2]);
+    if (isNaN(targetId) || isNaN(count) || count <= 0) {
+      await bot.sendMessage(chatId, "❌ Usage : `/addspins <userId> <nombre>`", { parse_mode: "Markdown" });
+      return;
+    }
+    try {
+      const prev = pendingRerolls.get(targetId) ?? 0;
+      pendingRerolls.set(targetId, prev + count);
+      const targetUser = await getOrCreateUser(targetId).catch(() => null);
+      const adminName = msg.from!.first_name + (msg.from!.last_name ? ` ${msg.from!.last_name}` : "");
+      await bot.sendMessage(
+        chatId,
+        `✅ *${count} spin${count > 1 ? "s" : ""} gratuit${count > 1 ? "s" : ""}* ajouté${count > 1 ? "s" : ""} à \`${targetId}\`.\n🎡 Total disponible : *${prev + count} spin${prev + count > 1 ? "s" : ""}*`,
+        { parse_mode: "Markdown" }
+      );
+      try {
+        await bot.sendMessage(
+          targetId,
+          `🎡 *Cadeau de l'admin !*\n\n` +
+          `Tu viens de recevoir *${count} tour${count > 1 ? "s" : ""} de roue gratuit${count > 1 ? "s" : ""}* sur la Roue du Destin !\n\n` +
+          `🎰 Rends-toi dans *Mini-jeux → Roue du Destin* pour en profiter maintenant.`,
+          { parse_mode: "Markdown" }
+        );
+      } catch { /* user may have blocked bot */ }
+      sendDiscordLog(
+        `🎡 Spins offerts — Admin`,
+        `**${adminName}** a offert des tours de roue à un utilisateur.`,
+        "purple",
+        [
+          { name: "👑 Admin", value: `${adminName} (\`${senderId}\`)`, inline: true },
+          { name: "👤 Cible", value: targetUser?.firstName ? `${targetUser.firstName} (\`${targetId}\`)` : `\`${targetId}\``, inline: true },
+          { name: "🎡 Spins offerts", value: `**+${count}**`, inline: true },
+          { name: "🎰 Total spins dispo", value: `**${prev + count}**`, inline: true },
+        ],
+        "admin"
+      ).catch(() => {});
+    } catch (err) {
+      logger.error({ err }, "Error /addspins");
+      await bot.sendMessage(chatId, "❌ Erreur lors de l'ajout de spins.");
+    }
+  });
+
+  // /addspinsall <count>  (admin) — ajouter des spins gratuits à tous les utilisateurs
+  bot.onText(/\/addspinsall (\d+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const senderId = msg.from!.id;
+    if (!isAdmin(senderId)) return;
+    const count = parseInt(match![1]);
+    if (isNaN(count) || count <= 0) {
+      await bot.sendMessage(chatId, "❌ Usage : `/addspinsall <nombre>`", { parse_mode: "Markdown" });
+      return;
+    }
+    try {
+      const allIds = await getAllUserIds();
+      const adminName = msg.from!.first_name + (msg.from!.last_name ? ` ${msg.from!.last_name}` : "");
+      const statusMsg = await bot.sendMessage(
+        chatId,
+        `⏳ Envoi de *${count} spin${count > 1 ? "s" : ""}* à *${allIds.length} utilisateurs*...`,
+        { parse_mode: "Markdown" }
+      );
+      let sent = 0;
+      let failed = 0;
+      for (const uid of allIds) {
+        const prev = pendingRerolls.get(uid) ?? 0;
+        pendingRerolls.set(uid, prev + count);
+        try {
+          await bot.sendMessage(
+            uid,
+            `🎡 *Cadeau pour tous !*\n\n` +
+            `NexoShop t'offre *${count} tour${count > 1 ? "s" : ""} de roue gratuit${count > 1 ? "s" : ""}* sur la Roue du Destin !\n\n` +
+            `🎰 Rends-toi dans *Mini-jeux → Roue du Destin* pour en profiter maintenant.`,
+            { parse_mode: "Markdown" }
+          );
+          sent++;
+        } catch { failed++; }
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      await bot.editMessageText(
+        `✅ *${count} spin${count > 1 ? "s" : ""}* envoyé${count > 1 ? "s" : ""} à tous !\n\n` +
+        `📤 Messages envoyés : *${sent}*\n` +
+        `❌ Échecs (bot bloqué) : *${failed}*`,
+        { chat_id: chatId, message_id: statusMsg.message_id, parse_mode: "Markdown" }
+      );
+      sendDiscordLog(
+        `🎡 Spins offerts — Tout le monde`,
+        `**${adminName}** a offert des tours de roue à tous les utilisateurs.`,
+        "purple",
+        [
+          { name: "👑 Admin", value: `${adminName} (\`${senderId}\`)`, inline: true },
+          { name: "🎡 Spins par user", value: `**+${count}**`, inline: true },
+          { name: "👥 Utilisateurs ciblés", value: `**${allIds.length}**`, inline: true },
+          { name: "📤 Messages envoyés", value: `${sent}`, inline: true },
+          { name: "❌ Échecs", value: `${failed}`, inline: true },
+        ],
+        "admin"
+      ).catch(() => {});
+    } catch (err) {
+      logger.error({ err }, "Error /addspinsall");
+      await bot.sendMessage(chatId, "❌ Erreur lors de l'envoi global de spins.");
+    }
+  });
+
   // /addpoints <userId> <amount>  (admin)
   bot.onText(/\/addpoints (\d+) (\d+)/, async (msg, match) => {
     const chatId = msg.chat.id;
@@ -1579,6 +1687,8 @@ export function startBot(expressApp?: Application): TelegramBot {
       `├ /profile \`<id>\` — Voir profil & transactions\n` +
       `├ /order \`<ref>\` — Détails d'une commande\n` +
       `├ /say \`<id|all>\` \`<message>\`\n` +
+      `├ /addspins \`<id>\` \`<nb>\` — Spins roue à un user\n` +
+      `├ /addspinsall \`<nb>\` — Spins roue à tout le monde\n` +
       `├ /ban \`<id>\` \`[raison]\`\n` +
       `└ /unban \`<id>\`\n\n` +
       `📦 *Livraison produits*\n` +
@@ -2281,6 +2391,49 @@ export function startBot(expressApp?: Application): TelegramBot {
             ],
             "payments"
           ).catch(() => {});
+        }
+
+        // ── Discord log — résultat de spin ────────────────────────
+        {
+          const spinUser = await getOrCreateUser(userId).catch(() => null);
+          const userDisplay = [
+            spinUser?.firstName ?? "",
+            spinUser?.username ? `(@${spinUser.username})` : "",
+            `— \`${userId}\``,
+          ].filter(Boolean).join(" ");
+          const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
+          const spinColor = prize.type === "nothing" ? "grey"
+            : prize.type === "jackpot_paypal" ? "yellow"
+            : prize.type === "reroll" ? "blue"
+            : "green";
+          const spinFields: { name: string; value: string; inline?: boolean }[] = [
+            { name: "👤 Joueur", value: userDisplay, inline: false },
+            { name: "🎁 Prix gagné", value: `**${prize.label}**`, inline: true },
+            { name: "🎰 Type", value: prize.type, inline: true },
+            { name: "🔄 Tour bonus", value: hasReroll ? "Oui" : "Non", inline: true },
+          ];
+          if (prize.type === "coupon_pct" || prize.type === "coupon_fixed") {
+            spinFields.push({ name: "💶 Valeur coupon", value: prize.type === "coupon_pct" ? `-${prize.value}%` : `-${prize.value}€`, inline: true });
+          }
+          if (prize.type === "balance_add") {
+            spinFields.push({ name: "💰 Crédit", value: `+${prize.value?.toFixed(2)}€`, inline: true });
+          }
+          sendDiscordLog(
+            `🎡 Roue du Destin — ${prize.label}`,
+            `**${userDisplay}** a tourné la Roue du Destin.`,
+            spinColor,
+            spinFields,
+            "activity"
+          ).catch(() => {});
+          if (isNotable) {
+            sendDiscordLog(
+              `🎁 Gain notable — Roue du Destin`,
+              `Un joueur a remporté un prix significatif sur la Roue du Destin.`,
+              spinColor,
+              spinFields,
+              "admin"
+            ).catch(() => {});
+          }
         }
 
         try {
