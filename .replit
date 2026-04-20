@@ -59,6 +59,8 @@ externalPort = 80
 TELEGRAM_BOT_TOKEN = "8739664701:AAFrOjvVOyMQykmmkMmqE7ixkXUh86FjwWg"
 ADMIN_TELEGRAM_ID = "5067045870"
 NEON_DATABASE_URL = "postgresql://neondb_owner:npg_bDqyEd4Jr1iW@ep-dry-rice-antfmi2f-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+PAYPAL_ENV = "live"
+PAYPAL_ME_USERNAME = "Florentino990"
 
 [deployment]
 deploymentTarget = "vm"
