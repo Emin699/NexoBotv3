@@ -392,6 +392,95 @@ function getAdminId(): number {
   return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 
+// ── Roue du Destin — Animation ASCII ──────────────────────────────────────
+const _WHEEL_W = 11; // colonnes
+const _WHEEL_H = 7;  // lignes
+const _WHEEL_N = 2 * (_WHEEL_W + _WHEEL_H) - 4; // 32 cellules de bordure
+// pos 5 (top row, colonne centrale) = position de la flèche fixe
+
+function _buildWheelFrame(belt: string[], t: number): string {
+  const beltLen = belt.length;
+  // Rotation horaire : en augmentant t, chaque item avance d'une position
+  const cell = (pos: number): string =>
+    belt[((pos - t) % beltLen + beltLen) % beltLen] ?? "❓";
+
+  const lines: string[] = [];
+
+  // Ligne 0 : bordure haute (pos 0..10)
+  lines.push(Array.from({ length: _WHEEL_W }, (_, c) => cell(c)).join(""));
+
+  // Lignes 1..5 : côtés gauche/droit + intérieur
+  for (let r = 1; r <= _WHEEL_H - 2; r++) {
+    const left  = cell(_WHEEL_N - r);       // pos 31..27 (col gauche, bas→haut)
+    const right = cell(_WHEEL_W - 1 + r);  // pos 11..15 (col droite, haut→bas)
+    // Ligne centrale → flèche pointant vers le haut (vers pos 5)
+    const inner = r === Math.floor(_WHEEL_H / 2)
+      ? "        \u{1F446}        " // 8 espaces + 👆 + 8 espaces = 18 chars monospace
+      : "                  ";        // 18 espaces
+    lines.push(`${left}${inner}${right}`);
+  }
+
+  // Ligne 6 : bordure basse (pos 26..17, puis pos 16 = coin bas-droit)
+  const botRow = Array.from({ length: _WHEEL_W }, (_, c) =>
+    c < _WHEEL_W - 1
+      ? cell(2 * _WHEEL_W + _WHEEL_H - 3 - c) // pos 26..17
+      : cell(_WHEEL_W + _WHEEL_H - 2)          // pos 16 (coin bas-droit)
+  ).join("");
+  lines.push(botRow);
+
+  return lines.join("\n");
+}
+
+async function _runWheelAnimation(
+  bot: TelegramBot,
+  chatId: number,
+  msgId: number,
+  prize: WheelPrize,
+): Promise<void> {
+  // Construction du belt (32 cases, prizes répétés)
+  const prizeEmojis = WHEEL_PRIZES.map((p) => p.emoji);
+  const belt: string[] = [];
+  while (belt.length < _WHEEL_N) belt.push(...prizeEmojis);
+  belt.length = _WHEEL_N;
+
+  // Offset final : prize doit tomber à pos 5 (top center)
+  // cell(5) = belt[((5 - t_final) + N*K) % N] === prize.emoji
+  // → t_final ≡ (5 - prizeIdx) mod N
+  const prizeIdx = belt.findIndex((e) => e === prize.emoji) ?? 0;
+  const finalT = 5 * _WHEEL_N + ((5 - prizeIdx + _WHEEL_N * 10) % _WHEEL_N);
+  // finalT ≈ 160-165 selon le prize
+
+  // Planning de décélération : chaque frame prend une fraction de la distance restante
+  const schedule: Array<{ t: number; delay: number }> = [];
+  const delayMs = [200, 220, 260, 300, 360, 430, 520, 630, 740, 840, 940, 1000, 1000];
+  const ratios  = [0.20, 0.18, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01];
+  let t = 0;
+  for (let i = 0; i < ratios.length && t < finalT; i++) {
+    const step = Math.max(1, Math.floor((finalT - t) * ratios[i]!));
+    t = Math.min(t + step, finalT);
+    schedule.push({ t, delay: delayMs[i] ?? 1000 });
+  }
+  // Garantir l'arrêt exact sur finalT
+  if (schedule[schedule.length - 1]?.t !== finalT) {
+    schedule.push({ t: finalT, delay: 800 });
+  }
+
+  // Envoi des frames
+  for (const { t: tVal, delay } of schedule) {
+    await new Promise<void>((r) => setTimeout(r, delay));
+    const isLast = tVal === finalT;
+    const header = isLast ? "🎡 *Résultat !*" : "🎡 *La Roue tourne...*";
+    const frameText = `${header}\n\n\`\`\`\n${_buildWheelFrame(belt, tVal)}\n\`\`\``;
+    try {
+      await bot.editMessageText(frameText, {
+        chat_id: chatId,
+        message_id: msgId,
+        parse_mode: "Markdown",
+      });
+    } catch { /* flood wait ou doublon ignoré */ }
+  }
+}
+
 export function startBot(expressApp?: Application): TelegramBot {
   const token = process.env["TELEGRAM_BOT_TOKEN"]?.trim();
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN environment variable is required");
@@ -2017,23 +2106,25 @@ export function startBot(expressApp?: Application): TelegramBot {
         // Enregistrer le spin (ignoré pour l'admin — cooldown infini)
         if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
-        // Animation
-        const emojis = WHEEL_PRIZES.map((p) => p.emoji);
-        const spinMsg = await bot.sendMessage(chatId,
-          `🎡 *La roue tourne...*\n\n${emojis.join(" ⟶ ")}`,
+
+        // ── Frame initiale (roue à l'arrêt, avant lancement) ──────────
+        const initBelt: string[] = [];
+        const initEmojis = WHEEL_PRIZES.map((p) => p.emoji);
+        while (initBelt.length < _WHEEL_N) initBelt.push(...initEmojis);
+        initBelt.length = _WHEEL_N;
+        const spinMsg = await bot.sendMessage(
+          chatId,
+          `🎡 *La Roue du Destin*\n\n\`\`\`\n${_buildWheelFrame(initBelt, 0)}\n\`\`\``,
           { parse_mode: "Markdown" }
         );
-        const frames = [
-          `🎡 *La roue tourne...*\n\n${[...emojis.slice(1), emojis[0]].join(" ⟶ ")}`,
-          `🎡 *La roue tourne...*\n\n${[...emojis.slice(2), ...emojis.slice(0, 2)].join(" ⟶ ")}`,
-          `🎡 *La roue ralentit...*\n\n${[...emojis.slice(3), ...emojis.slice(0, 3)].join(" ⟶ ")}`,
-        ];
-        for (const frame of frames) {
-          await new Promise((r) => setTimeout(r, 500));
-          try { await bot.editMessageText(frame, { chat_id: chatId, message_id: spinMsg.message_id, parse_mode: "Markdown" }); } catch {}
-        }
-        await new Promise((r) => setTimeout(r, 700));
-        // Appliquer la récompense
+
+        // ── Animation ASCII (~6 secondes, décélération progressive) ───
+        await _runWheelAnimation(bot, chatId, spinMsg.message_id, prize);
+
+        // ── Pause de suspense après arrêt ─────────────────────────────
+        await new Promise<void>((r) => setTimeout(r, 1200));
+
+        // ── Calcul et affichage de la récompense ──────────────────────
         let resultMsg = `🎡 *Résultat !*\n\n${prize.emoji} *${prize.label}*\n\n`;
         if (prize.type === "nothing") {
           resultMsg += `😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !`;

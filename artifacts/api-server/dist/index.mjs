@@ -110656,6 +110656,66 @@ function generateOrderId() {
 function getAdminId() {
   return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
+var _WHEEL_W = 11;
+var _WHEEL_H = 7;
+var _WHEEL_N = 2 * (_WHEEL_W + _WHEEL_H) - 4;
+function _buildWheelFrame(belt, t) {
+  const beltLen = belt.length;
+  const cell = (pos) => belt[((pos - t) % beltLen + beltLen) % beltLen] ?? "\u2753";
+  const lines = [];
+  lines.push(Array.from({ length: _WHEEL_W }, (_, c) => cell(c)).join(""));
+  for (let r = 1; r <= _WHEEL_H - 2; r++) {
+    const left = cell(_WHEEL_N - r);
+    const right = cell(_WHEEL_W - 1 + r);
+    const inner = r === Math.floor(_WHEEL_H / 2) ? "        \u{1F446}        " : "                  ";
+    lines.push(`${left}${inner}${right}`);
+  }
+  const botRow = Array.from(
+    { length: _WHEEL_W },
+    (_, c) => c < _WHEEL_W - 1 ? cell(2 * _WHEEL_W + _WHEEL_H - 3 - c) : cell(_WHEEL_W + _WHEEL_H - 2)
+    // pos 16 (coin bas-droit)
+  ).join("");
+  lines.push(botRow);
+  return lines.join("\n");
+}
+async function _runWheelAnimation(bot, chatId, msgId, prize) {
+  const prizeEmojis = WHEEL_PRIZES.map((p) => p.emoji);
+  const belt = [];
+  while (belt.length < _WHEEL_N) belt.push(...prizeEmojis);
+  belt.length = _WHEEL_N;
+  const prizeIdx = belt.findIndex((e) => e === prize.emoji) ?? 0;
+  const finalT = 5 * _WHEEL_N + (5 - prizeIdx + _WHEEL_N * 10) % _WHEEL_N;
+  const schedule = [];
+  const delayMs = [200, 220, 260, 300, 360, 430, 520, 630, 740, 840, 940, 1e3, 1e3];
+  const ratios = [0.2, 0.18, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01];
+  let t = 0;
+  for (let i = 0; i < ratios.length && t < finalT; i++) {
+    const step = Math.max(1, Math.floor((finalT - t) * ratios[i]));
+    t = Math.min(t + step, finalT);
+    schedule.push({ t, delay: delayMs[i] ?? 1e3 });
+  }
+  if (schedule[schedule.length - 1]?.t !== finalT) {
+    schedule.push({ t: finalT, delay: 800 });
+  }
+  for (const { t: tVal, delay } of schedule) {
+    await new Promise((r) => setTimeout(r, delay));
+    const isLast = tVal === finalT;
+    const header = isLast ? "\u{1F3A1} *R\xE9sultat !*" : "\u{1F3A1} *La Roue tourne...*";
+    const frameText = `${header}
+
+\`\`\`
+${_buildWheelFrame(belt, tVal)}
+\`\`\``;
+    try {
+      await bot.editMessageText(frameText, {
+        chat_id: chatId,
+        message_id: msgId,
+        parse_mode: "Markdown"
+      });
+    } catch {
+    }
+  }
+}
 function startBot(expressApp) {
   const token = process.env["TELEGRAM_BOT_TOKEN"]?.trim();
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN environment variable is required");
@@ -112241,33 +112301,21 @@ ${prizeListText}
         }
         if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
-        const emojis = WHEEL_PRIZES.map((p) => p.emoji);
+        const initBelt = [];
+        const initEmojis = WHEEL_PRIZES.map((p) => p.emoji);
+        while (initBelt.length < _WHEEL_N) initBelt.push(...initEmojis);
+        initBelt.length = _WHEEL_N;
         const spinMsg = await bot.sendMessage(
           chatId,
-          `\u{1F3A1} *La roue tourne...*
+          `\u{1F3A1} *La Roue du Destin*
 
-${emojis.join(" \u27F6 ")}`,
+\`\`\`
+${_buildWheelFrame(initBelt, 0)}
+\`\`\``,
           { parse_mode: "Markdown" }
         );
-        const frames = [
-          `\u{1F3A1} *La roue tourne...*
-
-${[...emojis.slice(1), emojis[0]].join(" \u27F6 ")}`,
-          `\u{1F3A1} *La roue tourne...*
-
-${[...emojis.slice(2), ...emojis.slice(0, 2)].join(" \u27F6 ")}`,
-          `\u{1F3A1} *La roue ralentit...*
-
-${[...emojis.slice(3), ...emojis.slice(0, 3)].join(" \u27F6 ")}`
-        ];
-        for (const frame of frames) {
-          await new Promise((r) => setTimeout(r, 500));
-          try {
-            await bot.editMessageText(frame, { chat_id: chatId, message_id: spinMsg.message_id, parse_mode: "Markdown" });
-          } catch {
-          }
-        }
-        await new Promise((r) => setTimeout(r, 700));
+        await _runWheelAnimation(bot, chatId, spinMsg.message_id, prize);
+        await new Promise((r) => setTimeout(r, 1200));
         let resultMsg = `\u{1F3A1} *R\xE9sultat !*
 
 ${prize.emoji} *${prize.label}*
