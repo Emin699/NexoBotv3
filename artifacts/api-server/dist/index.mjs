@@ -110656,37 +110656,28 @@ function generateOrderId() {
 function getAdminId() {
   return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
-var _WHEEL_W = 11;
-var _WHEEL_H = 7;
-var _WHEEL_N = 2 * (_WHEEL_W + _WHEEL_H) - 4;
-function _buildWheelFrame(belt, t) {
-  const beltLen = belt.length;
-  const cell = (pos) => belt[((pos - t) % beltLen + beltLen) % beltLen] ?? "\u2753";
-  const lines = [];
-  lines.push(Array.from({ length: _WHEEL_W }, (_, c) => cell(c)).join(""));
-  for (let r = 1; r <= _WHEEL_H - 2; r++) {
-    const left = cell(_WHEEL_N - r);
-    const right = cell(_WHEEL_W - 1 + r);
-    const inner = r === Math.floor(_WHEEL_H / 2) ? "        \u{1F446}        " : "                  ";
-    lines.push(`${left}${inner}${right}`);
-  }
-  const botRow = Array.from(
-    { length: _WHEEL_W },
-    (_, c) => c < _WHEEL_W - 1 ? cell(2 * _WHEEL_W + _WHEEL_H - 3 - c) : cell(_WHEEL_W + _WHEEL_H - 2)
-    // pos 16 (coin bas-droit)
-  ).join("");
-  lines.push(botRow);
-  return lines.join("\n");
+var _WHEEL_VISIBLE = 11;
+var _WHEEL_CENTER = 5;
+var _WHEEL_SEP = "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501";
+var _WHEEL_ARROW = "                \u2B06\uFE0F";
+function _buildWheelFrame(prizes, t) {
+  const len = prizes.length;
+  const items = Array.from({ length: _WHEEL_VISIBLE }, (_, i) => {
+    const idx = ((t - _WHEEL_CENTER + i) % len + len * 100) % len;
+    return prizes[idx];
+  });
+  return `${_WHEEL_SEP}
+${items.join(" | ")}
+${_WHEEL_SEP}
+${_WHEEL_ARROW}`;
 }
 async function _runWheelAnimation(bot, chatId, msgId, prize) {
-  const prizeEmojis = WHEEL_PRIZES.map((p) => p.emoji);
-  const belt = [];
-  while (belt.length < _WHEEL_N) belt.push(...prizeEmojis);
-  belt.length = _WHEEL_N;
-  const prizeIdx = belt.findIndex((e) => e === prize.emoji) ?? 0;
-  const finalT = 5 * _WHEEL_N + (5 - prizeIdx + _WHEEL_N * 10) % _WHEEL_N;
+  const prizes = WHEEL_PRIZES.map((p) => p.emoji);
+  const len = prizes.length;
+  const prizeIdx = prizes.findIndex((e) => e === prize.emoji) ?? 0;
+  const finalT = 8 * len + prizeIdx;
   const schedule = [];
-  const delayMs = [200, 220, 260, 300, 360, 430, 520, 630, 740, 840, 940, 1e3, 1e3];
+  const delayMs = [150, 170, 200, 240, 290, 360, 450, 560, 680, 800, 920, 1e3, 1e3];
   const ratios = [0.2, 0.18, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01];
   let t = 0;
   for (let i = 0; i < ratios.length && t < finalT; i++) {
@@ -110695,17 +110686,14 @@ async function _runWheelAnimation(bot, chatId, msgId, prize) {
     schedule.push({ t, delay: delayMs[i] ?? 1e3 });
   }
   if (schedule[schedule.length - 1]?.t !== finalT) {
-    schedule.push({ t: finalT, delay: 800 });
+    schedule.push({ t: finalT, delay: 900 });
   }
   for (const { t: tVal, delay } of schedule) {
     await new Promise((r) => setTimeout(r, delay));
-    const isLast = tVal === finalT;
-    const header = isLast ? "\u{1F3A1} *R\xE9sultat !*" : "\u{1F3A1} *La Roue tourne...*";
+    const header = tVal === finalT ? "\u{1F3A1} *La roue s'arr\xEAte...*" : "\u{1F3A1} *La Roue tourne...*";
     const frameText = `${header}
 
-\`\`\`
-${_buildWheelFrame(belt, tVal)}
-\`\`\``;
+${_buildWheelFrame(prizes, tVal)}`;
     try {
       await bot.editMessageText(frameText, {
         chat_id: chatId,
@@ -112301,17 +112289,12 @@ ${prizeListText}
         }
         if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
-        const initBelt = [];
-        const initEmojis = WHEEL_PRIZES.map((p) => p.emoji);
-        while (initBelt.length < _WHEEL_N) initBelt.push(...initEmojis);
-        initBelt.length = _WHEEL_N;
+        const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(
           chatId,
           `\u{1F3A1} *La Roue du Destin*
 
-\`\`\`
-${_buildWheelFrame(initBelt, 0)}
-\`\`\``,
+${_buildWheelFrame(initPrizes, 0)}`,
           { parse_mode: "Markdown" }
         );
         await _runWheelAnimation(bot, chatId, spinMsg.message_id, prize);

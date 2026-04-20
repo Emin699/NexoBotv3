@@ -392,43 +392,21 @@ function getAdminId(): number {
   return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 
-// ── Roue du Destin — Animation ASCII ──────────────────────────────────────
-const _WHEEL_W = 11; // colonnes
-const _WHEEL_H = 7;  // lignes
-const _WHEEL_N = 2 * (_WHEEL_W + _WHEEL_H) - 4; // 32 cellules de bordure
-// pos 5 (top row, colonne centrale) = position de la flèche fixe
+// ── Roue du Destin — Animation bande linéaire ────────────────────────────
+const _WHEEL_VISIBLE = 11; // items affichés dans la bande
+const _WHEEL_CENTER  = 5;  // index central (0-based) = position de la flèche ⬆️
+const _WHEEL_SEP     = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+const _WHEEL_ARROW   = "                ⬆️";
 
-function _buildWheelFrame(belt: string[], t: number): string {
-  const beltLen = belt.length;
-  // Rotation horaire : en augmentant t, chaque item avance d'une position
-  const cell = (pos: number): string =>
-    belt[((pos - t) % beltLen + beltLen) % beltLen] ?? "❓";
-
-  const lines: string[] = [];
-
-  // Ligne 0 : bordure haute (pos 0..10)
-  lines.push(Array.from({ length: _WHEEL_W }, (_, c) => cell(c)).join(""));
-
-  // Lignes 1..5 : côtés gauche/droit + intérieur
-  for (let r = 1; r <= _WHEEL_H - 2; r++) {
-    const left  = cell(_WHEEL_N - r);       // pos 31..27 (col gauche, bas→haut)
-    const right = cell(_WHEEL_W - 1 + r);  // pos 11..15 (col droite, haut→bas)
-    // Ligne centrale → flèche pointant vers le haut (vers pos 5)
-    const inner = r === Math.floor(_WHEEL_H / 2)
-      ? "        \u{1F446}        " // 8 espaces + 👆 + 8 espaces = 18 chars monospace
-      : "                  ";        // 18 espaces
-    lines.push(`${left}${inner}${right}`);
-  }
-
-  // Ligne 6 : bordure basse (pos 26..17, puis pos 16 = coin bas-droit)
-  const botRow = Array.from({ length: _WHEEL_W }, (_, c) =>
-    c < _WHEEL_W - 1
-      ? cell(2 * _WHEEL_W + _WHEEL_H - 3 - c) // pos 26..17
-      : cell(_WHEEL_W + _WHEEL_H - 2)          // pos 16 (coin bas-droit)
-  ).join("");
-  lines.push(botRow);
-
-  return lines.join("\n");
+// À l'offset t, le centre montre prizes[t % prizes.length]
+// La bande affiche les items autour : (t - CENTER)..(t + CENTER)
+function _buildWheelFrame(prizes: string[], t: number): string {
+  const len = prizes.length;
+  const items = Array.from({ length: _WHEEL_VISIBLE }, (_, i) => {
+    const idx = ((t - _WHEEL_CENTER + i) % len + len * 100) % len;
+    return prizes[idx]!;
+  });
+  return `${_WHEEL_SEP}\n${items.join(" | ")}\n${_WHEEL_SEP}\n${_WHEEL_ARROW}`;
 }
 
 async function _runWheelAnimation(
@@ -437,22 +415,16 @@ async function _runWheelAnimation(
   msgId: number,
   prize: WheelPrize,
 ): Promise<void> {
-  // Construction du belt (32 cases, prizes répétés)
-  const prizeEmojis = WHEEL_PRIZES.map((p) => p.emoji);
-  const belt: string[] = [];
-  while (belt.length < _WHEEL_N) belt.push(...prizeEmojis);
-  belt.length = _WHEEL_N;
+  const prizes = WHEEL_PRIZES.map((p) => p.emoji); // [😔, 🎟️, 💶, ⭐, 🎧]
+  const len = prizes.length;
 
-  // Offset final : prize doit tomber à pos 5 (top center)
-  // cell(5) = belt[((5 - t_final) + N*K) % N] === prize.emoji
-  // → t_final ≡ (5 - prizeIdx) mod N
-  const prizeIdx = belt.findIndex((e) => e === prize.emoji) ?? 0;
-  const finalT = 5 * _WHEEL_N + ((5 - prizeIdx + _WHEEL_N * 10) % _WHEEL_N);
-  // finalT ≈ 160-165 selon le prize
+  // finalT : prizes[finalT % len] === prize.emoji
+  const prizeIdx = prizes.findIndex((e) => e === prize.emoji) ?? 0;
+  const finalT = 8 * len + prizeIdx; // ~40-44 steps
 
-  // Planning de décélération : chaque frame prend une fraction de la distance restante
+  // Décélération progressive : chaque step prend une fraction de la distance restante
   const schedule: Array<{ t: number; delay: number }> = [];
-  const delayMs = [200, 220, 260, 300, 360, 430, 520, 630, 740, 840, 940, 1000, 1000];
+  const delayMs = [150, 170, 200, 240, 290, 360, 450, 560, 680, 800, 920, 1000, 1000];
   const ratios  = [0.20, 0.18, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01];
   let t = 0;
   for (let i = 0; i < ratios.length && t < finalT; i++) {
@@ -460,17 +432,14 @@ async function _runWheelAnimation(
     t = Math.min(t + step, finalT);
     schedule.push({ t, delay: delayMs[i] ?? 1000 });
   }
-  // Garantir l'arrêt exact sur finalT
   if (schedule[schedule.length - 1]?.t !== finalT) {
-    schedule.push({ t: finalT, delay: 800 });
+    schedule.push({ t: finalT, delay: 900 });
   }
 
-  // Envoi des frames
   for (const { t: tVal, delay } of schedule) {
     await new Promise<void>((r) => setTimeout(r, delay));
-    const isLast = tVal === finalT;
-    const header = isLast ? "🎡 *Résultat !*" : "🎡 *La Roue tourne...*";
-    const frameText = `${header}\n\n\`\`\`\n${_buildWheelFrame(belt, tVal)}\n\`\`\``;
+    const header = tVal === finalT ? "🎡 *La roue s'arrête...*" : "🎡 *La Roue tourne...*";
+    const frameText = `${header}\n\n${_buildWheelFrame(prizes, tVal)}`;
     try {
       await bot.editMessageText(frameText, {
         chat_id: chatId,
@@ -2107,14 +2076,11 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (!adminUser) await recordWheelSpin(userId);
         const prize = spinWheel();
 
-        // ── Frame initiale (roue à l'arrêt, avant lancement) ──────────
-        const initBelt: string[] = [];
-        const initEmojis = WHEEL_PRIZES.map((p) => p.emoji);
-        while (initBelt.length < _WHEEL_N) initBelt.push(...initEmojis);
-        initBelt.length = _WHEEL_N;
+        // ── Frame initiale (bande à l'arrêt, avant lancement) ────────
+        const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(
           chatId,
-          `🎡 *La Roue du Destin*\n\n\`\`\`\n${_buildWheelFrame(initBelt, 0)}\n\`\`\``,
+          `🎡 *La Roue du Destin*\n\n${_buildWheelFrame(initPrizes, 0)}`,
           { parse_mode: "Markdown" }
         );
 
