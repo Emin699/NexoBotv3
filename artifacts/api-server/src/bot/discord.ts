@@ -13,7 +13,8 @@ export type DiscordChannel =
   | "support"
   | "admin"
   | "activity"
-  | "reviews";
+  | "reviews"
+  | "orders";
 
 const COLORS: Record<Color, number> = {
   green:  0x2ecc71,
@@ -39,6 +40,7 @@ const CHANNEL_ENV: Record<DiscordChannel, string> = {
   admin:       "DISCORD_ADMIN_WEBHOOK_URL",
   activity:    "DISCORD_ACTIVITY_WEBHOOK_URL",
   reviews:     "DISCORD_REVIEWS_WEBHOOK_URL",
+  orders:      "DISCORD_ORDERS_WEBHOOK_URL",
 };
 
 function getWebhook(channel: DiscordChannel | "default"): string {
@@ -113,7 +115,7 @@ export function isDiscordConfigured(): boolean {
 
 export type CreditSource =
   | { type: "PayPal";    ref: string; txId: string }
-  | { type: "Admin";     adminId: number; adminName: string }
+  | { type: "Admin";     adminId?: number; adminName?: string; ref?: string }
   | { type: "Parrainage"; filleulId: number };
 
 export async function sendCreditLog(
@@ -156,11 +158,16 @@ export async function sendCreditLog(
       break;
     case "Admin":
       sourceIcon = "👑";
-      sourceLabel = `Admin — ${source.adminName} (ID \`${source.adminId}\`)`;
-      sourceFields = [
-        { name: "Admin ID", value: `\`${source.adminId}\``, inline: true },
-        { name: "Admin Nom", value: source.adminName, inline: true },
-      ];
+      if (source.ref) {
+        sourceLabel = `Système automatique — ${source.ref}`;
+        sourceFields = [{ name: "Référence", value: `\`${source.ref}\``, inline: true }];
+      } else {
+        sourceLabel = `Admin — ${source.adminName ?? "—"} (ID \`${source.adminId ?? "—"}\`)`;
+        sourceFields = [
+          { name: "Admin ID", value: `\`${source.adminId ?? "—"}\``, inline: true },
+          { name: "Admin Nom", value: source.adminName ?? "—", inline: true },
+        ];
+      }
       break;
     case "Parrainage":
       sourceIcon = "🎁";

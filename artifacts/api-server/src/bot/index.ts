@@ -17,7 +17,7 @@ import {
   addJackpotTicket, getJackpotTicketCount, getUserJackpotTicketCount, getJackpotStats, drawJackpotWinner,
   getTotalRecharged,
 } from "./db";
-import { WHEEL_PRIZES, spinWheel, getMilestonesInRange, DEEZER_LOTS, getDeezerLotById } from "./minigames";
+import { WHEEL_PRIZES, spinWheel, getMilestonesInRange, DEEZER_LOTS, getDeezerLotById, type WheelPrize } from "./minigames";
 import {
   mainMenuKeyboard,
   achatMenuKeyboard,
@@ -978,7 +978,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           sendDiscordLog(
             "🪙 Paiement LTC confirmé",
             `Transaction Litecoin confirmée et créditée automatiquement.`,
-            0xf7931a,
+            "orange",
             [
               { name: "User ID", value: `\`${userId}\``, inline: true },
               { name: "Montant", value: `**+${pending.amount.toFixed(2)}€**`, inline: true },
@@ -2209,7 +2209,7 @@ export function startBot(expressApp?: Application): TelegramBot {
       // ── Palier — Progression ──────────────────────────────────────
       if (data === "menu_palier") {
         const userProfile = await getUserProfile(userId);
-        const purchaseCount = userProfile?.purchaseCount ?? 0;
+        const purchaseCount = userProfile?.user?.purchaseCount ?? 0;
         const milestones = [
           { count: 1,  reward: "20 pts de fidélité",    emoji: "🌟" },
           { count: 5,  reward: "Coupon -5%",             emoji: "🎟️" },
@@ -2246,23 +2246,31 @@ export function startBot(expressApp?: Application): TelegramBot {
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-        const canSpin = adminUser || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
-        const nextSpinMs = spinStatus && !canSpin
+        const dailyReady = adminUser || !spinStatus || (now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS);
+        const rerollCount = pendingRerolls.get(userId) ?? 0;
+        const canSpin = dailyReady || rerollCount > 0;
+        const totalAvailableSpins = adminUser ? null : (dailyReady ? 1 : 0) + rerollCount;
+        const nextSpinMs = spinStatus && !dailyReady
           ? (spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS) - now
           : 0;
         const nextSpinHours = Math.floor(nextSpinMs / (60 * 60 * 1000));
         const nextSpinMins = Math.floor((nextSpinMs % (60 * 60 * 1000)) / 60000);
+        const nextSpinSecs = Math.floor((nextSpinMs % 60000) / 1000);
         const prizeListText = WHEEL_PRIZES.map((p) =>
           `${p.emoji} ${p.label} — *${p.displayedChance}%* de chance`
         ).join("\n");
+        const spinCounterLine = adminUser
+          ? `🎯 *Spins disponibles :* ∞ _(mode admin)_`
+          : `🎯 *Spins disponibles :* ${totalAvailableSpins}`;
+        const statusLine = canSpin
+          ? `✅ *Tu peux tourner la roue !*`
+          : `⏳ *Prochain spin dans :* ${nextSpinHours}h ${nextSpinMins}min ${nextSpinSecs}s`;
         await sendMenu(
           chatId,
           `🎡 *Roue du Destin*\n\n` +
           `Tourne la roue chaque jour pour gagner des récompenses !\n\n` +
           `*🎁 Prix disponibles :*\n${prizeListText}\n\n` +
-          (canSpin
-            ? `✅ *Tu peux tourner la roue maintenant !*${adminUser ? " _(mode admin — illimité)_" : ""}`
-            : `⏳ *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
+          `${spinCounterLine}\n${statusLine}`,
           wheelMenuKeyboard(canSpin)
         );
         return;
@@ -2541,7 +2549,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         activeCoupons.set(cpnCode.toLowerCase(), {
           code: cpnCode, type: "fixed", discountValue: euros,
           maxUses: 1, usedCount: 0, usedBy: new Set(),
-          restrictedToUserId: userId, expiresAt: null,
+          restrictedToUserId: userId, expiresAt: undefined,
         });
         const newPts = await getLoyaltyPoints(userId);
         await bot.sendMessage(chatId,
@@ -2705,10 +2713,11 @@ export function startBot(expressApp?: Application): TelegramBot {
         }
 
         if (data === "admin_cat_minigames") {
+          const ticketCount = await getJackpotTicketCount();
           await bot.sendMessage(
             chatId,
             `🎮 *Mini-Jeux*\n\nGestion de la roue, jackpot et paliers :`,
-            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard() }
+            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
           );
           return;
         }
@@ -2932,7 +2941,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         if (data === "admin_do_services") {
           await bot.sendMessage(chatId,
             `⚙️ *Activer / Désactiver des services*\n\n✅ = actif   ❌ = désactivé`,
-            { parse_mode: "Markdown", reply_markup: buildRemoveServKeyboard(disabledServices) }
+            { parse_mode: "Markdown", reply_markup: buildRemoveServKeyboard() }
           );
           return;
         }
@@ -4017,7 +4026,7 @@ export function startBot(expressApp?: Application): TelegramBot {
             amount,
             newBal - amount,
             newBal,
-            { type: "Admin (validation manuelle)", adminId: userId }
+            { type: "Admin", adminId: userId, adminName: "Validation manuelle" }
           ).catch(() => {});
           await bot.editMessageText(
             `✅ *Validé !* +${amount.toFixed(2)}€ crédités à \`${targetId}\`\n💰 Nouveau solde : *${newBal.toFixed(2)}€*`,
@@ -5502,7 +5511,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         sendDiscordLog(
           "🪙 LTC soumis (non trouvé encore)",
           `Transaction LTC soumise mais pas encore détectée — en attente de propagation.`,
-          0xf5a623,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `${amount}€ (${ltc} LTC)`, inline: true },
@@ -5555,7 +5564,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         sendDiscordLog(
           "🪙 LTC en attente de confirmation",
           `Transaction détectée sur la blockchain, en attente de confirmation.`,
-          0xf5a623,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `${amount}€ (${ltc} LTC)`, inline: true },
@@ -5590,7 +5599,7 @@ export function startBot(expressApp?: Application): TelegramBot {
         sendDiscordLog(
           "🪙 Paiement LTC confirmé instantanément",
           `Transaction Litecoin confirmée et créditée.`,
-          0xf7931a,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `**+${amount.toFixed(2)}€**`, inline: true },
@@ -5692,7 +5701,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           ).catch(() => {});
         }
         sendOrderNotification(
-          `🗺️ Télépéage Ulys — N°${orderId}\n` +
+          `🗺️ Télépéage Ulys — N°${orderId}`,
           `Client : ${username} (${userId})\n${infoBlock}`
         ).catch(() => {});
         await bot.sendMessage(

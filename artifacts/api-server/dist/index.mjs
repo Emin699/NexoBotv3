@@ -89602,7 +89602,8 @@ var CHANNEL_ENV = {
   support: "DISCORD_SUPPORT_WEBHOOK_URL",
   admin: "DISCORD_ADMIN_WEBHOOK_URL",
   activity: "DISCORD_ACTIVITY_WEBHOOK_URL",
-  reviews: "DISCORD_REVIEWS_WEBHOOK_URL"
+  reviews: "DISCORD_REVIEWS_WEBHOOK_URL",
+  orders: "DISCORD_ORDERS_WEBHOOK_URL"
 };
 function getWebhook(channel) {
   const defaultUrl = process.env["DISCORD_WEBHOOK_URL"] ?? "";
@@ -89683,11 +89684,16 @@ async function sendCreditLog(userId, username, firstName, amount, prevBalance, n
       break;
     case "Admin":
       sourceIcon = "\u{1F451}";
-      sourceLabel = `Admin \u2014 ${source.adminName} (ID \`${source.adminId}\`)`;
-      sourceFields = [
-        { name: "Admin ID", value: `\`${source.adminId}\``, inline: true },
-        { name: "Admin Nom", value: source.adminName, inline: true }
-      ];
+      if (source.ref) {
+        sourceLabel = `Syst\xE8me automatique \u2014 ${source.ref}`;
+        sourceFields = [{ name: "R\xE9f\xE9rence", value: `\`${source.ref}\``, inline: true }];
+      } else {
+        sourceLabel = `Admin \u2014 ${source.adminName ?? "\u2014"} (ID \`${source.adminId ?? "\u2014"}\`)`;
+        sourceFields = [
+          { name: "Admin ID", value: `\`${source.adminId ?? "\u2014"}\``, inline: true },
+          { name: "Admin Nom", value: source.adminName ?? "\u2014", inline: true }
+        ];
+      }
       break;
     case "Parrainage":
       sourceIcon = "\u{1F381}";
@@ -108554,6 +108560,10 @@ async function recordWheelSpin(telegramId) {
 async function addJackpotTicket(telegramId) {
   await db.insert(jackpotTicketsTable).values({ telegramId });
 }
+async function getJackpotTicketCount() {
+  const [row] = await db.select({ cnt: count() }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
+  return Number(row?.cnt ?? 0);
+}
 async function getUserJackpotTicketCount(telegramId) {
   const [row] = await db.select({ cnt: count() }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL AND ${jackpotTicketsTable.telegramId} = ${telegramId}`);
   return Number(row?.cnt ?? 0);
@@ -111335,7 +111345,7 @@ Contacte le support si le paiement a bien \xE9t\xE9 effectu\xE9.`,
           sendDiscordLog(
             "\u{1FA99} Paiement LTC confirm\xE9",
             `Transaction Litecoin confirm\xE9e et cr\xE9dit\xE9e automatiquement.`,
-            16225050,
+            "orange",
             [
               { name: "User ID", value: `\`${userId}\``, inline: true },
               { name: "Montant", value: `**+${pending.amount.toFixed(2)}\u20AC**`, inline: true },
@@ -112569,7 +112579,7 @@ _Plus tu ach\xE8tes, plus tu as de chances de gagner !_`,
       }
       if (data === "menu_palier") {
         const userProfile = await getUserProfile(userId);
-        const purchaseCount = userProfile?.purchaseCount ?? 0;
+        const purchaseCount = userProfile?.user?.purchaseCount ?? 0;
         const milestones = [
           { count: 1, reward: "20 pts de fid\xE9lit\xE9", emoji: "\u{1F31F}" },
           { count: 5, reward: "Coupon -5%", emoji: "\u{1F39F}\uFE0F" },
@@ -112607,13 +112617,19 @@ _Les r\xE9compenses sont attribu\xE9es automatiquement \xE0 chaque achat._`,
         const spinStatus = adminUser ? null : await getLastWheelSpin(userId);
         const now = Date.now();
         const SPIN_COOLDOWN_MS = 24 * 60 * 60 * 1e3;
-        const canSpin = adminUser || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
-        const nextSpinMs = spinStatus && !canSpin ? spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now : 0;
+        const dailyReady = adminUser || !spinStatus || now - spinStatus.lastSpinAt.getTime() >= SPIN_COOLDOWN_MS;
+        const rerollCount = pendingRerolls.get(userId) ?? 0;
+        const canSpin = dailyReady || rerollCount > 0;
+        const totalAvailableSpins = adminUser ? null : (dailyReady ? 1 : 0) + rerollCount;
+        const nextSpinMs = spinStatus && !dailyReady ? spinStatus.lastSpinAt.getTime() + SPIN_COOLDOWN_MS - now : 0;
         const nextSpinHours = Math.floor(nextSpinMs / (60 * 60 * 1e3));
         const nextSpinMins = Math.floor(nextSpinMs % (60 * 60 * 1e3) / 6e4);
+        const nextSpinSecs = Math.floor(nextSpinMs % 6e4 / 1e3);
         const prizeListText = WHEEL_PRIZES.map(
           (p) => `${p.emoji} ${p.label} \u2014 *${p.displayedChance}%* de chance`
         ).join("\n");
+        const spinCounterLine = adminUser ? `\u{1F3AF} *Spins disponibles :* \u221E _(mode admin)_` : `\u{1F3AF} *Spins disponibles :* ${totalAvailableSpins}`;
+        const statusLine = canSpin ? `\u2705 *Tu peux tourner la roue !*` : `\u23F3 *Prochain spin dans :* ${nextSpinHours}h ${nextSpinMins}min ${nextSpinSecs}s`;
         await sendMenu(
           chatId,
           `\u{1F3A1} *Roue du Destin*
@@ -112623,7 +112639,8 @@ Tourne la roue chaque jour pour gagner des r\xE9compenses !
 *\u{1F381} Prix disponibles :*
 ${prizeListText}
 
-` + (canSpin ? `\u2705 *Tu peux tourner la roue maintenant !*${adminUser ? " _(mode admin \u2014 illimit\xE9)_" : ""}` : `\u23F3 *Prochain tour dans :* ${nextSpinHours}h ${nextSpinMins}min`),
+${spinCounterLine}
+${statusLine}`,
           wheelMenuKeyboard(canSpin)
         );
         return;
@@ -112914,7 +112931,7 @@ Choisis combien de points tu veux convertir et vers quoi :`,
           usedCount: 0,
           usedBy: /* @__PURE__ */ new Set(),
           restrictedToUserId: userId,
-          expiresAt: null
+          expiresAt: void 0
         });
         const newPts = await getLoyaltyPoints(userId);
         await bot.sendMessage(
@@ -113097,12 +113114,13 @@ Outils de configuration :`,
           return;
         }
         if (data === "admin_cat_minigames") {
+          const ticketCount = await getJackpotTicketCount();
           await bot.sendMessage(
             chatId,
             `\u{1F3AE} *Mini-Jeux*
 
 Gestion de la roue, jackpot et paliers :`,
-            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard() }
+            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
           );
           return;
         }
@@ -113393,7 +113411,7 @@ Confirmes-tu ?`,
             `\u2699\uFE0F *Activer / D\xE9sactiver des services*
 
 \u2705 = actif   \u274C = d\xE9sactiv\xE9`,
-            { parse_mode: "Markdown", reply_markup: buildRemoveServKeyboard(disabledServices) }
+            { parse_mode: "Markdown", reply_markup: buildRemoveServKeyboard() }
           );
           return;
         }
@@ -114523,7 +114541,7 @@ Vous pouvez en initier une nouvelle depuis le menu de paiement.`,
             amount,
             newBal - amount,
             newBal,
-            { type: "Admin (validation manuelle)", adminId: userId }
+            { type: "Admin", adminId: userId, adminName: "Validation manuelle" }
           ).catch(() => {
           });
           await bot.editMessageText(
@@ -116135,7 +116153,7 @@ Cela peut prendre quelques secondes \u23F3`,
         sendDiscordLog(
           "\u{1FA99} LTC soumis (non trouv\xE9 encore)",
           `Transaction LTC soumise mais pas encore d\xE9tect\xE9e \u2014 en attente de propagation.`,
-          16098851,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `${amount}\u20AC (${ltc} LTC)`, inline: true },
@@ -116194,7 +116212,7 @@ Contacte le support si tu penses \xE0 une erreur.`,
         sendDiscordLog(
           "\u{1FA99} LTC en attente de confirmation",
           `Transaction d\xE9tect\xE9e sur la blockchain, en attente de confirmation.`,
-          16098851,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `${amount}\u20AC (${ltc} LTC)`, inline: true },
@@ -116233,7 +116251,7 @@ Ta transaction est visible sur la blockchain mais n'a pas encore de confirmation
         sendDiscordLog(
           "\u{1FA99} Paiement LTC confirm\xE9 instantan\xE9ment",
           `Transaction Litecoin confirm\xE9e et cr\xE9dit\xE9e.`,
-          16225050,
+          "orange",
           [
             { name: "User ID", value: `\`${userId}\``, inline: true },
             { name: "Montant", value: `**+${amount.toFixed(2)}\u20AC**`, inline: true },
@@ -116356,8 +116374,8 @@ ${infoBlock}
           });
         }
         sendOrderNotification(
-          `\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys \u2014 N\xB0${orderId}
-Client : ${username} (${userId})
+          `\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys \u2014 N\xB0${orderId}`,
+          `Client : ${username} (${userId})
 ${infoBlock}`
         ).catch(() => {
         });
