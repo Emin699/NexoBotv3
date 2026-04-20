@@ -40,7 +40,7 @@ export const WHEEL_PRIZES: WheelPrize[] = [
     label: "Dommage, reviens demain !",
     emoji: "😔",
     displayedChance: 55,   // % affiché aux joueurs
-    realChance: 60,        // % réel
+    realChance: 60.2,      // % réel (inclut les 0.2% du jackpot impossible)
     type: "nothing",
     message: "😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !",
   },
@@ -85,14 +85,14 @@ export const WHEEL_PRIZES: WheelPrize[] = [
     message: "🎉 *Félicitations !* Ton coupon de -5% sur toute la boutique est prêt :",
   },
   {
-    id: "coupon_5eur",
-    label: "Coupon -5€ sur ton panier",
+    id: "coupon_3eur",
+    label: "Coupon -3€ sur ton panier",
     emoji: "🏷️",
     displayedChance: 5,
     realChance: 3.5,
     type: "coupon_fixed",
-    value: 5,
-    message: "🎉 *Félicitations !* Ton coupon de -5€ sur ton panier est prêt :",
+    value: 3,
+    message: "🎉 *Félicitations !* Ton coupon de -3€ sur ton panier est prêt :",
   },
   {
     id: "reroll",
@@ -146,8 +146,8 @@ export const WHEEL_PRIZES: WheelPrize[] = [
     id: "jackpot_paypal",
     label: "🏆 JACKPOT ! +20€ PayPal",
     emoji: "🏆",
-    displayedChance: 0.5,
-    realChance: 0.2,
+    displayedChance: 0.1,  // % affiché (effet marketing)
+    realChance: 0,         // % réel — jackpot impossible à décrocher
     type: "jackpot_paypal",
     value: 20,
     message: "🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+20€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉",

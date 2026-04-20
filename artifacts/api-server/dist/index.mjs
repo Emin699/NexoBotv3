@@ -108573,8 +108573,8 @@ var WHEEL_PRIZES = [
     emoji: "\u{1F614}",
     displayedChance: 55,
     // % affiché aux joueurs
-    realChance: 60,
-    // % réel
+    realChance: 60.2,
+    // % réel (inclut les 0.2% du jackpot impossible)
     type: "nothing",
     message: "\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !"
   },
@@ -108619,14 +108619,14 @@ var WHEEL_PRIZES = [
     message: "\u{1F389} *F\xE9licitations !* Ton coupon de -5% sur toute la boutique est pr\xEAt :"
   },
   {
-    id: "coupon_5eur",
-    label: "Coupon -5\u20AC sur ton panier",
+    id: "coupon_3eur",
+    label: "Coupon -3\u20AC sur ton panier",
     emoji: "\u{1F3F7}\uFE0F",
     displayedChance: 5,
     realChance: 3.5,
     type: "coupon_fixed",
-    value: 5,
-    message: "\u{1F389} *F\xE9licitations !* Ton coupon de -5\u20AC sur ton panier est pr\xEAt :"
+    value: 3,
+    message: "\u{1F389} *F\xE9licitations !* Ton coupon de -3\u20AC sur ton panier est pr\xEAt :"
   },
   {
     id: "reroll",
@@ -108680,8 +108680,10 @@ var WHEEL_PRIZES = [
     id: "jackpot_paypal",
     label: "\u{1F3C6} JACKPOT ! +20\u20AC PayPal",
     emoji: "\u{1F3C6}",
-    displayedChance: 0.5,
-    realChance: 0.2,
+    displayedChance: 0.1,
+    // % affiché (effet marketing)
+    realChance: 0,
+    // % réel — jackpot impossible à décrocher
     type: "jackpot_paypal",
     value: 20,
     message: "\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+20\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}"
