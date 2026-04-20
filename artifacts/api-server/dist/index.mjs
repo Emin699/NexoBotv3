@@ -110658,12 +110658,13 @@ function getAdminId() {
 }
 var _WHEEL_VISIBLE = 11;
 var _WHEEL_CENTER = 5;
-var _WHEEL_SEP = "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501";
-var _WHEEL_ARROW = "                \u2B06\uFE0F";
+var _WHEEL_SEP = "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501";
+var _WHEEL_ARROW = "                        \u2B06\uFE0F";
 function _buildWheelFrame(prizes, t) {
   const len = prizes.length;
+  const K = len * 1e3;
   const items = Array.from({ length: _WHEEL_VISIBLE }, (_, i) => {
-    const idx = ((t - _WHEEL_CENTER + i) % len + len * 100) % len;
+    const idx = ((K - t - _WHEEL_CENTER + i) % len + len) % len;
     return prizes[idx];
   });
   return `${_WHEEL_SEP}
@@ -110675,22 +110676,18 @@ async function _runWheelAnimation(bot, chatId, msgId, prize) {
   const prizes = WHEEL_PRIZES.map((p) => p.emoji);
   const len = prizes.length;
   const prizeIdx = prizes.findIndex((e) => e === prize.emoji) ?? 0;
-  const finalT = 8 * len + prizeIdx;
-  const schedule = [];
-  const delayMs = [150, 170, 200, 240, 290, 360, 450, 560, 680, 800, 920, 1e3, 1e3];
-  const ratios = [0.2, 0.18, 0.15, 0.12, 0.09, 0.07, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01];
-  let t = 0;
-  for (let i = 0; i < ratios.length && t < finalT; i++) {
-    const step = Math.max(1, Math.floor((finalT - t) * ratios[i]));
-    t = Math.min(t + step, finalT);
-    schedule.push({ t, delay: delayMs[i] ?? 1e3 });
-  }
-  if (schedule[schedule.length - 1]?.t !== finalT) {
-    schedule.push({ t: finalT, delay: 900 });
-  }
+  const fullRotations = 30;
+  const finalT = fullRotations * len + (len - prizeIdx) % len;
+  const proportions = [0.12, 0.23, 0.33, 0.42, 0.5, 0.57, 0.63, 0.68, 0.73, 0.78, 0.83, 0.87, 0.91, 0.94, 0.97, 1];
+  const delayMs = [120, 140, 160, 190, 240, 310, 410, 540, 710, 920, 1180, 1500, 1850, 2200, 2600, 3e3];
+  const schedule = proportions.map((p, i) => ({
+    t: i === proportions.length - 1 ? finalT : Math.floor(finalT * p),
+    delay: delayMs[i] ?? 3e3
+  }));
   for (const { t: tVal, delay } of schedule) {
     await new Promise((r) => setTimeout(r, delay));
-    const header = tVal === finalT ? "\u{1F3A1} *La roue s'arr\xEAte...*" : "\u{1F3A1} *La Roue tourne...*";
+    const isLast = tVal === finalT;
+    const header = isLast ? "\u{1F3A1} *La roue s'arr\xEAte...*" : "\u{1F3A1} *La Roue tourne...*";
     const frameText = `${header}
 
 ${_buildWheelFrame(prizes, tVal)}`;
