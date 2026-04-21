@@ -109393,7 +109393,7 @@ Contactez le support pour passer votre commande.`
   {
     id: "carte_virtuelle",
     name: "\u{1F4B3} Tech Carte Virtuelle",
-    price: 90,
+    price: 150,
     description: "Encaisse 17\u20AC en 5 min via une carte virtuelle. \u267E\uFE0F Faisable \xE0 l'infini, sans aucune limite !",
     content: `\u{1F4B3} *Tech Carte Virtuelle \u2014 17\u20AC par run*
 
@@ -109403,9 +109403,9 @@ Encaisse *17\u20AC en 5 minutes* avec une simple carte virtuelle et une offre de
 \u267E\uFE0F *Aucune limite \u2014 r\xE9p\xE9table autant de fois que tu veux !*
 
 \u{1F4B0} *Rentabilit\xE9 :*
-\u2022 6 runs = 102\u20AC \u2192 d\xE9j\xE0 rentable \u2705
-\u2022 10 runs = 170\u20AC \u{1F911}
-\u2022 20 runs = 340\u20AC \u{1F680}
+\u2022 9 runs = 153\u20AC \u2192 d\xE9j\xE0 rentable \u2705
+\u2022 15 runs = 255\u20AC \u{1F911}
+\u2022 30 runs = 510\u20AC \u{1F680}
 \u2022 \u267E\uFE0F runs = \u267E\uFE0F \u20AC \u2014 c'est toi qui d\xE9cides !
 
 \u{1F4C4} *Tutoriel complet (Google Docs) :*

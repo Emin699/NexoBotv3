@@ -149,16 +149,16 @@ export const TECHS: Tech[] = [
   {
     id: "carte_virtuelle",
     name: "💳 Tech Carte Virtuelle",
-    price: 90,
+    price: 150,
     description: "Encaisse 17€ en 5 min via une carte virtuelle. ♾️ Faisable à l'infini, sans aucune limite !",
     content: `💳 *Tech Carte Virtuelle — 17€ par run*\n\n` +
       `Encaisse *17€ en 5 minutes* avec une simple carte virtuelle et une offre de bienvenue.\n` +
       `⚡ Rapide, propre, et *reproductible à l'infini*.\n\n` +
       `♾️ *Aucune limite — répétable autant de fois que tu veux !*\n\n` +
       `💰 *Rentabilité :*\n` +
-      `• 6 runs = 102€ → déjà rentable ✅\n` +
-      `• 10 runs = 170€ 🤑\n` +
-      `• 20 runs = 340€ 🚀\n` +
+      `• 9 runs = 153€ → déjà rentable ✅\n` +
+      `• 15 runs = 255€ 🤑\n` +
+      `• 30 runs = 510€ 🚀\n` +
       `• ♾️ runs = ♾️ € — c'est toi qui décides !\n\n` +
       `📄 *Tutoriel complet (Google Docs) :*\n` +
       `https://docs.google.com/document/d/1kCCuQpr1nq8xMGppJOtQuUX-lfBRgw1_zXnyp4K5RFA/edit?usp=sharing\n\n` +
