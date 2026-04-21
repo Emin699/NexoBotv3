@@ -57,7 +57,6 @@ import {
   adminSysKeyboard,
   adminMinigamesKeyboard,
   chatgptMenuKeyboard,
-  claudeMenuKeyboard,
   informationsMenuKeyboard,
   loyaltyMenuKeyboard,
   loyaltyConvertKeyboard,
@@ -177,8 +176,6 @@ const ALL_SERVICES: { id: string; name: string }[] = [
   { id: "gemini",     name: "🤖 Gemini Pro+" },
   { id: "chatgpt",    name: "🧠 ChatGPT Plus" },
   { id: "chatgpt_go", name: "🤖 ChatGPT Go 1 An" },
-  { id: "claude_1m",  name: "🧠 Claude MAX 1 Mois" },
-  { id: "claude_1j",  name: "⚡ Claude MAX 1 Jour" },
   { id: "telepeage",  name: "🗺️ Télépéage Ulys" },
   { id: "spotify",    name: "🎵 Spotify Premium" },
   { id: "youtube",    name: "▶️ YouTube Premium" },
@@ -209,7 +206,7 @@ const pendingSupport = new Map<number, { step: SupportStep; product?: string; da
 
 // ── Abonnements (Basic-Fit, Fitness Park, Netflix) ─────────────────────────
 const SUB_PRICES: Record<string, Record<string, number>> = {
-  bf: { "1an": 70, "6mois": 50, "2mois": 15 },
+  bf: { "1an": 70, "6mois": 50, "2mois": 18 },
   fp: { "1an": 70, "6mois": 50, "2mois": 15 },
   nf: { "1an": 45 },
   ps: { essential: 35, extra: 40, premium: 50 },
@@ -2162,7 +2159,7 @@ export function startBot(expressApp?: Application): TelegramBot {
       if (data === "menu_infos") {
         const caption =
           `ℹ️ *Informations*\n\n` +
-          `Retrouvez ici votre parrainage, vos points de fidélité, les mini-jeux, vos paliers de récompenses et le support.`;
+          `Retrouvez ici votre parrainage, vos points de fidélité, les mini-jeux et le support.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption, parse_mode: "Markdown", reply_markup: informationsMenuKeyboard(),
@@ -2202,40 +2199,6 @@ export function startBot(expressApp?: Application): TelegramBot {
           `📊 Total tickets en jeu : ${totalTickets}\n\n` +
           `_Plus tu achètes, plus tu as de chances de gagner !_`,
           { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_minijeux" }]] }
-        );
-        return;
-      }
-
-      // ── Palier — Progression ──────────────────────────────────────
-      if (data === "menu_palier") {
-        const userProfile = await getUserProfile(userId);
-        const purchaseCount = userProfile?.user?.purchaseCount ?? 0;
-        const milestones = [
-          { count: 1,  reward: "20 pts de fidélité",    emoji: "🌟" },
-          { count: 5,  reward: "Coupon -5%",             emoji: "🎟️" },
-          { count: 10, reward: "100 pts de fidélité",    emoji: "💫" },
-          { count: 15, reward: "Coupon -10%",            emoji: "🎟️" },
-          { count: 20, reward: "200 pts de fidélité",    emoji: "⭐" },
-          { count: 30, reward: "Coupon -15€",            emoji: "💸" },
-          { count: 50, reward: "Lien Deezer Premium",    emoji: "🎧" },
-        ];
-        const lines = milestones.map((m) => {
-          const done = purchaseCount >= m.count;
-          const isCurrent = !done && purchaseCount < m.count;
-          const remaining = Math.max(0, m.count - purchaseCount);
-          if (done) return `✅ ${m.emoji} *${m.count} achats* — ${m.reward}`;
-          if (isCurrent && remaining === m.count - purchaseCount) {
-            return `⬜ ${m.emoji} *${m.count} achats* — ${m.reward} _(encore ${remaining})_`;
-          }
-          return `⬜ ${m.emoji} *${m.count} achats* — ${m.reward} _(encore ${remaining})_`;
-        });
-        await sendMenu(
-          chatId,
-          `🏆 *Paliers de récompenses*\n\n` +
-          `Tu as effectué *${purchaseCount} achat${purchaseCount > 1 ? "s" : ""}*.\n\n` +
-          `${lines.join("\n")}\n\n` +
-          `_Les récompenses sont attribuées automatiquement à chaque achat._`,
-          { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_infos" }]] }
         );
         return;
       }
@@ -2716,7 +2679,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           const ticketCount = await getJackpotTicketCount();
           await bot.sendMessage(
             chatId,
-            `🎮 *Mini-Jeux*\n\nGestion de la roue, jackpot et paliers :`,
+            `🎮 *Mini-Jeux*\n\nGestion de la roue et du jackpot :`,
             { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
           );
           return;
@@ -3047,10 +3010,6 @@ export function startBot(expressApp?: Application): TelegramBot {
       }
       if (data === "cat_chatgpt") {
         await sendMenu(chatId, "🤖 *ChatGPT* — Choisissez votre formule :", chatgptMenuKeyboard());
-        return;
-      }
-      if (data === "cat_claude") {
-        await sendMenu(chatId, "🧠 *Claude MAX* — Choisissez votre formule :", claudeMenuKeyboard());
         return;
       }
       if (data === "cat_musique") {
@@ -4530,7 +4489,7 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       // ── Ajouter Deezer Générateur au panier ───────────────────
       if (data === "cart_add_deezer_gen") {
-        addToCart(userId, { label: "🎧 Générateur Deezer Premium", price: 23, type: "deezer_gen" });
+        addToCart(userId, { label: "🎧 Générateur Deezer Premium", price: 35, type: "deezer_gen" });
         try { await bot.answerCallbackQuery(query.id, { text: "✅ Deezer Générateur ajouté !", show_alert: false }); } catch {}
         const cart = getCart(userId);
         await sendMenu(chatId,

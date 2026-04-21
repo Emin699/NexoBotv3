@@ -109054,7 +109054,7 @@ Boostez votre pr\xE9sence sur *toutes les plateformes* pour quelques centimes :
     id: "ytb_premium",
     name: "\u25B6\uFE0F YouTube Premium Gratuit",
     price: 5,
-    description: "YouTube sans pub et en arri\xE8re-plan gratuitement.",
+    description: "YouTube sans pub et en arri\xE8re-plan gratuitement. \u26A0\uFE0F Uniquement faisable sur Android.",
     content: `\u25B6\uFE0F *Tech YouTube Premium \u2014 APK Modifi\xE9 (Android)*
 
 T\xE9l\xE9chargez la version modifi\xE9e de YouTube avec Premium d\xE9j\xE0 activ\xE9 :
@@ -109383,10 +109383,10 @@ Tu vas recevoir un guide complet en fichier .txt avec :
   {
     id: "redbull",
     name: "\u{1F964} Red Bull",
-    price: 5,
+    price: 8,
     manualDelivery: true,
     description: "Obtenez des Red Bull 250ml \xE0 0,10\u20AC unit\xE9.",
-    content: `\u{1F964} *Tech Red Bull \u2014 5\u20AC*
+    content: `\u{1F964} *Tech Red Bull \u2014 8\u20AC*
 
 Contactez le support pour passer votre commande.`
   },
@@ -109454,10 +109454,7 @@ var _informationsMenuKb = {
       { text: "\u{1F381} Parrainage", callback_data: "menu_parrainage" },
       { text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }
     ],
-    [
-      { text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" },
-      { text: "\u{1F3C6} Palier", callback_data: "menu_palier" }
-    ],
+    [{ text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" }],
     [{ text: "\u{1F4AC} Contacter le support", callback_data: "menu_support" }],
     [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
   ]
@@ -109619,22 +109616,11 @@ var _iaMenuKb = {
       { text: "\u2728 Gemini Pro+", callback_data: "sub_new_gemini" },
       { text: "\u{1F916} ChatGPT", callback_data: "cat_chatgpt" }
     ],
-    [{ text: "\u{1F9E0} Claude MAX", callback_data: "cat_claude" }],
     [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
   ]
 };
 function iaMenuKeyboard() {
   return _iaMenuKb;
-}
-var _claudeMenuKb = {
-  inline_keyboard: [
-    [{ text: "\u{1F9E0} Claude MAX \u2014 1 Mois \u2014 20\u20AC", callback_data: "sub_new_claude_1m" }],
-    [{ text: "\u26A1 Claude MAX \u2014 1 Jour \u2014 5\u20AC", callback_data: "sub_new_claude_1j" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
-  ]
-};
-function claudeMenuKeyboard() {
-  return _claudeMenuKb;
 }
 var _chatgptMenuKb = {
   inline_keyboard: [
@@ -110265,48 +110251,6 @@ Apr\xE8s votre achat, vous recevrez les identifiants complets d'un compte Spotif
 \u{1F6E1} *Garantie : 30 jours* \u2014 remplacement assur\xE9`
   },
   {
-    id: "claude_1m",
-    emoji: "\u{1F9E0}",
-    name: "Claude MAX \u2014 1 Mois",
-    price: 20,
-    description: `\u{1F9E0} *Abonnement Claude MAX \u2014 1 Mois* \u{1F60E}
-
-L'IA d'Anthropic dans sa version la plus puissante, pendant 1 mois complet.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevez un lien d'activation. Vous pouvez activer l'abonnement sur votre propre compte ou sur un nouveau.
-
-\u{1F4B3} *Prix :*
-Notre prix : *20\u20AC* \u{1F4B8}
-Prix de base : 90\u20AC \u{1F4B8}
-\xC9conomie r\xE9alis\xE9e : *70\u20AC* \u{1F911}
-
-\u{1F6E1} *Garantie : 1 mois* \u2014 Tous nos abonnements sont garantis. En cas de probl\xE8me, un remplacement est assur\xE9.
-
-\u23F3 *Dur\xE9e : 1 mois*`
-  },
-  {
-    id: "claude_1j",
-    emoji: "\u26A1",
-    name: "Claude MAX \u2014 1 Jour",
-    price: 5,
-    description: `\u26A1 *Abonnement Claude MAX \u2014 1 Jour* \u{1F60E}
-
-Testez l'IA d'Anthropic dans sa version MAX pendant 24h compl\xE8tes.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevez un lien d'activation. Vous pouvez activer l'abonnement sur votre propre compte ou sur un nouveau.
-
-\u{1F4B3} *Prix :*
-Notre prix : *5\u20AC* \u{1F4B8}
-Prix de base : 3\u20AC/jour \u{1F4B8}
-\xC9conomie r\xE9alis\xE9e : *-* \u{1F911}
-
-\u{1F6E1} *Garantie : 1 jour* \u2014 En cas de probl\xE8me, un remplacement est assur\xE9.
-
-\u23F3 *Dur\xE9e : 1 jour*`
-  },
-  {
     id: "telepeage",
     emoji: "\u{1F5FA}\uFE0F",
     name: "T\xE9l\xE9p\xE9age Ulys",
@@ -110655,8 +110599,6 @@ var ALL_SERVICES = [
   { id: "gemini", name: "\u{1F916} Gemini Pro+" },
   { id: "chatgpt", name: "\u{1F9E0} ChatGPT Plus" },
   { id: "chatgpt_go", name: "\u{1F916} ChatGPT Go 1 An" },
-  { id: "claude_1m", name: "\u{1F9E0} Claude MAX 1 Mois" },
-  { id: "claude_1j", name: "\u26A1 Claude MAX 1 Jour" },
   { id: "telepeage", name: "\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys" },
   { id: "spotify", name: "\u{1F3B5} Spotify Premium" },
   { id: "youtube", name: "\u25B6\uFE0F YouTube Premium" },
@@ -110682,7 +110624,7 @@ Ce service est temporairement indisponible.
 Revenez plus tard \u{1F64F}`;
 var pendingSupport = /* @__PURE__ */ new Map();
 var SUB_PRICES = {
-  bf: { "1an": 70, "6mois": 50, "2mois": 15 },
+  bf: { "1an": 70, "6mois": 50, "2mois": 18 },
   fp: { "1an": 70, "6mois": 50, "2mois": 15 },
   nf: { "1an": 45 },
   ps: { essential: 35, extra: 40, premium: 50 },
@@ -112531,7 +112473,7 @@ Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
       if (data === "menu_infos") {
         const caption = `\u2139\uFE0F *Informations*
 
-Retrouvez ici votre parrainage, vos points de fid\xE9lit\xE9, les mini-jeux, vos paliers de r\xE9compenses et le support.`;
+Retrouvez ici votre parrainage, vos points de fid\xE9lit\xE9, les mini-jeux et le support.`;
         try {
           await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/infos.png`), {
             caption,
@@ -112574,41 +112516,6 @@ Chaque achat te rapporte *1 ticket* pour le tirage au sort hebdomadaire.
 
 _Plus tu ach\xE8tes, plus tu as de chances de gagner !_`,
           { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_minijeux" }]] }
-        );
-        return;
-      }
-      if (data === "menu_palier") {
-        const userProfile = await getUserProfile(userId);
-        const purchaseCount = userProfile?.user?.purchaseCount ?? 0;
-        const milestones = [
-          { count: 1, reward: "20 pts de fid\xE9lit\xE9", emoji: "\u{1F31F}" },
-          { count: 5, reward: "Coupon -5%", emoji: "\u{1F39F}\uFE0F" },
-          { count: 10, reward: "100 pts de fid\xE9lit\xE9", emoji: "\u{1F4AB}" },
-          { count: 15, reward: "Coupon -10%", emoji: "\u{1F39F}\uFE0F" },
-          { count: 20, reward: "200 pts de fid\xE9lit\xE9", emoji: "\u2B50" },
-          { count: 30, reward: "Coupon -15\u20AC", emoji: "\u{1F4B8}" },
-          { count: 50, reward: "Lien Deezer Premium", emoji: "\u{1F3A7}" }
-        ];
-        const lines = milestones.map((m) => {
-          const done = purchaseCount >= m.count;
-          const isCurrent = !done && purchaseCount < m.count;
-          const remaining = Math.max(0, m.count - purchaseCount);
-          if (done) return `\u2705 ${m.emoji} *${m.count} achats* \u2014 ${m.reward}`;
-          if (isCurrent && remaining === m.count - purchaseCount) {
-            return `\u2B1C ${m.emoji} *${m.count} achats* \u2014 ${m.reward} _(encore ${remaining})_`;
-          }
-          return `\u2B1C ${m.emoji} *${m.count} achats* \u2014 ${m.reward} _(encore ${remaining})_`;
-        });
-        await sendMenu(
-          chatId,
-          `\u{1F3C6} *Paliers de r\xE9compenses*
-
-Tu as effectu\xE9 *${purchaseCount} achat${purchaseCount > 1 ? "s" : ""}*.
-
-${lines.join("\n")}
-
-_Les r\xE9compenses sont attribu\xE9es automatiquement \xE0 chaque achat._`,
-          { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]] }
         );
         return;
       }
@@ -113119,7 +113026,7 @@ Outils de configuration :`,
             chatId,
             `\u{1F3AE} *Mini-Jeux*
 
-Gestion de la roue, jackpot et paliers :`,
+Gestion de la roue et du jackpot :`,
             { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
           );
           return;
@@ -113510,10 +113417,6 @@ ${lines.join("\n")}`,
       }
       if (data === "cat_chatgpt") {
         await sendMenu(chatId, "\u{1F916} *ChatGPT* \u2014 Choisissez votre formule :", chatgptMenuKeyboard());
-        return;
-      }
-      if (data === "cat_claude") {
-        await sendMenu(chatId, "\u{1F9E0} *Claude MAX* \u2014 Choisissez votre formule :", claudeMenuKeyboard());
         return;
       }
       if (data === "cat_musique") {
@@ -115084,7 +114987,7 @@ Vous pouvez recommencer vos achats depuis la boutique.`, cartEmptyKeyboard());
         return;
       }
       if (data === "cart_add_deezer_gen") {
-        addToCart(userId, { label: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium", price: 23, type: "deezer_gen" });
+        addToCart(userId, { label: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium", price: 35, type: "deezer_gen" });
         try {
           await bot.answerCallbackQuery(query.id, { text: "\u2705 Deezer G\xE9n\xE9rateur ajout\xE9 !", show_alert: false });
         } catch {

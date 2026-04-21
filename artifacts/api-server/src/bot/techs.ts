@@ -62,7 +62,7 @@ export const TECHS: Tech[] = [
     id: "ytb_premium",
     name: "▶️ YouTube Premium Gratuit",
     price: 5,
-    description: "YouTube sans pub et en arrière-plan gratuitement.",
+    description: "YouTube sans pub et en arrière-plan gratuitement. ⚠️ Uniquement faisable sur Android.",
     content: `▶️ *Tech YouTube Premium — APK Modifié (Android)*\n\nTéléchargez la version modifiée de YouTube avec Premium déjà activé :\n\n📥 *Lien de téléchargement Android :*\nhttps://download.apkmody.fun/apps/youtube/download/0\n\n✅ *Ce que vous obtenez :*\n• YouTube sans publicités\n• Lecture en arrière-plan\n• Picture-in-Picture (PiP)\n• Toutes les fonctions Premium incluses\n\n📌 *Installation :* Activez "Sources inconnues" dans vos paramètres Android avant d'installer.\n\n⚠️ *Garde cette méthode pour toi !*`,
   },
   {
@@ -141,10 +141,10 @@ export const TECHS: Tech[] = [
   {
     id: "redbull",
     name: "🥤 Red Bull",
-    price: 5,
+    price: 8,
     manualDelivery: true,
     description: "Obtenez des Red Bull 250ml à 0,10€ unité.",
-    content: `🥤 *Tech Red Bull — 5€*\n\nContactez le support pour passer votre commande.`,
+    content: `🥤 *Tech Red Bull — 8€*\n\nContactez le support pour passer votre commande.`,
   },
   {
     id: "fitness_park",

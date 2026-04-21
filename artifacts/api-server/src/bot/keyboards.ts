@@ -28,10 +28,7 @@ const _informationsMenuKb: TelegramBot.InlineKeyboardMarkup = {
       { text: "🎁 Parrainage", callback_data: "menu_parrainage" },
       { text: "⭐ Points de fidélité", callback_data: "menu_loyalty" },
     ],
-    [
-      { text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" },
-      { text: "🏆 Palier", callback_data: "menu_palier" },
-    ],
+    [{ text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" }],
     [{ text: "💬 Contacter le support", callback_data: "menu_support" }],
     [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
   ],
@@ -209,23 +206,11 @@ const _iaMenuKb: TelegramBot.InlineKeyboardMarkup = {
       { text: "✨ Gemini Pro+", callback_data: "sub_new_gemini" },
       { text: "🤖 ChatGPT", callback_data: "cat_chatgpt" },
     ],
-    [{ text: "🧠 Claude MAX", callback_data: "cat_claude" }],
     [{ text: "↩️ Retour", callback_data: "menu_abonnement" }],
   ],
 };
 export function iaMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return _iaMenuKb;
-}
-
-const _claudeMenuKb: TelegramBot.InlineKeyboardMarkup = {
-  inline_keyboard: [
-    [{ text: "🧠 Claude MAX — 1 Mois — 20€", callback_data: "sub_new_claude_1m" }],
-    [{ text: "⚡ Claude MAX — 1 Jour — 5€", callback_data: "sub_new_claude_1j" }],
-    [{ text: "↩️ Retour", callback_data: "cat_ia" }],
-  ],
-};
-export function claudeMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
-  return _claudeMenuKb;
 }
 
 const _chatgptMenuKb: TelegramBot.InlineKeyboardMarkup = {

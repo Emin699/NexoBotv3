@@ -271,40 +271,6 @@ export const NEW_SUBS: NewSubscription[] = [
       `🛡 *Garantie : 30 jours* — remplacement assuré`,
   },
   {
-    id: "claude_1m",
-    emoji: "🧠",
-    name: "Claude MAX — 1 Mois",
-    price: 20,
-    description:
-      `🧠 *Abonnement Claude MAX — 1 Mois* 😎\n\n` +
-      `L'IA d'Anthropic dans sa version la plus puissante, pendant 1 mois complet.\n\n` +
-      `*Fonctionnement :*\n` +
-      `Après votre achat, vous recevez un lien d'activation. Vous pouvez activer l'abonnement sur votre propre compte ou sur un nouveau.\n\n` +
-      `💳 *Prix :*\n` +
-      `Notre prix : *20€* 💸\n` +
-      `Prix de base : 90€ 💸\n` +
-      `Économie réalisée : *70€* 🤑\n\n` +
-      `🛡 *Garantie : 1 mois* — Tous nos abonnements sont garantis. En cas de problème, un remplacement est assuré.\n\n` +
-      `⏳ *Durée : 1 mois*`,
-  },
-  {
-    id: "claude_1j",
-    emoji: "⚡",
-    name: "Claude MAX — 1 Jour",
-    price: 5,
-    description:
-      `⚡ *Abonnement Claude MAX — 1 Jour* 😎\n\n` +
-      `Testez l'IA d'Anthropic dans sa version MAX pendant 24h complètes.\n\n` +
-      `*Fonctionnement :*\n` +
-      `Après votre achat, vous recevez un lien d'activation. Vous pouvez activer l'abonnement sur votre propre compte ou sur un nouveau.\n\n` +
-      `💳 *Prix :*\n` +
-      `Notre prix : *5€* 💸\n` +
-      `Prix de base : 3€/jour 💸\n` +
-      `Économie réalisée : *-* 🤑\n\n` +
-      `🛡 *Garantie : 1 jour* — En cas de problème, un remplacement est assuré.\n\n` +
-      `⏳ *Durée : 1 jour*`,
-  },
-  {
     id: "telepeage",
     emoji: "🗺️",
     name: "Télépéage Ulys",
