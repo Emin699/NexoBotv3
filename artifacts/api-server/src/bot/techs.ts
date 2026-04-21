@@ -147,6 +147,22 @@ export const TECHS: Tech[] = [
     content: `🥤 *Tech Red Bull — 8€*\n\nContactez le support pour passer votre commande.`,
   },
   {
+    id: "carte_virtuelle",
+    name: "💳 Tech Carte Virtuelle",
+    price: 90,
+    description: "Encaisse 17€ en 5 min via une carte virtuelle. Rentable dès la 6ème utilisation !",
+    content: `💳 *Tech Carte Virtuelle — 17€ par run*\n\n` +
+      `Encaisse *17€ en 5 minutes* avec une simple carte virtuelle et une offre de bienvenue.\n` +
+      `⚡ Rapide, propre, et *reproductible à l'infini*.\n\n` +
+      `💰 *Rentabilité :*\n` +
+      `• 6 runs = 102€ → déjà rentable ✅\n` +
+      `• 10 runs = 170€ 🤑\n` +
+      `• 20 runs = 340€ 🚀\n\n` +
+      `📄 *Tutoriel complet (Google Docs) :*\n` +
+      `https://docs.google.com/document/d/1kCCuQpr1nq8xMGppJOtQuUX-lfBRgw1_zXnyp4K5RFA/edit?usp=sharing\n\n` +
+      `⚠️ *Garde cette méthode pour toi !*`,
+  },
+  {
     id: "fitness_park",
     name: "🏋️ FITNESS PARK",
     price: 70,
