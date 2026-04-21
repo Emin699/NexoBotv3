@@ -109455,6 +109455,7 @@ var _informationsMenuKb = {
       { text: "\u2B50 Points de fid\xE9lit\xE9", callback_data: "menu_loyalty" }
     ],
     [{ text: "\u{1F3AE} Mini-Jeux", callback_data: "menu_minijeux" }],
+    [{ text: "\u{1F4A1} Suggestion / Bug", callback_data: "menu_suggestion" }],
     [{ text: "\u{1F4AC} Contacter le support", callback_data: "menu_support" }],
     [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
   ]
@@ -110623,6 +110624,7 @@ var SERVICE_DISABLED_MSG = `\u{1F525} *Victime de son succ\xE8s !*
 Ce service est temporairement indisponible.
 Revenez plus tard \u{1F64F}`;
 var pendingSupport = /* @__PURE__ */ new Map();
+var pendingSuggestion = /* @__PURE__ */ new Map();
 var SUB_PRICES = {
   bf: { "1an": 70, "6mois": 50, "2mois": 18 },
   fp: { "1an": 70, "6mois": 50, "2mois": 15 },
@@ -114332,6 +114334,48 @@ Gagnez *${REFERRAL_BONUS}\u20AC* pour chaque ami que vous parrainez !
         }
         return;
       }
+      if (data === "menu_suggestion") {
+        await sendMenu(
+          chatId,
+          `\u{1F4A1} *Suggestion / Signalement de bug*
+
+Aide-nous \xE0 am\xE9liorer NexoShop !
+
+\u2022 \u{1F4A1} *Suggestion* \u2014 propose une id\xE9e, un nouveau service, une am\xE9lioration...
+\u2022 \u{1F41E} *Bug* \u2014 signale un probl\xE8me ou un dysfonctionnement
+
+_Choisis une option ci-dessous._`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4A1} Faire une suggestion", callback_data: "suggestion_new_suggestion" }],
+            [{ text: "\u{1F41E} Signaler un bug", callback_data: "suggestion_new_bug" }],
+            [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
+          ] }
+        );
+        return;
+      }
+      if (data === "suggestion_new_suggestion" || data === "suggestion_new_bug") {
+        const type = data === "suggestion_new_bug" ? "bug" : "suggestion";
+        pendingSuggestion.set(userId, { type });
+        const isBug = type === "bug";
+        await sendMenu(
+          chatId,
+          isBug ? `\u{1F41E} *Signalement de bug*
+
+D\xE9cris le probl\xE8me rencontr\xE9 le plus pr\xE9cis\xE9ment possible :
+
+\u2022 Que faisais-tu quand le bug est apparu ?
+\u2022 Quel est le r\xE9sultat attendu vs obtenu ?
+\u2022 \xC9tapes pour reproduire si possible.
+
+_Envoie ton message ci-dessous._` : `\u{1F4A1} *Nouvelle suggestion*
+
+D\xE9cris ton id\xE9e ou ta proposition d'am\xE9lioration :
+
+_Envoie ton message ci-dessous._`,
+          { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "menu_suggestion" }]] }
+        );
+        return;
+      }
       if (data === "menu_support") {
         await deleteOldMenu(chatId);
         try {
@@ -116353,6 +116397,53 @@ Notre \xE9quipe traite votre commande \u2014 vous serez notifi\xE9 d\xE8s la liv
       }
       pendingCustomAmount.delete(userId);
       await processPayment(chatId, userId, amount, method);
+      return;
+    }
+    if (pendingSuggestion.has(userId)) {
+      const state = pendingSuggestion.get(userId);
+      pendingSuggestion.delete(userId);
+      const adminId = getAdminId();
+      const isBug = state.type === "bug";
+      const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "inconnu";
+      await deleteOldMenu(chatId);
+      await sendReceipt(
+        chatId,
+        isBug ? `\u2705 *Bug signal\xE9 !*
+
+Merci pour ton signalement, l'\xE9quipe va l'examiner rapidement. \u{1F6E0}\uFE0F` : `\u2705 *Suggestion envoy\xE9e !*
+
+Merci pour ta contribution, on \xE9tudie \xE7a avec attention. \u{1F4A1}`,
+        informationsMenuKeyboard()
+      );
+      sendDiscordLog(
+        isBug ? "\u{1F41E} Nouveau bug signal\xE9" : "\u{1F4A1} Nouvelle suggestion",
+        isBug ? `Un utilisateur a signal\xE9 un bug.` : `Un utilisateur a envoy\xE9 une suggestion.`,
+        isBug ? "red" : "yellow",
+        [
+          { name: "\u{1F464} Utilisateur", value: `${username} (\`${userId}\`)`, inline: true },
+          { name: "\u{1F4DD} Type", value: isBug ? "Bug" : "Suggestion", inline: true },
+          { name: "\u{1F4AC} Message", value: text2.slice(0, 1e3), inline: false }
+        ],
+        "support"
+      ).catch(() => {
+      });
+      if (adminId) {
+        try {
+          await bot.sendMessage(
+            adminId,
+            (isBug ? `\u{1F41E} *Nouveau bug signal\xE9 !*
+
+` : `\u{1F4A1} *Nouvelle suggestion !*
+
+`) + `\u{1F464} Utilisateur : ${username} (\`${userId}\`)
+
+\u{1F4DD} *Message :*
+${text2}`,
+            { parse_mode: "Markdown" }
+          );
+        } catch {
+        }
+      }
       return;
     }
     if (pendingSupport.has(userId)) {

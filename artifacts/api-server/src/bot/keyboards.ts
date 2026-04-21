@@ -29,6 +29,7 @@ const _informationsMenuKb: TelegramBot.InlineKeyboardMarkup = {
       { text: "⭐ Points de fidélité", callback_data: "menu_loyalty" },
     ],
     [{ text: "🎮 Mini-Jeux", callback_data: "menu_minijeux" }],
+    [{ text: "💡 Suggestion / Bug", callback_data: "menu_suggestion" }],
     [{ text: "💬 Contacter le support", callback_data: "menu_support" }],
     [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
   ],

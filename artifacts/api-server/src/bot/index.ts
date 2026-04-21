@@ -204,6 +204,10 @@ const SERVICE_DISABLED_MSG = `🔥 *Victime de son succès !*\n\nCe service est 
 type SupportStep = "name" | "date" | "orderId";
 const pendingSupport = new Map<number, { step: SupportStep; product?: string; date?: string }>();
 
+// Suggestion / signalement de bug
+type SuggestionType = "suggestion" | "bug";
+const pendingSuggestion = new Map<number, { type: SuggestionType }>();
+
 // ── Abonnements (Basic-Fit, Fitness Park, Netflix) ─────────────────────────
 const SUB_PRICES: Record<string, Record<string, number>> = {
   bf: { "1an": 70, "6mois": 50, "2mois": 18 },
@@ -3877,6 +3881,38 @@ export function startBot(expressApp?: Application): TelegramBot {
         return;
       }
 
+      // ── Suggestion / Bug — Menu ────────────────────────────────
+      if (data === "menu_suggestion") {
+        await sendMenu(
+          chatId,
+          `💡 *Suggestion / Signalement de bug*\n\n` +
+          `Aide-nous à améliorer NexoShop !\n\n` +
+          `• 💡 *Suggestion* — propose une idée, un nouveau service, une amélioration...\n` +
+          `• 🐞 *Bug* — signale un problème ou un dysfonctionnement\n\n` +
+          `_Choisis une option ci-dessous._`,
+          { inline_keyboard: [
+            [{ text: "💡 Faire une suggestion", callback_data: "suggestion_new_suggestion" }],
+            [{ text: "🐞 Signaler un bug", callback_data: "suggestion_new_bug" }],
+            [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
+          ]}
+        );
+        return;
+      }
+
+      if (data === "suggestion_new_suggestion" || data === "suggestion_new_bug") {
+        const type: SuggestionType = data === "suggestion_new_bug" ? "bug" : "suggestion";
+        pendingSuggestion.set(userId, { type });
+        const isBug = type === "bug";
+        await sendMenu(
+          chatId,
+          isBug
+            ? `🐞 *Signalement de bug*\n\nDécris le problème rencontré le plus précisément possible :\n\n• Que faisais-tu quand le bug est apparu ?\n• Quel est le résultat attendu vs obtenu ?\n• Étapes pour reproduire si possible.\n\n_Envoie ton message ci-dessous._`
+            : `💡 *Nouvelle suggestion*\n\nDécris ton idée ou ta proposition d'amélioration :\n\n_Envoie ton message ci-dessous._`,
+          { inline_keyboard: [[{ text: "❌ Annuler", callback_data: "menu_suggestion" }]] }
+        );
+        return;
+      }
+
       // ── Support ────────────────────────────────────────────────
       if (data === "menu_support") {
         await deleteOldMenu(chatId);
@@ -5738,6 +5774,51 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       pendingCustomAmount.delete(userId);
       await processPayment(chatId, userId, amount, method);
+      return;
+    }
+
+    // ── Flow suggestion / signalement de bug ──────────────────
+    if (pendingSuggestion.has(userId)) {
+      const state = pendingSuggestion.get(userId)!;
+      pendingSuggestion.delete(userId);
+      const adminId = getAdminId();
+      const isBug = state.type === "bug";
+      const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "inconnu";
+
+      await deleteOldMenu(chatId);
+      await sendReceipt(
+        chatId,
+        isBug
+          ? `✅ *Bug signalé !*\n\nMerci pour ton signalement, l'équipe va l'examiner rapidement. 🛠️`
+          : `✅ *Suggestion envoyée !*\n\nMerci pour ta contribution, on étudie ça avec attention. 💡`,
+        informationsMenuKeyboard()
+      );
+
+      sendDiscordLog(
+        isBug ? "🐞 Nouveau bug signalé" : "💡 Nouvelle suggestion",
+        isBug
+          ? `Un utilisateur a signalé un bug.`
+          : `Un utilisateur a envoyé une suggestion.`,
+        isBug ? "red" : "yellow",
+        [
+          { name: "👤 Utilisateur", value: `${username} (\`${userId}\`)`, inline: true },
+          { name: "📝 Type", value: isBug ? "Bug" : "Suggestion", inline: true },
+          { name: "💬 Message", value: text.slice(0, 1000), inline: false },
+        ],
+        "support"
+      ).catch(() => {});
+
+      if (adminId) {
+        try {
+          await bot.sendMessage(
+            adminId,
+            (isBug ? `🐞 *Nouveau bug signalé !*\n\n` : `💡 *Nouvelle suggestion !*\n\n`) +
+            `👤 Utilisateur : ${username} (\`${userId}\`)\n\n` +
+            `📝 *Message :*\n${text}`,
+            { parse_mode: "Markdown" }
+          );
+        } catch { /* admin may have blocked bot */ }
+      }
       return;
     }
 
