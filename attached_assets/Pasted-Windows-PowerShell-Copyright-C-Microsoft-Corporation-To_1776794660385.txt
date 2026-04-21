@@ -1,0 +1,76 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. Tous droits réservés.
+
+Installez la dernière version de PowerShell pour de nouvelles fonctionnalités et améliorations ! https://aka.ms/PSWindows
+
+PS C:\Users\33667> ssh root@82.165.242.173
+root@82.165.242.173's password:
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-110-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Tue Apr 21 18:01:28 UTC 2026
+
+  System load:  0.05              Processes:             108
+  Usage of /:   5.0% of 76.45GB   Users logged in:       0
+  Memory usage: 31%               IPv4 address for ens6: 82.165.242.173
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+Expanded Security Maintenance for Applications is not enabled.
+
+0 updates can be applied immediately.
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+Last login: Mon Apr 20 22:44:37 2026 from 194.146.15.204
+root@ubuntu:~# cd /root/bot && git pull && cd artifacts/api-server && pnpm run build && pm2 restart nexoshop-bot
+remote: Enumerating objects: 44, done.
+remote: Counting objects: 100% (44/44), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 30 (delta 24), reused 30 (delta 24), pack-reused 0 (from 0)
+Unpacking objects: 100% (30/30), 12.44 KiB | 41.00 KiB/s, done.
+From https://github.com/Emin699/NexoBotv3
+   d6396e74..2ebec84b  main       -> origin/main
+Updating d6396e74..2ebec84b
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# git commit -m "correction bug"
+On branch main
+Your branch is behind 'origin/main' by 3 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   artifacts/api-server/dist/index.mjs
+        modified:   artifacts/api-server/dist/index.mjs.map
+        modified:   artifacts/api-server/dist/pino-file.mjs
+        modified:   artifacts/api-server/dist/pino-file.mjs.map
+        modified:   artifacts/api-server/dist/pino-worker.mjs
+        modified:   artifacts/api-server/dist/pino-worker.mjs.map
+
+no changes added to commit (use "git add" and/or "git commit -a")
+root@ubuntu:~/bot# git add .
+root@ubuntu:~/bot# git push
+Username for 'https://github.com': ^C
+root@ubuntu:~/bot# cd /root/bot && git pull && cd artifacts/api-server && pnpm run build && pm2 restart nexoshop-bot
+Updating d6396e74..2ebec84b
+error: Your local changes to the following files would be overwritten by merge:
+        artifacts/api-server/dist/index.mjs
+        artifacts/api-server/dist/index.mjs.map
+Please commit your changes or stash them before you merge.
+Aborting
+root@ubuntu:~/bot# ^C
+root@ubuntu:~/bot#
