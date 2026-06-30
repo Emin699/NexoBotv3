@@ -4,13 +4,25 @@ description: Comment déployer et gérer le bot sur le VPS Ubuntu avec PM2
 ---
 
 ## Démarrage PM2 (source de vérité = .env)
+Node v22.22 est installé sur le VPS (process.loadEnvFile dispo mais peut échouer silencieusement si une ligne du .env n'est pas parsable par Node → catch avale l'erreur → DATABASE_URL vide).
+
+Méthode A (canonique, --env-file passé à NODE via --node-args, PAS à pm2) :
 ```bash
 pm2 delete nexobot
 cd /var/www/nexobot/artifacts/api-server
 pm2 start dist/index.mjs --name nexobot --node-args="--enable-source-maps --env-file=/var/www/nexobot/.env"
 pm2 save
 ```
-**Why:** --env-file évite les variables périmées coincées dans PM2. Ne jamais injecter les vars inline avec pm2 start.
+
+Méthode B (fallback fiable — source le .env dans le shell puis capture via --update-env) :
+```bash
+cd /var/www/nexobot/artifacts/api-server
+pm2 delete nexobot
+set -a; . /var/www/nexobot/.env; set +a
+pm2 start dist/index.mjs --name nexobot --update-env
+pm2 save
+```
+**Why:** `pm2 start ... --env-file` au niveau PM2 → "unknown option --env-file" (la version PM2 du VPS ne connaît pas ce flag). `--env-file` est un flag NODE → le passer via `--node-args`. Ou sourcer le .env dans le shell.
 
 ## Workflow de déploiement
 ```bash
