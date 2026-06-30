@@ -55,3 +55,11 @@ sudo -u postgres psql -d nexoshop -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHE
 - Ne jamais avoir deux process PM2 avec le même script/token → conflit polling Telegram (409/404)
 - Le .env ne doit PAS contenir de valeurs placeholder (ex: `# token de @BotFather`) — node --env-file les lirait comme valeurs
 - Connexion DB : postgresql://nexoshop:eminozer@localhost:5432/nexoshop (local, PAS Neon)
+
+## Piège majeur : dist/ ET .env sont SUIVIS par git → pull "Aborting"
+- Le pull échoue avec "Your local changes to dist/index.mjs would be overwritten by merge / Aborting" car `artifacts/api-server/dist/*` est tracké et modifié à chaque build local.
+- Quand le pull abort, **le code source n'est PAS mis à jour** → un build qui suit recompile l'ANCIENNE source (bug fantôme : on croit avoir déployé le fix mais non). Symptôme observé : `ReferenceError: deliveryMoreKb/deliveryTypeAddKb is not defined` persiste après un "déploiement".
+- `.env` tracké + valeurs dev/VPS différentes → conflit de merge. `git stash -- .env` peut dire "No local changes to save" puis un pop ultérieur dépile un VIEUX stash sans rapport → marqueurs de conflit dans .env.
+- **Récupération fiable** : sauver `.env` ailleurs et nettoyer les marqueurs de conflit ; restaurer dist/ et .env à HEAD pour débloquer ; supprimer le stash fautif ; pull ; remettre le vrai .env du VPS ; rebuild ; restart Méthode B.
+- **Vérif post-déploiement OBLIGATOIRE** : les logs PM2 doivent montrer le POLLING sans `ReferenceError` ni `401`. Un build "vert" ne prouve rien (esbuild ne typecheck pas).
+- **Fix définitif recommandé** : dé-tracker `artifacts/api-server/dist/**` et `.env` (les retirer de l'index + .gitignore + commit). Tant que ce n'est pas fait, chaque déploiement risque de re-buguer.
