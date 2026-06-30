@@ -108866,6 +108866,21 @@ async function updateItem(id, data) {
 async function deleteItem(id) {
   await db.delete(boutiqueItemsTable).where(eq(boutiqueItemsTable.id, id));
 }
+async function getDeliveriesByItemId(itemId) {
+  return db.select().from(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.itemId, itemId)).orderBy(asc(boutiqueItemDeliveriesTable.createdAt));
+}
+async function deleteDelivery(id) {
+  await db.delete(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.id, id));
+}
+async function deleteDeliveriesByItemId(itemId) {
+  await db.delete(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.itemId, itemId));
+}
+async function getItemWithDeliveries(itemId) {
+  const item = await getItemById(itemId);
+  if (!item) return { item: null, deliveries: [] };
+  const deliveries = await getDeliveriesByItemId(itemId);
+  return { item, deliveries };
+}
 
 // src/bot/keyboards.ts
 var SUPPORT_URL = "https://t.me/nexoshop6912";
@@ -112062,7 +112077,8 @@ Confirmez-vous cet achat ?`,
         await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         await deleteOldMenu(chatId);
-        const hasAutoDelivery = !!item.deliveryType;
+        const itemDeliveries = await getDeliveriesByItemId(item.id);
+        const hasAutoDelivery = itemDeliveries.length > 0 || !!item.deliveryType;
         const deliveryNote = hasAutoDelivery ? `
 
 \u{1F4EC} *Votre contenu va \xEAtre envoy\xE9 automatiquement ci-dessous.*` : `
@@ -112081,7 +112097,11 @@ Confirmez-vous cet achat ?`,
           ] }
         );
         if (hasAutoDelivery) {
-          await sendDeliveryContent(chatId, item);
+          if (itemDeliveries.length > 0) {
+            await sendDeliveries(chatId, itemDeliveries);
+          } else if (item.deliveryType) {
+            await sendSingleDelivery(chatId, { id: 0, itemId: item.id, type: item.deliveryType, fileId: item.deliveryFileId ?? null, content: item.deliveryCaption ?? null, createdAt: /* @__PURE__ */ new Date() });
+          }
         }
         sendDiscordLog("\u{1F6D2} Achat Boutique", `Un utilisateur a achet\xE9 un article boutique.`, "green", [
           { name: "User ID", value: `\`${userId}\``, inline: true },
@@ -112173,6 +112193,143 @@ G\xE9rez les articles de ce dossier :`,
           } else {
             await sendMenu(chatId, infoText, bqaItemDetailKeyboard(item.id, item.categoryId));
           }
+          return;
+        }
+        if (data.startsWith("bqa_edit_delivery_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_edit_delivery_", ""));
+          if (isNaN(itemId)) return;
+          const { item, deliveries } = await getItemWithDeliveries(itemId);
+          if (!item) return;
+          const emojiMap = { text: "\u{1F4DD}", photo: "\u{1F5BC}\uFE0F", video: "\u{1F3A5}", document: "\u{1F4C4}", audio: "\u{1F3B5}", animation: "\u{1F39E}\uFE0F" };
+          const dlvLines = deliveries.map(
+            (d, i) => `${i + 1}. ${emojiMap[d.type] ?? "\u2753"} *${d.type}*${d.content ? ` \u2014 "${d.content.slice(0, 40)}${d.content.length > 40 ? "\u2026" : ""}"` : ""}`
+          );
+          const legacyNote = deliveries.length === 0 && item.deliveryType ? `
+
+\u26A0\uFE0F _Ancien syst\xE8me : ${emojiMap[item.deliveryType] ?? item.deliveryType}. Ajoutez un \xE9l\xE9ment pour migrer._` : "";
+          const msgText = deliveries.length > 0 ? `\u{1F4E6} *Livraisons de "${item.name}"* \u2014 ${deliveries.length} \xE9l\xE9ment(s)
+
+${dlvLines.join("\n")}${legacyNote}` : `\u{1F4E6} *Livraisons de "${item.name}"*
+
+_Aucune livraison automatique configur\xE9e._${legacyNote}`;
+          const delButtons = deliveries.map(
+            (d, i) => [{ text: `\u{1F5D1}\uFE0F Supprimer #${i + 1} (${emojiMap[d.type] ?? d.type})`, callback_data: `bqa_dlvdel_${d.id}_${itemId}` }]
+          );
+          await sendMenu(chatId, msgText, { inline_keyboard: [
+            ...delButtons,
+            [{ text: "\u2795 Ajouter un \xE9l\xE9ment", callback_data: `bqa_dlvadd_${itemId}` }],
+            ...deliveries.length > 0 ? [[{ text: "\u{1F5D1}\uFE0F Tout supprimer", callback_data: `bqa_dlvdelall_${itemId}` }]] : [],
+            [{ text: "\u2190 Retour \xE0 l'article", callback_data: `bqa_item_${itemId}` }]
+          ] });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          await sendMenu(
+            chatId,
+            `\u2795 *Ajouter un \xE9l\xE9ment \xE0 "${item.name}"*
+
+Quel type d'\xE9l\xE9ment souhaitez-vous ajouter ?`,
+            deliveryTypeAddKb(itemId)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_text_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_text_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "text" });
+          await bot.sendMessage(chatId, "\u{1F4DD} Envoie maintenant le *message texte* \xE0 livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_photo_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_photo_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "photo" });
+          await bot.sendMessage(chatId, "\u{1F5BC}\uFE0F Envoie maintenant la *photo* \xE0 livrer (l\xE9gende optionnelle).", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_video_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_video_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "video" });
+          await bot.sendMessage(chatId, "\u{1F3A5} Envoie maintenant la *vid\xE9o* \xE0 livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_doc_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_doc_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "document" });
+          await bot.sendMessage(chatId, "\u{1F4C4} Envoie maintenant le *document* \xE0 livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_audio_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_audio_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "audio" });
+          await bot.sendMessage(chatId, "\u{1F3B5} Envoie maintenant le *fichier audio* \xE0 livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvadd_anim_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvadd_anim_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "animation" });
+          await bot.sendMessage(chatId, "\u{1F39E}\uFE0F Envoie maintenant le *GIF/animation* \xE0 livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+          return;
+        }
+        if (data.startsWith("bqa_dlvdel_") && isAdmin(userId)) {
+          const parts = data.replace("bqa_dlvdel_", "").split("_");
+          const dlvId = parseInt(parts[0]);
+          const itemId = parseInt(parts[1]);
+          if (isNaN(dlvId) || isNaN(itemId)) return;
+          await deleteDelivery(dlvId);
+          const { item, deliveries } = await getItemWithDeliveries(itemId);
+          if (!item) return;
+          const emojiMap2 = { text: "\u{1F4DD}", photo: "\u{1F5BC}\uFE0F", video: "\u{1F3A5}", document: "\u{1F4C4}", audio: "\u{1F3B5}", animation: "\u{1F39E}\uFE0F" };
+          const dlvLines2 = deliveries.map((d, i) => `${i + 1}. ${emojiMap2[d.type] ?? "\u2753"} *${d.type}*${d.content ? ` \u2014 "${d.content.slice(0, 40)}"` : ""}`);
+          const msgText2 = deliveries.length > 0 ? `\u{1F4E6} *Livraisons de "${item.name}"* \u2014 ${deliveries.length} \xE9l\xE9ment(s)
+
+${dlvLines2.join("\n")}` : `\u{1F4E6} *Livraisons de "${item.name}"*
+
+_Aucune livraison automatique configur\xE9e._`;
+          const delButtons2 = deliveries.map(
+            (d, i) => [{ text: `\u{1F5D1}\uFE0F Supprimer #${i + 1} (${emojiMap2[d.type] ?? d.type})`, callback_data: `bqa_dlvdel_${d.id}_${itemId}` }]
+          );
+          await sendMenu(chatId, msgText2, { inline_keyboard: [
+            ...delButtons2,
+            [{ text: "\u2795 Ajouter un \xE9l\xE9ment", callback_data: `bqa_dlvadd_${itemId}` }],
+            ...deliveries.length > 0 ? [[{ text: "\u{1F5D1}\uFE0F Tout supprimer", callback_data: `bqa_dlvdelall_${itemId}` }]] : [],
+            [{ text: "\u2190 Retour \xE0 l'article", callback_data: `bqa_item_${itemId}` }]
+          ] });
+          return;
+        }
+        if (data.startsWith("bqa_dlvdelall_") && isAdmin(userId)) {
+          const itemId = parseInt(data.replace("bqa_dlvdelall_", ""));
+          if (isNaN(itemId)) return;
+          await deleteDeliveriesByItemId(itemId);
+          const item = await getItemById(itemId);
+          await sendMenu(
+            chatId,
+            `\u2705 Toutes les livraisons supprim\xE9es pour *${item?.name ?? "l'article"}*.`,
+            { inline_keyboard: [
+              [{ text: "\u2795 Ajouter un \xE9l\xE9ment", callback_data: `bqa_dlvadd_${itemId}` }],
+              [{ text: "\u2190 Retour \xE0 l'article", callback_data: `bqa_item_${itemId}` }]
+            ] }
+          );
           return;
         }
         if (data.startsWith("bqa_newcat_")) {
@@ -113991,13 +114148,17 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
           );
           return;
         }
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "photo") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "photo", deliveryFileId: photoFileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          const items = await getItemsByCategory(catId);
-          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F5BC}\uFE0F Photo`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(items, catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "photo") {
+          const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "photo", fileId: photoFileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(
+            senderChatId,
+            `\u2705 *\xC9l\xE9ment \u{1F5BC}\uFE0F Photo ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine la cr\xE9ation.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -114033,12 +114194,17 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId);
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "video") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "video", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F3A5} Vid\xE9o`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "video") {
+          const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "video", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(
+            senderChatId,
+            `\u2705 *\xC9l\xE9ment \u{1F3A5} Vid\xE9o ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -114058,12 +114224,17 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId);
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "document") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "document", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F4C4} Document`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "document") {
+          const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "document", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(
+            senderChatId,
+            `\u2705 *\xC9l\xE9ment \u{1F4C4} Document ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -114083,12 +114254,17 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId);
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "audio") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "audio", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F3B5} Audio`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "audio") {
+          const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "audio", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(
+            senderChatId,
+            `\u2705 *\xC9l\xE9ment \u{1F3B5} Audio ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -114108,12 +114284,17 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId);
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "animation") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "animation", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F39E}\uFE0F GIF`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "animation") {
+          const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "animation", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(
+            senderChatId,
+            `\u2705 *\xC9l\xE9ment \u{1F39E}\uFE0F GIF ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -114614,13 +114795,17 @@ Chaque photo envoy\xE9e s'ajoute \xE0 la galerie.`,
         );
         return;
       }
-      if (bqState.step === "item_delivery_content" && bqState.deliveryType === "text") {
-        pendingBqaAdmin.delete(userId);
-        const { catId, name, desc: desc2, price, photoFileIds } = bqState;
-        const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "text", deliveryCaption: text2.trim() });
-        const cat = await getCategoryById(catId);
-        const items = await getItemsByCategory(catId);
-        await bot.sendMessage(chatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* Livraison : \u{1F4DD} Texte`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(items, catId, cat?.parent ?? "formations") });
+      if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "text") {
+        const { catId, name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+        const newDeliveries = [...deliveries, { type: "text", fileId: null, content: text2.trim() }];
+        pendingBqaAdmin.set(userId, { step: "item_delivery", catId, name, desc: desc2, price, photoFileIds, deliveries: newDeliveries });
+        await bot.sendMessage(
+          chatId,
+          `\u2705 *\xC9l\xE9ment \u{1F4DD} Texte ajout\xE9 !* (${newDeliveries.length} \xE9l\xE9ment(s) au total)
+
+Ajoute un autre \xE9l\xE9ment ou termine la cr\xE9ation.`,
+          { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+        );
         return;
       }
       return;

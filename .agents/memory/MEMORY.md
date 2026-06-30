@@ -1,1 +1,2 @@
 - [VPS Deployment](vps-deployment.md) — PM2 avec --env-file, SQL IF NOT EXISTS, GRANT après CREATE TABLE, jamais drizzle push
+- [Multi-delivery Boutique](multi-delivery.md) — Architecture livraison multi-éléments : table `boutique_item_deliveries`, rétrocompat anciens items via deliveryType/deliveryFileId/deliveryCaption.

@@ -252,7 +252,8 @@ type BqaEditStep =
   | { step: "desc"; itemId: number; catId: number }
   | { step: "price"; itemId: number; catId: number }
   | { step: "photo"; itemId: number; catId: number; photoFileIds: string[] }
-  | { step: "delivery_content"; itemId: number; catId: number; deliveryType: string };
+  | { step: "delivery_content"; itemId: number; catId: number; deliveryType: string; isNewDelivery?: boolean }
+  | { step: "delivery_add_content"; itemId: number; catId: number; deliveryType: string };
 const pendingBqaEdit = new Map<number, BqaEditStep>();
 
 // userId → en attente d'envoi de screenshot PayPal
@@ -2761,7 +2762,8 @@ export function startBot(expressApp?: Application): TelegramBot {
         await onPurchaseComplete(userId);
         const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         await deleteOldMenu(chatId);
-        const hasAutoDelivery = !!item.deliveryType;
+        const itemDeliveries = await getDeliveriesByItemId(item.id);
+        const hasAutoDelivery = itemDeliveries.length > 0 || !!item.deliveryType;
         const deliveryNote = hasAutoDelivery
           ? `\n\n📬 *Votre contenu va être envoyé automatiquement ci-dessous.*`
           : `\n\n📸 *Faites un screen de ce message* et contactez le support pour recevoir votre produit.`;
@@ -2773,7 +2775,11 @@ export function startBot(expressApp?: Application): TelegramBot {
           ]}
         );
         if (hasAutoDelivery) {
-          await sendDeliveryContent(chatId, item);
+          if (itemDeliveries.length > 0) {
+            await sendDeliveries(chatId, itemDeliveries);
+          } else if (item.deliveryType) {
+            await sendSingleDelivery(chatId, { id: 0, itemId: item.id, type: item.deliveryType, fileId: item.deliveryFileId ?? null, content: item.deliveryCaption ?? null, createdAt: new Date() });
+          }
         }
         sendDiscordLog("🛒 Achat Boutique", `Un utilisateur a acheté un article boutique.`, "green", [
           { name: "User ID", value: `\`${userId}\``, inline: true },
@@ -2865,7 +2871,144 @@ export function startBot(expressApp?: Application): TelegramBot {
           return;
         }
 
-        if (data.startsWith("bqa_newcat_")) {
+
+          // ── Boutique Admin : gestion des livraisons d'un article ───────────
+          if (data.startsWith("bqa_edit_delivery_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_edit_delivery_", ""));
+            if (isNaN(itemId)) return;
+            const { item, deliveries } = await getItemWithDeliveries(itemId);
+            if (!item) return;
+            const emojiMap: Record<string, string> = { text: "📝", photo: "🖼️", video: "🎥", document: "📄", audio: "🎵", animation: "🎞️" };
+            const dlvLines = deliveries.map((d, i) =>
+              `${i + 1}. ${emojiMap[d.type] ?? "❓"} *${d.type}*${d.content ? ` — "${d.content.slice(0, 40)}${d.content.length > 40 ? "…" : ""}"` : ""}`
+            );
+            // Rétrocompat : afficher l'ancienne livraison si aucune en DB
+            const legacyNote = deliveries.length === 0 && item.deliveryType
+              ? `\n\n⚠️ _Ancien système : ${emojiMap[item.deliveryType] ?? item.deliveryType}. Ajoutez un élément pour migrer._`
+              : "";
+            const msgText = deliveries.length > 0
+              ? `📦 *Livraisons de "${item.name}"* — ${deliveries.length} élément(s)\n\n${dlvLines.join("\n")}${legacyNote}`
+              : `📦 *Livraisons de "${item.name}"*\n\n_Aucune livraison automatique configurée._${legacyNote}`;
+            const delButtons: TelegramBot.InlineKeyboardButton[][] = deliveries.map((d, i) =>
+              [{ text: `🗑️ Supprimer #${i + 1} (${emojiMap[d.type] ?? d.type})`, callback_data: `bqa_dlvdel_${d.id}_${itemId}` }]
+            );
+            await sendMenu(chatId, msgText, { inline_keyboard: [
+              ...delButtons,
+              [{ text: "➕ Ajouter un élément", callback_data: `bqa_dlvadd_${itemId}` }],
+              ...(deliveries.length > 0 ? [[{ text: "🗑️ Tout supprimer", callback_data: `bqa_dlvdelall_${itemId}` }]] : []),
+              [{ text: "← Retour à l'article", callback_data: `bqa_item_${itemId}` }],
+            ]});
+            return;
+          }
+
+          if (data.startsWith("bqa_dlvadd_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            await sendMenu(chatId,
+              `➕ *Ajouter un élément à "${item.name}"*\n\nQuel type d'élément souhaitez-vous ajouter ?`,
+              deliveryTypeAddKb(itemId)
+            );
+            return;
+          }
+
+          if (data.startsWith("bqa_dlvadd_text_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_text_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "text" });
+            await bot.sendMessage(chatId, "📝 Envoie maintenant le *message texte* à livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+          if (data.startsWith("bqa_dlvadd_photo_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_photo_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "photo" });
+            await bot.sendMessage(chatId, "🖼️ Envoie maintenant la *photo* à livrer (légende optionnelle).", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+          if (data.startsWith("bqa_dlvadd_video_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_video_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "video" });
+            await bot.sendMessage(chatId, "🎥 Envoie maintenant la *vidéo* à livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+          if (data.startsWith("bqa_dlvadd_doc_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_doc_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "document" });
+            await bot.sendMessage(chatId, "📄 Envoie maintenant le *document* à livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+          if (data.startsWith("bqa_dlvadd_audio_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_audio_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "audio" });
+            await bot.sendMessage(chatId, "🎵 Envoie maintenant le *fichier audio* à livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+          if (data.startsWith("bqa_dlvadd_anim_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvadd_anim_", ""));
+            if (isNaN(itemId)) return;
+            const item = await getItemById(itemId);
+            if (!item) return;
+            pendingBqaEdit.set(userId, { step: "delivery_add_content", itemId, catId: item.categoryId, deliveryType: "animation" });
+            await bot.sendMessage(chatId, "🎞️ Envoie maintenant le *GIF/animation* à livrer.", { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]] } });
+            return;
+          }
+
+          if (data.startsWith("bqa_dlvdel_") && isAdmin(userId)) {
+            const parts = data.replace("bqa_dlvdel_", "").split("_");
+            const dlvId = parseInt(parts[0]!);
+            const itemId = parseInt(parts[1]!);
+            if (isNaN(dlvId) || isNaN(itemId)) return;
+            await deleteDelivery(dlvId);
+            const { item, deliveries } = await getItemWithDeliveries(itemId);
+            if (!item) return;
+            const emojiMap2: Record<string, string> = { text: "📝", photo: "🖼️", video: "🎥", document: "📄", audio: "🎵", animation: "🎞️" };
+            const dlvLines2 = deliveries.map((d, i) => `${i + 1}. ${emojiMap2[d.type] ?? "❓"} *${d.type}*${d.content ? ` — "${d.content.slice(0, 40)}"` : ""}`);
+            const msgText2 = deliveries.length > 0
+              ? `📦 *Livraisons de "${item.name}"* — ${deliveries.length} élément(s)\n\n${dlvLines2.join("\n")}`
+              : `📦 *Livraisons de "${item.name}"*\n\n_Aucune livraison automatique configurée._`;
+            const delButtons2: TelegramBot.InlineKeyboardButton[][] = deliveries.map((d, i) =>
+              [{ text: `🗑️ Supprimer #${i + 1} (${emojiMap2[d.type] ?? d.type})`, callback_data: `bqa_dlvdel_${d.id}_${itemId}` }]
+            );
+            await sendMenu(chatId, msgText2, { inline_keyboard: [
+              ...delButtons2,
+              [{ text: "➕ Ajouter un élément", callback_data: `bqa_dlvadd_${itemId}` }],
+              ...(deliveries.length > 0 ? [[{ text: "🗑️ Tout supprimer", callback_data: `bqa_dlvdelall_${itemId}` }]] : []),
+              [{ text: "← Retour à l'article", callback_data: `bqa_item_${itemId}` }],
+            ]});
+            return;
+          }
+
+          if (data.startsWith("bqa_dlvdelall_") && isAdmin(userId)) {
+            const itemId = parseInt(data.replace("bqa_dlvdelall_", ""));
+            if (isNaN(itemId)) return;
+            await deleteDeliveriesByItemId(itemId);
+            const item = await getItemById(itemId);
+            await sendMenu(chatId,
+              `✅ Toutes les livraisons supprimées pour *${item?.name ?? "l'article"}*.`,
+              { inline_keyboard: [
+                [{ text: "➕ Ajouter un élément", callback_data: `bqa_dlvadd_${itemId}` }],
+                [{ text: "← Retour à l'article", callback_data: `bqa_item_${itemId}` }],
+              ]}
+            );
+            return;
+          }
+
+          if (data.startsWith("bqa_newcat_")) {
           const parent = data.replace("bqa_newcat_", "");
           const top = getTopLevel(parent);
           if (!top) return;
@@ -4523,13 +4666,14 @@ export function startBot(expressApp?: Application): TelegramBot {
           return;
         }
         // Photo comme contenu de livraison lors de la création
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "photo") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "photo", deliveryFileId: photoFileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          const items = await getItemsByCategory(catId);
-          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !* Livraison : 🖼️ Photo`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(items, catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "photo") {
+          const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "photo", fileId: photoFileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(senderChatId,
+            `✅ *Élément 🖼️ Photo ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine la création.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -4566,12 +4710,14 @@ export function startBot(expressApp?: Application): TelegramBot {
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId)!;
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "video") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "video", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !* Livraison : 🎥 Vidéo`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "video") {
+          const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "video", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(senderChatId,
+            `✅ *Élément 🎥 Vidéo ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -4593,12 +4739,14 @@ export function startBot(expressApp?: Application): TelegramBot {
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId)!;
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "document") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "document", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !* Livraison : 📄 Document`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "document") {
+          const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "document", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(senderChatId,
+            `✅ *Élément 📄 Document ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -4620,12 +4768,14 @@ export function startBot(expressApp?: Application): TelegramBot {
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId)!;
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "audio") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "audio", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !* Livraison : 🎵 Audio`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "audio") {
+          const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "audio", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(senderChatId,
+            `✅ *Élément 🎵 Audio ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -4647,12 +4797,14 @@ export function startBot(expressApp?: Application): TelegramBot {
       const caption = msg.caption ?? null;
       if (pendingBqaAdmin.has(senderUserId)) {
         const bqState = pendingBqaAdmin.get(senderUserId)!;
-        if (bqState.step === "item_delivery_content" && bqState.deliveryType === "animation") {
-          pendingBqaAdmin.delete(senderUserId);
-          const { catId, name, desc, price, photoFileIds } = bqState;
-          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "animation", deliveryFileId: fileId, deliveryCaption: caption });
-          const cat = await getCategoryById(catId);
-          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !* Livraison : 🎞️ GIF`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations") });
+        if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "animation") {
+          const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+          const newDeliveries = [...deliveries, { type: "animation", fileId, content: caption }];
+          pendingBqaAdmin.set(senderUserId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+          await bot.sendMessage(senderChatId,
+            `✅ *Élément 🎞️ GIF ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine.`,
+            { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+          );
           return;
         }
       }
@@ -5094,13 +5246,14 @@ export function startBot(expressApp?: Application): TelegramBot {
       }
 
       // Contenu de livraison texte (création)
-      if (bqState.step === "item_delivery_content" && bqState.deliveryType === "text") {
-        pendingBqaAdmin.delete(userId);
-        const { catId, name, desc, price, photoFileIds } = bqState;
-        const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: "text", deliveryCaption: text.trim() });
-        const cat = await getCategoryById(catId);
-        const items = await getItemsByCategory(catId);
-        await bot.sendMessage(chatId, `✅ *Article "${item.name}" créé !* Livraison : 📝 Texte`, { parse_mode: "Markdown", reply_markup: bqaCatKeyboard(items, catId, cat?.parent ?? "formations") });
+      if (bqState.step === "item_delivery_content" && bqState.currentDeliveryType === "text") {
+        const { catId, name, desc, price, photoFileIds, deliveries } = bqState;
+        const newDeliveries = [...deliveries, { type: "text", fileId: null, content: text.trim() }];
+        pendingBqaAdmin.set(userId, { step: "item_delivery", catId, name, desc, price, photoFileIds, deliveries: newDeliveries });
+        await bot.sendMessage(chatId,
+          `✅ *Élément 📝 Texte ajouté !* (${newDeliveries.length} élément(s) au total)\n\nAjoute un autre élément ou termine la création.`,
+          { parse_mode: "Markdown", reply_markup: deliveryMoreKb(catId, newDeliveries.length, `bqa_cat_${catId}`) }
+        );
         return;
       }
 

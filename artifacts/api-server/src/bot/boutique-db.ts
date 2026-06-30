@@ -71,7 +71,6 @@ export async function createItem(data: {
   deliveryType?: string | null;
   deliveryFileId?: string | null;
   deliveryCaption?: string | null;
-  deliveryData?: string | null;
 }): Promise<BoutiqueItem> {
   const [row] = await db
     .insert(boutiqueItemsTable)
@@ -81,7 +80,6 @@ export async function createItem(data: {
       description: data.description,
       price: data.price.toFixed(2),
       photoFileId: data.photoFileId ?? null,
-      deliveryData: data.deliveryData ?? null,
       deliveryType: data.deliveryType ?? null,
       deliveryFileId: data.deliveryFileId ?? null,
       deliveryCaption: data.deliveryCaption ?? null,
@@ -98,7 +96,6 @@ export async function updateItem(id: number, data: Partial<{
   deliveryType: string | null;
   deliveryFileId: string | null;
   deliveryCaption: string | null;
-  deliveryData: string | null;
 }>): Promise<BoutiqueItem | null> {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData["name"] = data.name;
@@ -108,7 +105,6 @@ export async function updateItem(id: number, data: Partial<{
   if ("deliveryType" in data) updateData["deliveryType"] = data.deliveryType;
   if ("deliveryFileId" in data) updateData["deliveryFileId"] = data.deliveryFileId;
   if ("deliveryCaption" in data) updateData["deliveryCaption"] = data.deliveryCaption;
-  if ("deliveryData" in data) updateData["deliveryData"] = data.deliveryData;
   const [row] = await db
     .update(boutiqueItemsTable)
     .set(updateData)
