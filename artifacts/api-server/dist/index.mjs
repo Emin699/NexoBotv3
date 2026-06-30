@@ -108892,7 +108892,8 @@ async function getItemWithDeliveries(itemId) {
 }
 
 // src/bot/keyboards.ts
-var SUPPORT_URL = "https://t.me/nexoshop6912";
+var SUPPORT_URL = "https://t.me/Nexosupport691";
+var ADMIN_URL = "https://t.me/nexoshop6912";
 var _mainMenuKb = {
   inline_keyboard: [
     [{ text: "\u{1F3EA} Boutique", callback_data: "menu_achat" }],
@@ -109008,8 +109009,8 @@ function paymentAmountKeyboard(method) {
 }
 var _supportMenuKb = {
   inline_keyboard: [
-    [{ text: "\u{1F4E6} Remplacement produit", callback_data: "support_replacement" }],
     [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+    [{ text: "\u{1F464} Contacter l'administrateur", url: ADMIN_URL }],
     [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
   ]
 };

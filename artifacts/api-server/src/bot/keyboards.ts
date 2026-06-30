@@ -1,7 +1,8 @@
 import TelegramBot from "node-telegram-bot-api";
 import { WHEEL_PRIZES } from "./minigames";
 
-export const SUPPORT_URL = "https://t.me/nexoshop6912";
+export const SUPPORT_URL = "https://t.me/Nexosupport691";
+export const ADMIN_URL = "https://t.me/nexoshop6912";
 
 const _mainMenuKb: TelegramBot.InlineKeyboardMarkup = {
   inline_keyboard: [
@@ -140,8 +141,8 @@ export function paymentAmountKeyboard(method: string): TelegramBot.InlineKeyboar
 
 const _supportMenuKb: TelegramBot.InlineKeyboardMarkup = {
   inline_keyboard: [
-    [{ text: "📦 Remplacement produit", callback_data: "support_replacement" }],
     [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+    [{ text: "👤 Contacter l'administrateur", url: ADMIN_URL }],
     [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
   ],
 };
