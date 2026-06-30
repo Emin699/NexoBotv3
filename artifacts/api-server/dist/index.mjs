@@ -110930,6 +110930,11 @@ ${order.emoji} *${order.subLabel}*
 \u{1F6E1}\uFE0F  *PANEL ADMIN \u2014 NexoShop69*
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
+\u{1F5A5}\uFE0F *Panneaux & navigation*
+\u251C /adminmenu \u2014 Panneau admin interactif complet
+\u251C /categorieadmin \u2014 G\xE9rer la boutique (cat\xE9gories & articles)
+\u2514 /adminhelp \u2014 Afficher ce message
+
 \u{1F464} *Gestion des comptes*
 \u251C /addbalance \`<id>\` \`<montant>\`
 \u251C /removebalance \`<id>\` \`<montant>\`
@@ -110937,14 +110942,16 @@ ${order.emoji} *${order.subLabel}*
 \u251C /removepoints \`<id>\` \`<points>\` \u2014 Retirer des pts fid\xE9lit\xE9
 \u251C /profile \`<id>\` \u2014 Voir profil & transactions
 \u251C /order \`<ref>\` \u2014 D\xE9tails d'une commande
-\u251C /say \`<id|all>\` \`<message>\`
-\u251C /addspins \`<id>\` \`<nb>\` \u2014 Spins roue \xE0 un user
-\u251C /addspinsall \`<nb>\` \u2014 Spins roue \xE0 tout le monde
+\u251C /say \`<id|all>\` \`<message>\` \u2014 Envoyer un message
+\u251C /broadcast \u2014 Diffuser un message \xE0 tous
+\u251C /addspins \`<id>\` \`<nb>\` \u2014 Donner des spins de roue
+\u251C /addspinsall \`<nb>\` \u2014 Donner des spins \xE0 tout le monde
 \u251C /ban \`<id>\` \`[raison]\`
 \u2514 /unban \`<id>\`
 
 \u{1F4E6} *Livraison produits*
-\u251C /new \`<commande>\` \`<identifiants>\`
+\u251C /new \`<commande>\` \`<identifiants>\` \u2014 Livraison g\xE9n\xE9rique
+\u251C /newnetflix \`<id>\` \`<email>:<pass>\`
 \u251C /newbasicfit \`<id>\` \`<email>:<pass>\`
 \u251C /newfitnesspark \`<id>\` \`<email>:<pass>\`
 \u2514 /newiptv \`<id>\` \`<credentials>\`
@@ -110955,13 +110962,21 @@ ${order.emoji} *${order.subLabel}*
 \u251C /deezerstock \u2014 Voir le stock actuel
 \u2514 /cleardeezer \u2014 Vider tout le stock
 
-\u2699\uFE0F *Services*
-\u2514 /removeserv \u2014 Activer / d\xE9sactiver un service
+\u2699\uFE0F *Services & syst\xE8me*
+\u251C /removeserv \u2014 Activer / d\xE9sactiver un service
+\u251C /stats \u2014 Statistiques globales (users, finances, transactions)
+\u251C /stock \u2014 \xC9tat du stock Deezer + IPTV
+\u251C /testdiscord \u2014 Tester les webhooks Discord
+\u251C /chatid \u2014 Obtenir son Chat ID
+\u2514 /annuler \u2014 Annuler l'action admin en cours
+
+\u{1F3B0} *Mini-jeux*
+\u2514 /tirage \u2014 Tirer le gagnant du jackpot lottery
 
 \u{1F39F}\uFE0F *Coupons de r\xE9duction*
 \u251C /admincoupon \u2014 Panel complet (stats, modifier, supprimer)
 \u251C /addcoupon \u2014 Cr\xE9er un coupon (menu interactif)
-\u251C /couponlist \u2014 Lister tous les coupons
+\u251C /couponlist \u2014 Lister tous les coupons actifs
 \u2514 /coupondel \`<code>\` \u2014 Supprimer un coupon
 `,
       { parse_mode: "Markdown" }

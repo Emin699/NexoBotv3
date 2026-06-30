@@ -1647,6 +1647,10 @@ export function startBot(expressApp?: Application): TelegramBot {
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🛡️  *PANEL ADMIN — NexoShop69*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `🖥️ *Panneaux & navigation*\n` +
+      `├ /adminmenu — Panneau admin interactif complet\n` +
+      `├ /categorieadmin — Gérer la boutique (catégories & articles)\n` +
+      `└ /adminhelp — Afficher ce message\n\n` +
       `👤 *Gestion des comptes*\n` +
       `├ /addbalance \`<id>\` \`<montant>\`\n` +
       `├ /removebalance \`<id>\` \`<montant>\`\n` +
@@ -1654,13 +1658,15 @@ export function startBot(expressApp?: Application): TelegramBot {
       `├ /removepoints \`<id>\` \`<points>\` — Retirer des pts fidélité\n` +
       `├ /profile \`<id>\` — Voir profil & transactions\n` +
       `├ /order \`<ref>\` — Détails d'une commande\n` +
-      `├ /say \`<id|all>\` \`<message>\`\n` +
-      `├ /addspins \`<id>\` \`<nb>\` — Spins roue à un user\n` +
-      `├ /addspinsall \`<nb>\` — Spins roue à tout le monde\n` +
+      `├ /say \`<id|all>\` \`<message>\` — Envoyer un message\n` +
+      `├ /broadcast — Diffuser un message à tous\n` +
+      `├ /addspins \`<id>\` \`<nb>\` — Donner des spins de roue\n` +
+      `├ /addspinsall \`<nb>\` — Donner des spins à tout le monde\n` +
       `├ /ban \`<id>\` \`[raison]\`\n` +
       `└ /unban \`<id>\`\n\n` +
       `📦 *Livraison produits*\n` +
-      `├ /new \`<commande>\` \`<identifiants>\`\n` +
+      `├ /new \`<commande>\` \`<identifiants>\` — Livraison générique\n` +
+      `├ /newnetflix \`<id>\` \`<email>:<pass>\`\n` +
       `├ /newbasicfit \`<id>\` \`<email>:<pass>\`\n` +
       `├ /newfitnesspark \`<id>\` \`<email>:<pass>\`\n` +
       `└ /newiptv \`<id>\` \`<credentials>\`\n\n` +
@@ -1669,12 +1675,19 @@ export function startBot(expressApp?: Application): TelegramBot {
       `├ /fini — Terminer le mode ajout\n` +
       `├ /deezerstock — Voir le stock actuel\n` +
       `└ /cleardeezer — Vider tout le stock\n\n` +
-      `⚙️ *Services*\n` +
-      `└ /removeserv — Activer / désactiver un service\n\n` +
+      `⚙️ *Services & système*\n` +
+      `├ /removeserv — Activer / désactiver un service\n` +
+      `├ /stats — Statistiques globales (users, finances, transactions)\n` +
+      `├ /stock — État du stock Deezer + IPTV\n` +
+      `├ /testdiscord — Tester les webhooks Discord\n` +
+      `├ /chatid — Obtenir son Chat ID\n` +
+      `└ /annuler — Annuler l'action admin en cours\n\n` +
+      `🎰 *Mini-jeux*\n` +
+      `└ /tirage — Tirer le gagnant du jackpot lottery\n\n` +
       `🎟️ *Coupons de réduction*\n` +
       `├ /admincoupon — Panel complet (stats, modifier, supprimer)\n` +
       `├ /addcoupon — Créer un coupon (menu interactif)\n` +
-      `├ /couponlist — Lister tous les coupons\n` +
+      `├ /couponlist — Lister tous les coupons actifs\n` +
       `└ /coupondel \`<code>\` — Supprimer un coupon\n`,
       { parse_mode: "Markdown" }
     );
