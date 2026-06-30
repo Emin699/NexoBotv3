@@ -108588,7 +108588,7 @@ var WHEEL_PRIZES = [
     emoji: "\u{1F614}",
     displayedChance: 55,
     // % affiché aux joueurs
-    realChance: 60.19,
+    realChance: 60.2,
     // % réel
     type: "nothing",
     message: "\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !"
@@ -108697,8 +108697,8 @@ var WHEEL_PRIZES = [
     emoji: "\u{1F3C6}",
     displayedChance: 0.1,
     // % affiché (effet marketing)
-    realChance: 0.01,
-    // % réel — ultra rare
+    realChance: 0,
+    // % réel — impossible à décrocher
     type: "jackpot_paypal",
     value: 20,
     message: "\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+20\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}"

@@ -40,7 +40,7 @@ export const WHEEL_PRIZES: WheelPrize[] = [
     label: "Dommage, reviens demain !",
     emoji: "😔",
     displayedChance: 55,   // % affiché aux joueurs
-    realChance: 60.19,     // % réel
+    realChance: 60.2,      // % réel
     type: "nothing",
     message: "😔 Pas de chance cette fois... Reviens demain pour retenter ta chance !",
   },
@@ -147,7 +147,7 @@ export const WHEEL_PRIZES: WheelPrize[] = [
     label: "🏆 JACKPOT ! +20€ PayPal",
     emoji: "🏆",
     displayedChance: 0.1,  // % affiché (effet marketing)
-    realChance: 0.01,      // % réel — ultra rare
+    realChance: 0,         // % réel — impossible à décrocher
     type: "jackpot_paypal",
     value: 20,
     message: "🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+20€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉",
