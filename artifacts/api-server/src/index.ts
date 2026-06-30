@@ -1,3 +1,9 @@
+import { config as dotenvConfig } from "dotenv";
+import { resolve } from "path";
+
+// Charger le .env depuis la racine du workspace (compatible Replit + VPS)
+dotenvConfig({ path: resolve(process.cwd(), "../../.env") });
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startBot } from "./bot/index";

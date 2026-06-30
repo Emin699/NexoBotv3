@@ -1,0 +1,122 @@
+In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 6.0.14
+Local PM2 version: 7.0.3
+
+[TAILING] Tailing last 20 lines for [nexoshop] process (change the value with --lines option)
+/root/.pm2/logs/nexoshop-out.log last 20 lines:
+/root/.pm2/logs/nexoshop-error.log last 20 lines:
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+
+root@ubuntu:/var/www/nexobot# nano /var/www/nexobot/.env
+root@ubuntu:/var/www/nexobot# curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 16555  100 16555    0     0   583k      0 --:--:-- --:--:-- --:--:--  598k
+=> Downloading nvm from git to '/root/.nvm'
+=> Cloning into '/root/.nvm'...
+remote: Enumerating objects: 436, done.
+remote: Counting objects: 100% (436/436), done.
+remote: Compressing objects: 100% (363/363), done.
+remote: Total 436 (delta 61), reused 199 (delta 45), pack-reused 0 (from 0)
+Receiving objects: 100% (436/436), 431.23 KiB | 19.60 MiB/s, done.
+Resolving deltas: 100% (61/61), done.
+* (HEAD detached at FETCH_HEAD)
+  master
+=> Compressing and cleaning up git repository
+
+=> Profile not found. Tried ~/.bashrc, ~/.bash_profile, ~/.zprofile, ~/.zshrc, and ~/.profile.
+=> Create one of them and run this script again
+   OR
+=> Append the following lines to the correct file yourself:
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+
+=> You currently have modules installed globally with `npm`. These will no
+=> longer be linked to the active version of Node when you install a new node
+=> with `nvm`; and they may (depending on how you construct your `$PATH`)
+=> override the binaries of modules installed with `nvm`:
+
+/usr/lib
+├── corepack@0.34.6
+├── pm2@7.0.3
+└── pnpm@11.9.0
+=> If you wish to uninstall them at a later point (or re-install them under your
+=> `nvm` Nodes), you can remove them from the system Node as follows:
+
+     $ nvm use system
+     $ npm uninstall -g a_module
+
+=> Close and reopen your terminal to start using nvm or run the following to use it now:
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+-bash: /root/.bashrc: No such file or directory
+root@ubuntu:/var/www/nexobot# nvm install 20
+nvm alias default 20
+nvm use 20
+Command 'nvm' not found, but there are 14 similar ones.
+Command 'nvm' not found, but there are 14 similar ones.
+Command 'nvm' not found, but there are 14 similar ones.
+root@ubuntu:/var/www/nexobot# node -v
+v22.22.2
+root@ubuntu:/var/www/nexobot# pm2 restart nexoshop
+pm2 logs nexoshop --lines 10 --nostream
+Use --update-env to update environment variables
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 6.0.14
+Local PM2 version: 7.0.3
+
+[PM2] Applying action restartProcessId on app [nexoshop](ids: [ 2 ])
+[PM2] [nexoshop](2) ✓
+┌────┬─────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name        │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼─────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ nexobot     │ fork     │ 0    │ online    │ 0%       │ 40.9mb   │
+│ 1  │ nexobot     │ fork     │ 0    │ online    │ 0%       │ 88.2mb   │
+│ 2  │ nexoshop    │ fork     │ 75   │ online    │ 0%       │ 12.9mb   │
+└────┴─────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 6.0.14
+Local PM2 version: 7.0.3
+
+[TAILING] Tailing last 10 lines for [nexoshop] process (change the value with --lines option)
+/root/.pm2/logs/nexoshop-out.log last 10 lines:
+/root/.pm2/logs/nexoshop-error.log last 10 lines:
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+
+root@ubuntu:/var/www/nexobot#
