@@ -1,0 +1,1 @@
+- [VPS Deployment](vps-deployment.md) — PM2 avec --env-file, SQL IF NOT EXISTS, GRANT après CREATE TABLE, jamais drizzle push
