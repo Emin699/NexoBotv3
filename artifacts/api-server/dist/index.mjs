@@ -109537,9 +109537,16 @@ async function checkAndPayReferralBonus(referredId, notifyParrain) {
 }
 
 // src/bot/index.ts
+function getAdminIds() {
+  const idsRaw = process.env["ADMIN_TELEGRAM_IDS"] || process.env["ADMIN_TELEGRAM_ID"];
+  if (!idsRaw) return [];
+  return idsRaw.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n) && n !== 0);
+}
 function isAdmin(userId) {
-  const adminId = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
-  return adminId !== 0 && userId === adminId;
+  return getAdminIds().includes(userId);
+}
+function getAdminId() {
+  return getAdminIds()[0] ?? parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 function parsePhotoIds(raw) {
   if (!raw) return [];
@@ -109707,9 +109714,6 @@ function generateOrderId() {
   const ts = Math.floor(Date.now() / 1e3) % 1e5;
   const rnd = Math.floor(Math.random() * 1e3);
   return `${ts}${String(rnd).padStart(3, "0")}`.padStart(8, "0");
-}
-function getAdminId() {
-  return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 var _WHEEL_VISIBLE = 11;
 var _WHEEL_CENTER = 5;

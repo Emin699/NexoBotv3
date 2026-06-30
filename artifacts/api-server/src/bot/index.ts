@@ -83,9 +83,21 @@ import {
   MIN_ACCOUNT_AGE_HOURS,
 } from "./referrals";
 
+function getAdminIds(): number[] {
+  const idsRaw = process.env["ADMIN_TELEGRAM_IDS"] || process.env["ADMIN_TELEGRAM_ID"];
+  if (!idsRaw) return [];
+  return idsRaw
+    .split(",")
+    .map((s) => parseInt(s.trim()))
+    .filter((n) => !isNaN(n) && n !== 0);
+}
+
 function isAdmin(userId: number): boolean {
-  const adminId = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
-  return adminId !== 0 && userId === adminId;
+  return getAdminIds().includes(userId);
+}
+
+function getAdminId(): number {
+  return getAdminIds()[0] ?? parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 
 function parsePhotoIds(raw: string | null | undefined): string[] {
@@ -376,10 +388,6 @@ function generateOrderId(): string {
   const ts = Math.floor(Date.now() / 1000) % 100000;
   const rnd = Math.floor(Math.random() * 1000);
   return `${ts}${String(rnd).padStart(3, "0")}`.padStart(8, "0");
-}
-
-function getAdminId(): number {
-  return parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
 }
 
 // ── Roue du Destin — Animation bande linéaire (gauche → droite) ──────────
