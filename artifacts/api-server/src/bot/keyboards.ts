@@ -110,8 +110,9 @@ export function achatMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
 
 const _paymentMenuKb: TelegramBot.InlineKeyboardMarkup = {
   inline_keyboard: [
+    [{ text: "💳 Carte bancaire (SumUp)", callback_data: "pay_sumup" }],
     [{ text: "🪙 Crypto — Litecoin (LTC)", callback_data: "pay_ltc" }],
-    [{ text: "🅿️ PayPal", callback_data: "pay_paypal" }],
+    [{ text: "🅿️ PayPal — 🔧 En maintenance", callback_data: "pay_paypal" }],
     [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
   ],
 };

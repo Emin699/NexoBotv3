@@ -3779,33 +3779,43 @@ export function startBot(expressApp?: Application): TelegramBot {
         return;
       }
 
-      // ── PayPal ─────────────────────────────────────────────────
+      // ── Carte bancaire (SumUp) — via support ───────────────────
+      if (data === "pay_sumup") {
+        await sendMenu(
+          chatId,
+          `💳 *Paiement par Carte bancaire (SumUp)*\n\nPour recharger votre solde par carte bancaire, contactez le support.\n\nNotre équipe vous enverra un lien de paiement sécurisé *SumUp* et créditera votre solde dès réception du paiement.`,
+          { inline_keyboard: [
+            [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+            [{ text: "⬅️ Retour", callback_data: "menu_payment" }],
+          ]}
+        );
+        return;
+      }
+
+      // ── PayPal (en maintenance) ────────────────────────────────
       if (data === "pay_paypal") {
         await sendMenu(
           chatId,
-          `🅿️ *Paiement par PayPal*\n\nChoisissez le montant à recharger :`,
-          paymentAmountKeyboard("paypal")
+          `🅿️ *PayPal — 🔧 En maintenance*\n\nLe paiement par PayPal est temporairement indisponible.\n\nMerci d'utiliser un autre moyen de paiement (💳 Carte bancaire ou 🪙 Crypto), ou de contacter le support.`,
+          { inline_keyboard: [
+            [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+            [{ text: "⬅️ Retour", callback_data: "menu_payment" }],
+          ]}
         );
         return;
       }
 
       // ── Choix montant PayPal (boutons) ────────────────────────
       if (data.startsWith("amount_paypal_")) {
-        const parts = data.split("_"); // amount_paypal_{value}
-        const value = parts[2];
-
-        if (value === "custom") {
-          pendingCustomAmount.set(userId, { method: "paypal" });
-          await sendMenu(
-            chatId,
-            `💬 *Montant personnalisé*\n\nEntrez le montant que vous souhaitez recharger *(chiffre uniquement)* :\n\n_Montant minimum : 5€_`,
-            { inline_keyboard: [[{ text: "❌ Annuler", callback_data: "menu_payment" }]] }
-          );
-          return;
-        }
-
-        const amount = parseFloat(value);
-        await processPayment(chatId, userId, amount, "paypal");
+        // PayPal en maintenance : on bloque tout déclenchement résiduel
+        await sendMenu(
+          chatId,
+          `🅿️ *PayPal — 🔧 En maintenance*\n\nLe paiement par PayPal est temporairement indisponible.\n\nMerci d'utiliser un autre moyen de paiement (💳 Carte bancaire ou 🪙 Crypto), ou de contacter le support.`,
+          { inline_keyboard: [
+            [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+            [{ text: "⬅️ Retour", callback_data: "menu_payment" }],
+          ]}
+        );
         return;
       }
 

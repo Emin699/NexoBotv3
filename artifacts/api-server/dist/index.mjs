@@ -108980,8 +108980,9 @@ function loyaltyConvertKeyboard(points) {
 }
 var _paymentMenuKb = {
   inline_keyboard: [
+    [{ text: "\u{1F4B3} Carte bancaire (SumUp)", callback_data: "pay_sumup" }],
     [{ text: "\u{1FA99} Crypto \u2014 Litecoin (LTC)", callback_data: "pay_ltc" }],
-    [{ text: "\u{1F17F}\uFE0F PayPal", callback_data: "pay_paypal" }],
+    [{ text: "\u{1F17F}\uFE0F PayPal \u2014 \u{1F527} En maintenance", callback_data: "pay_paypal" }],
     [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
   ]
 };
@@ -113221,34 +113222,49 @@ Choisissez votre m\xE9thode de paiement :`, paymentMenuKeyboard());
         }
         return;
       }
+      if (data === "pay_sumup") {
+        await sendMenu(
+          chatId,
+          `\u{1F4B3} *Paiement par Carte bancaire (SumUp)*
+
+Pour recharger votre solde par carte bancaire, contactez le support.
+
+Notre \xE9quipe vous enverra un lien de paiement s\xE9curis\xE9 *SumUp* et cr\xE9ditera votre solde d\xE8s r\xE9ception du paiement.`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_payment" }]
+          ] }
+        );
+        return;
+      }
       if (data === "pay_paypal") {
         await sendMenu(
           chatId,
-          `\u{1F17F}\uFE0F *Paiement par PayPal*
+          `\u{1F17F}\uFE0F *PayPal \u2014 \u{1F527} En maintenance*
 
-Choisissez le montant \xE0 recharger :`,
-          paymentAmountKeyboard("paypal")
+Le paiement par PayPal est temporairement indisponible.
+
+Merci d'utiliser un autre moyen de paiement (\u{1F4B3} Carte bancaire ou \u{1FA99} Crypto), ou de contacter le support.`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_payment" }]
+          ] }
         );
         return;
       }
       if (data.startsWith("amount_paypal_")) {
-        const parts = data.split("_");
-        const value = parts[2];
-        if (value === "custom") {
-          pendingCustomAmount.set(userId, { method: "paypal" });
-          await sendMenu(
-            chatId,
-            `\u{1F4AC} *Montant personnalis\xE9*
+        await sendMenu(
+          chatId,
+          `\u{1F17F}\uFE0F *PayPal \u2014 \u{1F527} En maintenance*
 
-Entrez le montant que vous souhaitez recharger *(chiffre uniquement)* :
+Le paiement par PayPal est temporairement indisponible.
 
-_Montant minimum : 5\u20AC_`,
-            { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "menu_payment" }]] }
-          );
-          return;
-        }
-        const amount = parseFloat(value);
-        await processPayment(chatId, userId, amount, "paypal");
+Merci d'utiliser un autre moyen de paiement (\u{1F4B3} Carte bancaire ou \u{1FA99} Crypto), ou de contacter le support.`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_payment" }]
+          ] }
+        );
         return;
       }
       if (data === "pay_ltc") {
