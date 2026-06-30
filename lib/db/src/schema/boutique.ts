@@ -16,10 +16,21 @@ export const boutiqueItemsTable = pgTable("boutique_items", {
   photoFileId: text("photo_file_id"),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  deliveryType: text("delivery_type"),      // "text"|"photo"|"video"|"document"|"audio"|"animation"|null
-  deliveryFileId: text("delivery_file_id"), // file_id Telegram pour les médias
-  deliveryCaption: text("delivery_caption"),// texte du message ou légende du média
+  // CHAMPS OBSOLÈTES — conservés pour rétrocompatibilité, seront migrés vers boutique_item_deliveries
+  deliveryType: text("delivery_type"),
+  deliveryFileId: text("delivery_file_id"),
+  deliveryCaption: text("delivery_caption"),
+});
+
+export const boutiqueItemDeliveriesTable = pgTable("boutique_item_deliveries", {
+  id: serial("id").primaryKey(),
+  itemId: integer("item_id").notNull().references(() => boutiqueItemsTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),      // "text"|"photo"|"video"|"document"|"audio"|"animation"
+  fileId: text("file_id"),          // file_id Telegram (null pour "text")
+  content: text("content"),          // texte du message ou légende
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export type BoutiqueCategory = typeof boutiqueCategoriesTable.$inferSelect;
 export type BoutiqueItem = typeof boutiqueItemsTable.$inferSelect;
+export type BoutiqueItemDelivery = typeof boutiqueItemDeliveriesTable.$inferSelect;

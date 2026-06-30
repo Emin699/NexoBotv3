@@ -96740,6 +96740,7 @@ function drizzle(...params) {
 var schema_exports = {};
 __export(schema_exports, {
   boutiqueCategoriesTable: () => boutiqueCategoriesTable,
+  boutiqueItemDeliveriesTable: () => boutiqueItemDeliveriesTable,
   boutiqueItemsTable: () => boutiqueItemsTable,
   deezerLinksTable: () => deezerLinksTable,
   insertIptvStockSchema: () => insertIptvStockSchema,
@@ -108278,12 +108279,21 @@ var boutiqueItemsTable = pgTable("boutique_items", {
   photoFileId: text("photo_file_id"),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // CHAMPS OBSOLÈTES — conservés pour rétrocompatibilité, seront migrés vers boutique_item_deliveries
   deliveryType: text("delivery_type"),
-  // "text"|"photo"|"video"|"document"|"audio"|"animation"|null
   deliveryFileId: text("delivery_file_id"),
-  // file_id Telegram pour les médias
   deliveryCaption: text("delivery_caption")
-  // texte du message ou légende du média
+});
+var boutiqueItemDeliveriesTable = pgTable("boutique_item_deliveries", {
+  id: serial("id").primaryKey(),
+  itemId: integer("item_id").notNull().references(() => boutiqueItemsTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  // "text"|"photo"|"video"|"document"|"audio"|"animation"
+  fileId: text("file_id"),
+  // file_id Telegram (null pour "text")
+  content: text("content"),
+  // texte du message ou légende
+  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
 // ../../lib/db/src/index.ts
@@ -109848,32 +109858,38 @@ function startBot(expressApp) {
       [{ text: "\u274C Annuler", callback_data: cancelCb }]
     ] };
   }
-  async function sendDeliveryContent(chatId, item) {
-    if (!item.deliveryType) return;
+  async function sendSingleDelivery(chatId, dlv) {
+    const opts = dlv.content ? { caption: dlv.content, parse_mode: "Markdown" } : {};
     try {
-      const opts = item.deliveryCaption ? { caption: item.deliveryCaption, parse_mode: "Markdown" } : {};
-      switch (item.deliveryType) {
+      switch (dlv.type) {
         case "text":
-          if (item.deliveryCaption) await bot.sendMessage(chatId, item.deliveryCaption, { parse_mode: "Markdown" });
+          if (dlv.content) await bot.sendMessage(chatId, dlv.content, { parse_mode: "Markdown" });
           break;
         case "photo":
-          if (item.deliveryFileId) await bot.sendPhoto(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendPhoto(chatId, dlv.fileId, opts);
           break;
         case "video":
-          if (item.deliveryFileId) await bot.sendVideo(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendVideo(chatId, dlv.fileId, opts);
           break;
         case "document":
-          if (item.deliveryFileId) await bot.sendDocument(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendDocument(chatId, dlv.fileId, opts);
           break;
         case "audio":
-          if (item.deliveryFileId) await bot.sendAudio(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendAudio(chatId, dlv.fileId, opts);
           break;
         case "animation":
-          if (item.deliveryFileId) await bot.sendAnimation(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendAnimation(chatId, dlv.fileId, opts);
           break;
       }
     } catch (err) {
-      logger.error({ err }, "Erreur envoi livraison boutique");
+      logger.error({ err, type: dlv.type }, "Erreur envoi element livraison boutique");
+    }
+  }
+  async function sendDeliveries(chatId, deliveries) {
+    if (!deliveries.length) return;
+    for (const dlv of deliveries) {
+      await sendSingleDelivery(chatId, dlv);
+      if (deliveries.length > 1) await new Promise((r) => setTimeout(r, 500));
     }
   }
   async function checkRechargeMilestones(userId, prevTotal, newTotal) {
@@ -112264,7 +112280,7 @@ Cette action est irr\xE9versible.`,
           if (isNaN(catId)) return;
           const bqState = pendingBqaAdmin.get(userId);
           if (!bqState || bqState.step !== "item_photo") return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: [] });
+          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: [], deliveries: [] });
           await bot.sendMessage(
             chatId,
             `\u2705 Sans photo.
@@ -112281,7 +112297,7 @@ Que souhaitez-vous envoyer automatiquement \xE0 l'acheteur apr\xE8s son achat ?`
           if (isNaN(catId)) return;
           const bqState = pendingBqaAdmin.get(userId);
           if (!bqState || bqState.step !== "item_photo") return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: bqState.photoFileIds });
+          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: bqState.photoFileIds, deliveries: [] });
           await bot.sendMessage(
             chatId,
             `\u2705 *${bqState.photoFileIds.length} photo(s)* enregistr\xE9e(s).
@@ -112328,7 +112344,7 @@ Que souhaitez-vous envoyer automatiquement \xE0 l'acheteur apr\xE8s son achat ?`
           }
           const deliveryType = typeMap[data];
           if (!deliveryType) return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery_content", catId, name, desc: desc2, price, photoFileIds, deliveryType });
+          pendingBqaAdmin.set(userId, { step: "item_delivery_content", catId, name, desc: desc2, price, photoFileIds, deliveries: bqState.deliveries ?? [], currentDeliveryType: deliveryType });
           const typeInstruction = {
             text: "\u{1F4DD} Envoie maintenant le *message texte* que recevra l'acheteur.",
             photo: "\u{1F5BC}\uFE0F Envoie maintenant la *photo* \xE0 livrer (tu peux ajouter une l\xE9gende).",

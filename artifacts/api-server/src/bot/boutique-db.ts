@@ -1,8 +1,8 @@
-import { db, boutiqueCategoriesTable, boutiqueItemsTable } from "@workspace/db";
+import { db, boutiqueCategoriesTable, boutiqueItemsTable, boutiqueItemDeliveriesTable } from "@workspace/db";
 import { eq, asc } from "drizzle-orm";
-import type { BoutiqueCategory, BoutiqueItem } from "@workspace/db";
+import type { BoutiqueCategory, BoutiqueItem, BoutiqueItemDelivery } from "@workspace/db";
 
-export type { BoutiqueCategory, BoutiqueItem };
+export type { BoutiqueCategory, BoutiqueItem, BoutiqueItemDelivery };
 
 export const TOP_LEVEL = [
   { id: "formations",  emoji: "🎓", label: "Formations" },
@@ -71,6 +71,7 @@ export async function createItem(data: {
   deliveryType?: string | null;
   deliveryFileId?: string | null;
   deliveryCaption?: string | null;
+  deliveryData?: string | null;
 }): Promise<BoutiqueItem> {
   const [row] = await db
     .insert(boutiqueItemsTable)
@@ -80,6 +81,7 @@ export async function createItem(data: {
       description: data.description,
       price: data.price.toFixed(2),
       photoFileId: data.photoFileId ?? null,
+      deliveryData: data.deliveryData ?? null,
       deliveryType: data.deliveryType ?? null,
       deliveryFileId: data.deliveryFileId ?? null,
       deliveryCaption: data.deliveryCaption ?? null,
@@ -96,6 +98,7 @@ export async function updateItem(id: number, data: Partial<{
   deliveryType: string | null;
   deliveryFileId: string | null;
   deliveryCaption: string | null;
+  deliveryData: string | null;
 }>): Promise<BoutiqueItem | null> {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData["name"] = data.name;
@@ -105,6 +108,7 @@ export async function updateItem(id: number, data: Partial<{
   if ("deliveryType" in data) updateData["deliveryType"] = data.deliveryType;
   if ("deliveryFileId" in data) updateData["deliveryFileId"] = data.deliveryFileId;
   if ("deliveryCaption" in data) updateData["deliveryCaption"] = data.deliveryCaption;
+  if ("deliveryData" in data) updateData["deliveryData"] = data.deliveryData;
   const [row] = await db
     .update(boutiqueItemsTable)
     .set(updateData)
@@ -115,4 +119,47 @@ export async function updateItem(id: number, data: Partial<{
 
 export async function deleteItem(id: number): Promise<void> {
   await db.delete(boutiqueItemsTable).where(eq(boutiqueItemsTable.id, id));
+}
+
+// ── Livraisons multi-éléments ────────────────────────────────────────────────────
+
+export async function getDeliveriesByItemId(itemId: number): Promise<BoutiqueItemDelivery[]> {
+  return db
+    .select()
+    .from(boutiqueItemDeliveriesTable)
+    .where(eq(boutiqueItemDeliveriesTable.itemId, itemId))
+    .orderBy(asc(boutiqueItemDeliveriesTable.createdAt));
+}
+
+export async function createDelivery(data: {
+  itemId: number;
+  type: string;
+  fileId?: string | null;
+  content?: string | null;
+}): Promise<BoutiqueItemDelivery> {
+  const [row] = await db
+    .insert(boutiqueItemDeliveriesTable)
+    .values({
+      itemId: data.itemId,
+      type: data.type,
+      fileId: data.fileId ?? null,
+      content: data.content ?? null,
+    })
+    .returning();
+  return row!;
+}
+
+export async function deleteDelivery(id: number): Promise<void> {
+  await db.delete(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.id, id));
+}
+
+export async function deleteDeliveriesByItemId(itemId: number): Promise<void> {
+  await db.delete(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.itemId, itemId));
+}
+
+export async function getItemWithDeliveries(itemId: number): Promise<{ item: BoutiqueItem | null; deliveries: BoutiqueItemDelivery[] }> {
+  const item = await getItemById(itemId);
+  if (!item) return { item: null, deliveries: [] };
+  const deliveries = await getDeliveriesByItemId(itemId);
+  return { item, deliveries };
 }

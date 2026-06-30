@@ -22,6 +22,8 @@ import {
   getCategoriesByParent, getCategoryById, createCategory, deleteCategory,
   getItemsByCategory, getItemById, createItem, updateItem, deleteItem,
   getTopLevel, TOP_LEVEL,
+  getDeliveriesByItemId, createDelivery, deleteDelivery, deleteDeliveriesByItemId,
+  getItemWithDeliveries,
 } from "./boutique-db";
 import {
   mainMenuKeyboard,
@@ -113,6 +115,21 @@ function parsePhotoIds(raw: string | null | undefined): string[] {
 
 function serializePhotoIds(ids: string[]): string | undefined {
   return ids.length > 0 ? JSON.stringify(ids) : undefined;
+}
+
+function parseDeliveries(raw: string | null | undefined): Array<{ type: string; fileId?: string; content?: string }> {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as Array<{ type: string; fileId?: string; content?: string }>;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+function serializeDeliveries(deliveries: Array<{ type: string; fileId?: string; content?: string }>): string | null {
+  return deliveries.length > 0 ? JSON.stringify(deliveries) : null;
 }
 
 // ── Ban cache (chargé en DB, mis à jour à chaque ban/unban) ────────────────
@@ -225,8 +242,8 @@ type BqaStep =
   | { step: "item_desc"; catId: number; name: string }
   | { step: "item_price"; catId: number; name: string; desc: string }
   | { step: "item_photo"; catId: number; name: string; desc: string; price: number; photoFileIds: string[] }
-  | { step: "item_delivery"; catId: number; name: string; desc: string; price: number; photoFileIds: string[] }
-  | { step: "item_delivery_content"; catId: number; name: string; desc: string; price: number; photoFileIds: string[]; deliveryType: string };
+  | { step: "item_delivery"; catId: number; name: string; desc: string; price: number; photoFileIds: string[]; deliveries: Array<{ type: string; fileId?: string | null; content?: string | null }> }
+  | { step: "item_delivery_content"; catId: number; name: string; desc: string; price: number; photoFileIds: string[]; deliveries: Array<{ type: string; fileId?: string | null; content?: string | null }>; currentDeliveryType: string };
 const pendingBqaAdmin = new Map<number, BqaStep>();
 
 // ── Boutique admin — flow d'édition ────────────────────────────────────────
@@ -573,32 +590,39 @@ export function startBot(expressApp?: Application): TelegramBot {
   }
 
   // ── Livraison automatique d'un article boutique ──────────────────────────
-  async function sendDeliveryContent(chatId: number, item: import("@workspace/db").BoutiqueItem): Promise<void> {
-    if (!item.deliveryType) return;
+  async function sendSingleDelivery(chatId: number, dlv: import("@workspace/db").BoutiqueItemDelivery): Promise<void> {
+    const opts = dlv.content ? { caption: dlv.content, parse_mode: "Markdown" as const } : {};
     try {
-      const opts = item.deliveryCaption ? { caption: item.deliveryCaption, parse_mode: "Markdown" as const } : {};
-      switch (item.deliveryType) {
+      switch (dlv.type) {
         case "text":
-          if (item.deliveryCaption) await bot.sendMessage(chatId, item.deliveryCaption, { parse_mode: "Markdown" });
+          if (dlv.content) await bot.sendMessage(chatId, dlv.content, { parse_mode: "Markdown" });
           break;
         case "photo":
-          if (item.deliveryFileId) await bot.sendPhoto(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendPhoto(chatId, dlv.fileId, opts);
           break;
         case "video":
-          if (item.deliveryFileId) await bot.sendVideo(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendVideo(chatId, dlv.fileId, opts);
           break;
         case "document":
-          if (item.deliveryFileId) await bot.sendDocument(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendDocument(chatId, dlv.fileId, opts);
           break;
         case "audio":
-          if (item.deliveryFileId) await bot.sendAudio(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendAudio(chatId, dlv.fileId, opts);
           break;
         case "animation":
-          if (item.deliveryFileId) await bot.sendAnimation(chatId, item.deliveryFileId, opts);
+          if (dlv.fileId) await bot.sendAnimation(chatId, dlv.fileId, opts);
           break;
       }
     } catch (err) {
-      logger.error({ err }, "Erreur envoi livraison boutique");
+      logger.error({ err, type: dlv.type }, "Erreur envoi element livraison boutique");
+    }
+  }
+
+  async function sendDeliveries(chatId: number, deliveries: import("@workspace/db").BoutiqueItemDelivery[]): Promise<void> {
+    if (!deliveries.length) return;
+    for (const dlv of deliveries) {
+      await sendSingleDelivery(chatId, dlv);
+      if (deliveries.length > 1) await new Promise((r) => setTimeout(r, 500));
     }
   }
 
@@ -2928,7 +2952,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           if (isNaN(catId)) return;
           const bqState = pendingBqaAdmin.get(userId);
           if (!bqState || bqState.step !== "item_photo") return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: [] });
+          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: [], deliveries: [] });
           await bot.sendMessage(chatId,
             `✅ Sans photo.\n\n*Étape 5/5 — Contenu de livraison :*\n\nQue souhaitez-vous envoyer automatiquement à l'acheteur après son achat ?`,
             { parse_mode: "Markdown", reply_markup: deliveryTypeKb(`bqa_cat_${catId}`) }
@@ -2941,7 +2965,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           if (isNaN(catId)) return;
           const bqState = pendingBqaAdmin.get(userId);
           if (!bqState || bqState.step !== "item_photo") return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: bqState.photoFileIds });
+          pendingBqaAdmin.set(userId, { step: "item_delivery", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price: bqState.price, photoFileIds: bqState.photoFileIds, deliveries: [] });
           await bot.sendMessage(chatId,
             `✅ *${bqState.photoFileIds.length} photo(s)* enregistrée(s).\n\n*Étape 5/5 — Contenu de livraison :*\n\nQue souhaitez-vous envoyer automatiquement à l'acheteur après son achat ?`,
             { parse_mode: "Markdown", reply_markup: deliveryTypeKb(`bqa_cat_${catId}`) }
@@ -2980,7 +3004,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           }
           const deliveryType = typeMap[data];
           if (!deliveryType) return;
-          pendingBqaAdmin.set(userId, { step: "item_delivery_content", catId, name, desc, price, photoFileIds, deliveryType });
+          pendingBqaAdmin.set(userId, { step: "item_delivery_content", catId, name, desc, price, photoFileIds, deliveries: bqState.deliveries ?? [], currentDeliveryType: deliveryType });
           const typeInstruction: Record<string, string> = {
             text: "📝 Envoie maintenant le *message texte* que recevra l'acheteur.",
             photo: "🖼️ Envoie maintenant la *photo* à livrer (tu peux ajouter une légende).",
