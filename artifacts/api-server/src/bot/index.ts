@@ -2427,6 +2427,34 @@ export function startBot(expressApp?: Application): TelegramBot {
               [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
             ],
           };
+        } else if (prize.type === "jackpot_paypal" && prize.value) {
+          resultMsg += prize.message ||
+            `🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+${prize.value}€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉`;
+          const adminId = getAdminId();
+          if (adminId) {
+            try {
+              await bot.sendMessage(
+                adminId,
+                `🏆 *JACKPOT ROUE DU DESTIN !*\n\n` +
+                `Un joueur a décroché le jackpot !\n\n` +
+                `👤 User ID : \`${userId}\`\n` +
+                `💶 Montant à envoyer : *${prize.value}€ via PayPal*\n\n` +
+                `Envoie le virement et confirme au client via le bot.`,
+                { parse_mode: "Markdown" }
+              );
+            } catch { /* ignore */ }
+          }
+          sendDiscordLog(
+            "🏆 JACKPOT — Roue du Destin",
+            `Un joueur a décroché le jackpot de la Roue du Destin !`,
+            "yellow",
+            [
+              { name: "User ID", value: `\`${userId}\``, inline: true },
+              { name: "Gain", value: `**+${prize.value}€ PayPal**`, inline: true },
+              { name: "Action requise", value: `Envoyer ${prize.value}€ PayPal au joueur`, inline: false },
+            ],
+            "payments"
+          ).catch(() => {});
         }
 
         // ── Discord log — résultat de spin ────────────────────────
@@ -2439,6 +2467,7 @@ export function startBot(expressApp?: Application): TelegramBot {
           ].filter(Boolean).join(" ");
           const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
           const spinColor = prize.type === "nothing" ? "grey"
+            : prize.type === "jackpot_paypal" ? "yellow"
             : prize.type === "reroll" ? "blue"
             : "green";
           const spinFields: { name: string; value: string; inline?: boolean }[] = [

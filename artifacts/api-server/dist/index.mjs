@@ -108588,7 +108588,7 @@ var WHEEL_PRIZES = [
     emoji: "\u{1F614}",
     displayedChance: 55,
     // % affiché aux joueurs
-    realChance: 60.2,
+    realChance: 60.19,
     // % réel
     type: "nothing",
     message: "\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !"
@@ -108690,6 +108690,18 @@ var WHEEL_PRIZES = [
     type: "loyalty_pts",
     value: 100,
     message: "\u{1F48E} *Exceptionnel !* *+100 points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !"
+  },
+  {
+    id: "jackpot_paypal",
+    label: "\u{1F3C6} JACKPOT ! +20\u20AC PayPal",
+    emoji: "\u{1F3C6}",
+    displayedChance: 0.1,
+    // % affiché (effet marketing)
+    realChance: 0.01,
+    // % réel — ultra rare
+    type: "jackpot_paypal",
+    value: 20,
+    message: "\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+20\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}"
   }
 ];
 var _totalRealChance = WHEEL_PRIZES.reduce((s, p) => s + p.realChance, 0);
@@ -111640,6 +111652,38 @@ _Ce lien est personnel, ne le partage pas._`;
               [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
             ]
           };
+        } else if (prize.type === "jackpot_paypal" && prize.value) {
+          resultMsg += prize.message || `\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+${prize.value}\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}`;
+          const adminId = getAdminId();
+          if (adminId) {
+            try {
+              await bot.sendMessage(
+                adminId,
+                `\u{1F3C6} *JACKPOT ROUE DU DESTIN !*
+
+Un joueur a d\xE9croch\xE9 le jackpot !
+
+\u{1F464} User ID : \`${userId}\`
+\u{1F4B6} Montant \xE0 envoyer : *${prize.value}\u20AC via PayPal*
+
+Envoie le virement et confirme au client via le bot.`,
+                { parse_mode: "Markdown" }
+              );
+            } catch {
+            }
+          }
+          sendDiscordLog(
+            "\u{1F3C6} JACKPOT \u2014 Roue du Destin",
+            `Un joueur a d\xE9croch\xE9 le jackpot de la Roue du Destin !`,
+            "yellow",
+            [
+              { name: "User ID", value: `\`${userId}\``, inline: true },
+              { name: "Gain", value: `**+${prize.value}\u20AC PayPal**`, inline: true },
+              { name: "Action requise", value: `Envoyer ${prize.value}\u20AC PayPal au joueur`, inline: false }
+            ],
+            "payments"
+          ).catch(() => {
+          });
         }
         {
           const spinUser = await getOrCreateUser(userId).catch(() => null);
@@ -111649,7 +111693,7 @@ _Ce lien est personnel, ne le partage pas._`;
             `\u2014 \`${userId}\``
           ].filter(Boolean).join(" ");
           const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
-          const spinColor = prize.type === "nothing" ? "grey" : prize.type === "reroll" ? "blue" : "green";
+          const spinColor = prize.type === "nothing" ? "grey" : prize.type === "jackpot_paypal" ? "yellow" : prize.type === "reroll" ? "blue" : "green";
           const spinFields = [
             { name: "\u{1F464} Joueur", value: userDisplay, inline: false },
             { name: "\u{1F381} Prix gagn\xE9", value: `**${prize.label}**`, inline: true },
