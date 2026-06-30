@@ -18681,10 +18681,10 @@ var require_view = __commonJS({
     var debug = require_src()("express:view");
     var path3 = __require("node:path");
     var fs2 = __require("node:fs");
-    var dirname = path3.dirname;
+    var dirname2 = path3.dirname;
     var basename = path3.basename;
     var extname = path3.extname;
-    var join = path3.join;
+    var join2 = path3.join;
     var resolve = path3.resolve;
     module2.exports = View2;
     function View2(name, options) {
@@ -18720,7 +18720,7 @@ var require_view = __commonJS({
       for (var i = 0; i < roots.length && !path4; i++) {
         var root = roots[i];
         var loc = resolve(root, name);
-        var dir = dirname(loc);
+        var dir = dirname2(loc);
         var file2 = basename(loc);
         path4 = this.resolve(dir, file2);
       }
@@ -18746,12 +18746,12 @@ var require_view = __commonJS({
     };
     View2.prototype.resolve = function resolve2(dir, file2) {
       var ext = this.ext;
-      var path4 = join(dir, file2);
+      var path4 = join2(dir, file2);
       var stat = tryStat(path4);
       if (stat && stat.isFile()) {
         return path4;
       }
-      path4 = join(dir, basename(file2, ext), "index" + ext);
+      path4 = join2(dir, basename(file2, ext), "index" + ext);
       stat = tryStat(path4);
       if (stat && stat.isFile()) {
         return path4;
@@ -22396,7 +22396,7 @@ var require_send = __commonJS({
     var Stream = __require("stream");
     var util2 = __require("util");
     var extname = path3.extname;
-    var join = path3.join;
+    var join2 = path3.join;
     var normalize = path3.normalize;
     var resolve = path3.resolve;
     var sep = path3.sep;
@@ -22568,7 +22568,7 @@ var require_send = __commonJS({
           return res;
         }
         parts = path4.split(sep);
-        path4 = normalize(join(root, path4));
+        path4 = normalize(join2(root, path4));
       } else {
         if (UP_PATH_REGEXP.test(path4)) {
           debug('malicious path "%s"', path4);
@@ -22701,7 +22701,7 @@ var require_send = __commonJS({
           if (err) return self2.onStatError(err);
           return self2.error(404);
         }
-        var p = join(path4, self2._index[i]);
+        var p = join2(path4, self2._index[i]);
         debug('stat "%s"', p);
         fs2.stat(p, function(err2, stat) {
           if (err2) return next(err2);
@@ -25825,7 +25825,7 @@ var require_thread_stream = __commonJS({
     var { version: version4 } = require_package();
     var { EventEmitter } = __require("events");
     var { Worker } = __require("worker_threads");
-    var { join } = __require("path");
+    var { join: join2 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -25861,7 +25861,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join2(__dirname, "lib", "worker.js");
       const worker = new Worker(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -26247,7 +26247,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join, isAbsolute, sep } = __require("node:path");
+    var { join: join2, isAbsolute, sep } = __require("node:path");
     var sleep = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -26310,7 +26310,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join2(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -26328,7 +26328,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline) {
-        target = bundlerOverrides["pino-worker"] || join(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join2(__dirname, "worker.js");
         options.pipelines = [pipeline.map((dest) => {
           return {
             ...dest,
@@ -26350,7 +26350,7 @@ var require_transport = __commonJS({
           return origin;
         }
         if (origin === "pino/file") {
-          return join(__dirname, "..", "file.js");
+          return join2(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -27339,7 +27339,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join = ",";
+            let join2 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -27353,7 +27353,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join = `,
+                join2 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -27361,13 +27361,13 @@ ${indentation}`;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyFnReplacer(String(i), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join;
+                res += join2;
               }
               const tmp = stringifyFnReplacer(String(i), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join2}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -27388,7 +27388,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join = `,
+              join2 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -27402,13 +27402,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join;
+                separator = join2;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join;
+              separator = join2;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -27449,7 +27449,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join = ",";
+            let join2 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -27462,7 +27462,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join = `,
+                join2 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -27470,13 +27470,13 @@ ${indentation}`;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyArrayReplacer(String(i), value[i], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join;
+                res += join2;
               }
               const tmp = stringifyArrayReplacer(String(i), value[i], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join2}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -27489,7 +27489,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join = `,
+              join2 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -27498,7 +27498,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join;
+                separator = join2;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -27556,20 +27556,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join2 = `,
+              const join3 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i = 0;
               for (; i < maximumValuesToStringify - 1; i++) {
                 const tmp2 = stringifyIndent(String(i), value[i], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join2;
+                res2 += join3;
               }
               const tmp = stringifyIndent(String(i), value[i], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join2}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join3}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -27585,16 +27585,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join = `,
+            const join2 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join, maximumBreadth);
+              res += stringifyTypedArray(value, join2, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join;
+              separator = join2;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -27605,13 +27605,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join;
+                separator = join2;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join;
+              separator = join2;
             }
             if (separator !== "") {
               res = `
@@ -30388,7 +30388,7 @@ var require_BufferList = __commonJS({
         this.head = this.tail = null;
         this.length = 0;
       };
-      BufferList.prototype.join = function join(s) {
+      BufferList.prototype.join = function join2(s) {
         if (this.length === 0) return "";
         var p = this.head;
         var ret2 = "" + p.data;
@@ -85604,6 +85604,10 @@ var require_lib10 = __commonJS({
   }
 });
 
+// src/index.ts
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
 // src/app.ts
 var import_express3 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
@@ -89640,17 +89644,6 @@ async function sendDiscordLog(title, description, color = "blue", fields, channe
   if (fields && fields.length > 0) embed["fields"] = fields;
   await postEmbed(getWebhook(channel), embed);
 }
-async function sendOrderNotification(title, description, fields, channel = "netflix") {
-  const embed = {
-    title,
-    description,
-    color: COLORS["yellow"],
-    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-    footer: { text: "NexoShop69 \u2014 Commandes" }
-  };
-  if (fields && fields.length > 0) embed["fields"] = fields;
-  await postEmbed(getWebhook(channel), embed);
-}
 async function sendCreditLog(userId, username, firstName, amount, prevBalance, newBalance, source) {
   const now = /* @__PURE__ */ new Date();
   const dateStr = now.toLocaleDateString("fr-FR", {
@@ -90867,7 +90860,7 @@ function sql(strings, ...params) {
     return new SQL([new StringChunk(str)]);
   }
   sql2.raw = raw;
-  function join(chunks, separator) {
+  function join2(chunks, separator) {
     const result = [];
     for (const [i, chunk] of chunks.entries()) {
       if (i > 0 && separator !== void 0) {
@@ -90877,7 +90870,7 @@ function sql(strings, ...params) {
     }
     return new SQL(result);
   }
-  sql2.join = join;
+  sql2.join = join2;
   function identifier(value) {
     return new Name(value);
   }
@@ -94421,7 +94414,7 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
       const baseTableName = this.tableName;
       const tableName = getTableLikeName(table);
       for (const item of extractUsedTable(table)) this.usedTables.add(item);
-      if (typeof tableName === "string" && this.config.joins?.some((join) => join.alias === tableName)) {
+      if (typeof tableName === "string" && this.config.joins?.some((join2) => join2.alias === tableName)) {
         throw new Error(`Alias "${tableName}" is already used in this query`);
       }
       if (!this.isPartialSelect) {
@@ -95642,7 +95635,7 @@ var PgUpdateBase = class extends QueryPromise {
   createJoin(joinType) {
     return (table, on) => {
       const tableName = getTableLikeName(table);
-      if (typeof tableName === "string" && this.config.joins.some((join) => join.alias === tableName)) {
+      if (typeof tableName === "string" && this.config.joins.some((join2) => join2.alias === tableName)) {
         throw new Error(`Alias "${tableName}" is already used in this query`);
       }
       if (typeof on === "function") {
@@ -95738,10 +95731,10 @@ var PgUpdateBase = class extends QueryPromise {
           const fromFields = this.getTableLikeFields(this.config.from);
           fields[tableName] = fromFields;
         }
-        for (const join of this.config.joins) {
-          const tableName2 = getTableLikeName(join.table);
-          if (typeof tableName2 === "string" && !is(join.table, SQL)) {
-            const fromFields = this.getTableLikeFields(join.table);
+        for (const join2 of this.config.joins) {
+          const tableName2 = getTableLikeName(join2.table);
+          if (typeof tableName2 === "string" && !is(join2.table, SQL)) {
+            const fromFields = this.getTableLikeFields(join2.table);
             fields[tableName2] = fromFields;
           }
         }
@@ -96746,6 +96739,8 @@ function drizzle(...params) {
 // ../../lib/db/src/schema/index.ts
 var schema_exports = {};
 __export(schema_exports, {
+  boutiqueCategoriesTable: () => boutiqueCategoriesTable,
+  boutiqueItemsTable: () => boutiqueItemsTable,
   deezerLinksTable: () => deezerLinksTable,
   insertIptvStockSchema: () => insertIptvStockSchema,
   insertSumupCheckoutSchema: () => insertSumupCheckoutSchema,
@@ -108267,6 +108262,24 @@ var jackpotTicketsTable = pgTable("jackpot_tickets", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
+// ../../lib/db/src/schema/boutique.ts
+var boutiqueCategoriesTable = pgTable("boutique_categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  parent: text("parent").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var boutiqueItemsTable = pgTable("boutique_items", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull().references(() => boutiqueCategoriesTable.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  price: numeric("price", { precision: 10, scale: 2 }).notNull().default("0"),
+  photoFileId: text("photo_file_id"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
 var neonUrl = process.env.NEON_DATABASE_URL;
@@ -108457,13 +108470,6 @@ async function popDeezerLink(userId) {
   if (!row) return null;
   await db.update(deezerLinksTable).set({ used: true, usedBy: userId ?? null, usedAt: /* @__PURE__ */ new Date() }).where(eq(deezerLinksTable.id, row.id));
   return row.link;
-}
-async function popDeezerLinks(userId, quantity) {
-  const rows = await db.select().from(deezerLinksTable).where(eq(deezerLinksTable.used, false)).orderBy(deezerLinksTable.id).limit(quantity);
-  if (rows.length === 0) return [];
-  const ids = rows.map((r) => r.id);
-  await db.update(deezerLinksTable).set({ used: true, usedBy: userId, usedAt: /* @__PURE__ */ new Date() }).where(inArray(deezerLinksTable.id, ids));
-  return rows.map((r) => r.link);
 }
 async function clearDeezerLinks() {
   const rows = await db.delete(deezerLinksTable).returning({ id: deezerLinksTable.id });
@@ -108785,671 +108791,49 @@ var MILESTONES = [
 function getMilestonesInRange(prevTotal, newTotal) {
   return MILESTONES.filter((m) => prevTotal < m.rechargeThreshold && newTotal >= m.rechargeThreshold);
 }
-var DEEZER_LOTS = [
-  { id: "1", quantity: 1, price: 2, label: "1 lien", pricePerUnit: "2,00\u20AC/lien" },
-  { id: "10", quantity: 10, price: 5, label: "10 liens", pricePerUnit: "0,50\u20AC/lien", savingsLabel: "\xC9conomie -75%" },
-  { id: "50", quantity: 50, price: 15, label: "50 liens", pricePerUnit: "0,30\u20AC/lien", savingsLabel: "\xC9conomie -85%" },
-  { id: "200", quantity: 200, price: 20, label: "200 liens", pricePerUnit: "0,10\u20AC/lien", savingsLabel: "\xC9conomie -95% \u{1F525}" }
+
+// src/bot/boutique-db.ts
+var TOP_LEVEL = [
+  { id: "formations", emoji: "\u{1F393}", label: "Formations" },
+  { id: "techniques", emoji: "\u{1F527}", label: "Techniques & Astuces" },
+  { id: "documents", emoji: "\u{1F4C4}", label: "Documents & Ressources" }
 ];
-function getDeezerLotById(id) {
-  return DEEZER_LOTS.find((l) => l.id === id) ?? null;
+function getTopLevel(id) {
+  return TOP_LEVEL.find((t) => t.id === id);
 }
-
-// src/bot/techs.ts
-var TECHS = [
-  {
-    id: "cine_pathe",
-    name: "\u{1F3AC}Cin\xE9ma Path\xE9",
-    price: 15,
-    description: "Place de cin\xE9ma Path\xE9 Illimit\xE9 gratuite.",
-    content: `\u{1F3AC} *PATH\xC9 ILLIMIT\xC9 \u2014 M\xC9THODE OFFICIELLE*
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u2705 *M\xE9thode Pass Culture (recommand\xE9e)*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u{1F4CC} *Pr\xE9requis :*
-\u2022 Avoir 18 ans
-\u2022 Avoir minimum *99\u20AC* sur Pass Culture
-
-*1.* Installe l'application *Pass Culture* sur ton t\xE9l\xE9phone
-*2.* Connecte-toi \xE0 ton compte Pass Culture
-*3.* Dans la recherche, tape : _Path\xE9_ ou _Cin\xE9Pass_
-*4.* S\xE9lectionne l'offre : *99\u20AC pour 6 mois d'abonnement Path\xE9 Illimit\xE9*
-*5.* Valide avec ton cr\xE9dit Pass Culture
-*6.* Tu re\xE7ois un code ou lien d'activation
-*7.* Va sur le site officiel Path\xE9, cr\xE9e ton compte
-*8.* Active ton abonnement avec le code re\xE7u
-*9.* T\xE9l\xE9charge l'app Path\xE9 et connecte-toi
-*10.* Ton abonnement est actif \u2705 \u2014 r\xE9serve autant de places que tu veux !
-
-\u{1F4A1} *Bonus :* Revends tes places *5-8\u20AC* pi\xE8ce pour te rentabiliser facilement !
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u274C *Sans Pass Culture / moins de 18 ans*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*1.* Va directement sur le site officiel Path\xE9
-*2.* Choisis l'abonnement Path\xE9 Illimit\xE9
-*3.* Cr\xE9e un compte avec tes vraies infos
-*4.* Ajoute un moyen de paiement valide
-*5.* Finalise l'abonnement
-*6.* T\xE9l\xE9charge l'app Path\xE9 et profite du cin\xE9ma en illimit\xE9 \u{1F3AC}
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "spotify",
-    name: "\u{1F3B5} Spotify Premium",
-    price: 10,
-    description: "Spotify Premium gratuit sur Android et iOS.",
-    content: `\u{1F3B5} *Tech Spotify Premium*
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F527} *M\xE9thode 1 \u2014 Fausse CB*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*1.* Cr\xE9e un nouveau compte Spotify
-*2.* Va sur https://namso.ccgen.co \u2014 g\xE9n\xE8re une fausse carte de cr\xE9dit valide
-*3.* Mets-la sur un compte PayPal avec *0\u20AC* dessus
-*4.* Va sur le site Spotify et choisis l'offre *1 mois gratuit*
-*5.* Paye avec ton compte PayPal (0\u20AC + fausse carte)
-*6.* Profite du mois gratuit et recommence \xE0 l'infini ! \u267E\uFE0F
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F1FA}\u{1F1F8} *M\xE9thode 2 \u2014 Offre PayPal US*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u{1F4CC} *Requis :* VPN USA
-
-*1.* Active un VPN sur les \xC9tats-Unis
-*2.* Acc\xE8de au lien : https://www.paypal.com/us/webapps/mpp/spotify-premium-offer
-*3.* Clique sur *"GET OFFER"*
-*4.* Inscris-toi ou connecte-toi avec un compte PayPal US
-*5.* Obtiens *3 mois de Spotify Premium gratuits*
-*6.* Annule l'essai avant la fin _(aucun pr\xE9l\xE8vement)_
-*7.* Recommence avec un autre compte et d'autres infos \u267E\uFE0F
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-\u{1F4F1} *M\xE9thode 3 \u2014 Scarlet + DNS (iOS)*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*1.* Sur Safari, tape _scarlet_ \u2192 appuie sur *Get Scarlet* \u2192 installe
-*2.* Va dans R\xE9glages \u2192 G\xE9n\xE9ral \u2192 Gestion VPN \u2192 Autorise _China Mobile_
-*3.* Installe *DNS Cloak* sur l'App Store
-*4.* Dans DNS Cloak, cherche _AdGuard DNS_ \u2192 "Use this server" \u2192 active la connexion
-*5.* Dans Notes, copie ces domaines :
-\`\`\`
-oscp.apple.com
-certs.apple.com
-crl.apple.com
-ocsp.digicert.com
-ocsp2.apple.com
-valid.apple.com
-\`\`\`
-Enregistre dans Fichiers _(Envoyer une copie, pas collaborer)_
-*6.* Dans DNS Cloak \u2192 Blacklist \u2192 active _enableblacklist_ \u2192 choisis le fichier
-*7.* Retourne sur Scarlet \u2192 installe *Spotify*
-*8.* \u26A0\uFE0F N'ouvre Spotify *que si* AdGuard VPN est connect\xE9 !
-
-\u26A0\uFE0F *Garde ces m\xE9thodes pour toi !*`
-  },
-  {
-    id: "snap_plus",
-    name: "\u{1F47B} Snap+",
-    price: 10,
-    description: "Snap+ gratuit rembours\xE9 via Apple.",
-    content: `\u{1F47B} *Tech Snap+ Gratuit \u2014 M\xE9thode Apple Refund*
-
-\u{1F4CC} *Requis :* iPhone + compte Apple ID
-
-*1.* Ouvre Snapchat et ach\xE8te *Snap+* en tant que *cadeau* pour le compte que tu veux booster _(important : toujours en cadeau, jamais pour toi directement)_
-
-*2.* Attends *2 heures* \u23F3
-
-*3.* Va sur https://apple.com/
-
-*4.* Clique sur *"Support"*
-
-*5.* Clique sur *"D\xE9couvrir l'assistance"*
-
-*6.* Descends jusqu'\xE0 *"Factures et abonnements"*
-
-*7.* Clique sur *"Demander un remboursement"*
-
-*8.* Indique qu'*un mineur a effectu\xE9 l'achat* \u2192 tu seras rembours\xE9 sous *24h* \u{1F4B0}
-
-\u2705 *R\xE9sultat :* Snap+ reste actif ET tu es rembours\xE9 !
-
-\u26A0\uFE0F *R\xE8gles importantes :*
-\u2022 Change d'Apple ID \xE0 chaque remboursement
-\u2022 Toujours offrir en cadeau _(sinon le Snap+ sera r\xE9voqu\xE9)_
-\u2022 Utilise un compte alternatif pour s'offrir le cadeau \xE0 soi-m\xEAme
-
-\u267E\uFE0F *M\xE9thode r\xE9p\xE9table \xE0 l'infini !*
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "app_store",
-    name: "\u{1F4F1} App Store",
-    price: 7,
-    description: "Remboursement d'achats App Store via le support.",
-    content: `\u{1F4F1} *Tech App Store \u2014 Remboursement Apple*
-
-*1.* Achetez ce que vous souhaitez sur l'App Store
-
-*2.* Contactez le support Apple et dites :
-_"Bonjour, mon fils/ma fille a utilis\xE9 mon appareil et a effectu\xE9 des achats sans mon autorisation. Je souhaite \xEAtre rembours\xE9(e)."_
-
-*3.* Obtenez votre remboursement :
-\u2022 \u{1F4B3} Sur votre m\xE9thode de paiement d'origine
-\u2022 \u{1F381} Ou sous forme de carte-cadeau Apple
-
-\u{1F4A1} *Astuce :* Soyez poli(e) et insistez calmement \u2014 Apple rembourse tr\xE8s facilement sur ce motif.
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "psn",
-    name: "\u{1F3AE} PSN",
-    price: 5,
-    description: "Carte-cadeau PSN gratuite via le support.",
-    content: `\u{1F3AE} *Tech PSN \u2014 Carte Cadeau Gratuite*
-
-*1.* Allez sur *"PSN Contactez-nous"* et saisissez toutes vos informations PSN
-
-*2.* S\xE9lectionnez le *chat en direct*
-
-*3.* Expliquez \xE0 l'agent :
-_"Bonjour, j'ai achet\xE9 une PS4 pour mon fils/ma fille et il/elle a \xE9t\xE9 victime d'intimidation en ligne. Y a-t-il quelque chose que PSN peut faire pour nous ?"_
-\u2192 Assurez-vous d'avoir un *ton professionnel et calme*
-\u2192 Vous serez transf\xE9r\xE9 \xE0 une autorit\xE9 sup\xE9rieure
-
-*4.* N\xE9gociez et demandez environ *20\u20AC de carte-cadeau PSN* \u{1F381}
-
-\u{1F4A1} *Astuce :* Restez poli(e) et patient(e) \u2014 les superviseurs PSN ont souvent une marge de man\u0153uvre pour offrir des compensations.
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "shein",
-    name: "\u{1F457} Shein",
-    price: 10,
-    description: "Commande Shein gratuite par retour strat\xE9gique.",
-    content: `\u{1F457} *Tech Shein \u2014 Commande Gratuite*
-
-*1.* Choisissez vos articles sur Shein
-
-*2.* \u26A0\uFE0F *IMPORTANT :* Ajoutez aussi des articles *bibelots \xE0 moins de 5\u20AC* qui acceptent le retour
-_(V\xE9rifiez que l'article affiche "Politique de retour : En savoir plus" \u2014 sinon choisissez-en un autre)_
-
-*3.* *Calcul :* Pour 10 articles voulus \u2192 ajoutez *4 \xE0 6 articles inutiles* _(25% \xE0 50% du total)_
-
-Ces articles bon march\xE9 seront ceux que vous renverrez.
-
-*4.* Payez avec *PayPal* _(pr\xE9f\xE9rable pour un \xE9ventuel litige)_
-
-*5.* Attendez de recevoir votre commande
-
-*6.* \xC0 r\xE9ception :
-\u2022 Sortez vos vrais articles
-\u2022 Laissez les articles "retour" dans le sac
-\u2022 Prenez en photo *l'\xE9tiquette de livraison* sur le colis
-
-*7.* Allez sur le *service client SHEIN* \u2192 cherchez \xE0 parler \xE0 un agent _(ignorez le robot, testez diff\xE9rents boutons jusqu'\xE0 avoir "Contacter un agent")_
-
-*8.* Quand l'agent rejoint :
-\u2022 _"Voyez-vous des traces d'ouverture sur le colis ?"_ \u2192 R\xE9pondez *NON*
-\u2022 Envoyez la photo de l'\xE9tiquette quand demand\xE9
-
-\u{1F4A1} Si l'agent s'appelle Maurice \u2192 quittez et relancez \u{1F605}
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "social_boost",
-    name: "\u{1F680} Social Boost",
-    price: 10,
-    description: "Booste tes vues, likes, abonn\xE9s sur YouTube, TikTok, Insta, Telegram...",
-    content: `\u{1F680} *Social Boost \u2014 Vues / Likes / Abonn\xE9s / Partages*
-
-Boostez votre pr\xE9sence sur *toutes les plateformes* pour quelques centimes :
-
-\u2705 *Plateformes support\xE9es :*
-\u2022 \u{1F4F8} Instagram
-\u2022 \u{1F3B5} TikTok
-\u2022 \u{1F4FA} YouTube
-\u2022 \u{1F4F1} Facebook
-\u2022 \u2708\uFE0F Telegram
-\u2022 \u{1F426} Twitter/X
-\u2022 et bien d'autres...
-
-\u2705 *Ce que vous pouvez acheter :*
-\u2022 \u{1F441}\uFE0F Vues
-\u2022 \u2764\uFE0F Likes
-\u2022 \u{1F4AC} Commentaires
-\u2022 \u{1F501} Republications / Partages
-\u2022 \u{1F465} Abonn\xE9s / Followers
-\u2022 \u{1F4E4} Retweets, reposts...
-
-\u{1F4B0} *Tarifs* : Quelques centimes pour des centaines/milliers d'interactions !
-
-\u{1F517} *Sites recommand\xE9s :*
-\u2022 https://smmfollows.com/
-\u2022 https://smmfollox.shop/
-
-\u{1F4CC} *Comment utiliser :*
-*1.* Va sur un des sites ci-dessus
-*2.* Choisis ta plateforme et le type de boost
-*3.* Colle l'URL de ton post / profil
-*4.* Choisis la quantit\xE9 et paye (tr\xE8s peu cher)
-*5.* Re\xE7ois ton boost en quelques minutes \u2705
-
-\u{1F4A1} *Astuce :* Commence par de petites quantit\xE9s pour tester, puis augmente.
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "ytb_premium",
-    name: "\u25B6\uFE0F YouTube Premium Gratuit",
-    price: 5,
-    description: "YouTube sans pub et en arri\xE8re-plan gratuitement. \u26A0\uFE0F Uniquement faisable sur Android.",
-    content: `\u25B6\uFE0F *Tech YouTube Premium \u2014 APK Modifi\xE9 (Android)*
-
-T\xE9l\xE9chargez la version modifi\xE9e de YouTube avec Premium d\xE9j\xE0 activ\xE9 :
-
-\u{1F4E5} *Lien de t\xE9l\xE9chargement Android :*
-https://download.apkmody.fun/apps/youtube/download/0
-
-\u2705 *Ce que vous obtenez :*
-\u2022 YouTube sans publicit\xE9s
-\u2022 Lecture en arri\xE8re-plan
-\u2022 Picture-in-Picture (PiP)
-\u2022 Toutes les fonctions Premium incluses
-
-\u{1F4CC} *Installation :* Activez "Sources inconnues" dans vos param\xE8tres Android avant d'installer.
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "netflix",
-    name: "\u{1F3AC} Netflix Premium Gratuit",
-    price: 5,
-    description: "Netflix Premium UHD 30 jours via carte virtuelle.",
-    content: `\u{1F3AC} *Tech Netflix Premium \u2014 M\xE9thode BOON APP*
-
-*1.* Assurez-vous de ne pas \xEAtre connect\xE9 \xE0 un VPN
-
-*2.* T\xE9l\xE9chargez l'APK *BOON* sur Android
-OU sur iOS utilisez l'Apple ID : \`smallx1@gmx.com\` | \`Plus2018\` \u2192 trouvez l'app dans "Achats"
-
-*3.* Ouvrez BOON et s\xE9lectionnez *Irlande*
-
-*4.* L'app demande un num\xE9ro de t\xE9l\xE9phone \u2192 Installez *"Second Phone Number"* et obtenez un essai de 3 jours _(utilisez un bin Google Play valide)_
-
-*5.* Dans Second Phone Number, s\xE9lectionnez *Royaume-Uni* \u2192 remplissez une fausse adresse _(via Google Maps)_ \u2192 cliquez sur "7 jours"
-\u2192 Retournez sur BOON \u2192 code pays *+44* \u2192 entrez votre num\xE9ro \u2192 recevez l'appel \u2192 notez le code
-
-*6.* Inscrivez-vous sur BOON et r\xE9cup\xE9rez votre *carte virtuelle (VCC)*
-
-*7.* Activez un VPN :
-\u2022 Express VPN / VYPR VPN / HMA PRO
-\u2022 Connectez-vous sur : *Irlande / France / Royaume-Uni*
-
-*8.* Ouvrez *Firefox Focus* et allez sur https://netflix.com
-
-*9.* Cr\xE9ez un compte Netflix \u2192 choisissez *Premium*
-
-*10.* V\xE9rifiez que votre IP Netflix est bien en Irlande/France/UK
-
-*11.* Payez via *PayPal*
-\u2192 Dans PayPal, assurez-vous que le pays est r\xE9gl\xE9 sur Irlande/France/UK
-\u2192 Remplissez des infos al\xE9atoires
-
-*12.* Profitez de *Netflix Premium UHD* pendant 30 jours \u2705
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "amazon",
-    name: "\u{1F4E6} Amazon no rf",
-    price: 10,
-    description: "Produits Amazon gratuits contre un simple avis.",
-    content: `\u{1F4E6} *Tech Amazon \u2014 Produits Gratuits \xE0 Revendre*
-
-*1.* Cr\xE9ez un compte sur *Facebook.com* si vous n'en avez pas
-
-*2.* Recherchez : *"Amazon Review Clubs"* ou *"Amazon Review Groups"*
-_(Si vous n'\xEAtes pas en France, ajoutez votre pays \xE0 la recherche)_
-Rejoignez *tous les groupes* \u2014 certains ont 10 000 \xE0 20 000+ membres
-
-*3.* Chaque jour, des vendeurs proposent leur produit *gratuitement* en \xE9change d'un avis Amazon
-
-*4.* Cherchez des produits *facilement revendables* (\xE9vitez les v\xEAtements sauf si vous \xEAtes s\xFBr de la revente)
-
-*5.* Contactez le vendeur \u2192 deux cas possibles :
-\u2022 Achetez le produit au prix normal \u2192 recevez-le \u2192 laissez un avis \u2192 *rembours\xE9 via PayPal*
-\u2022 Le vendeur vous donne un *code promo 100%* \u2192 achetez gratuitement \u2192 laissez un avis
-
-*6.* Revendez le produit sur *eBay, Vinted, Leboncoin* ou toute marketplace \u{1F4B0}
-
-*7.* \u26A0\uFE0F Laissez *toujours* l'avis \u2192 sinon vous serez exclu des groupes d\xE9finitivement
-
-\u267E\uFE0F *Scalable :* Avec suffisamment de groupes, vous pouvez recevoir des dizaines d'articles par jour !
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "tiktok_stats",
-    name: "\u{1F3B5} TikTok Boost",
-    price: 5,
-    description: "Likes, vues et abonn\xE9s TikTok gratuits en ligne.",
-    content: `\u{1F3B5} *TikTok Boost \u2014 Likes / Vues / Abonn\xE9s Gratuits*
-
-*1.* Allez sur https://zefoy.com/
-
-*2.* Compl\xE9tez la v\xE9rification _(captcha)_
-
-*3.* Choisissez le type de boost : *likes, partages, vues, abonn\xE9s...*
-
-*4.* Collez le lien de votre vid\xE9o TikTok et cliquez sur *D\xE9marrer*
-
-*5.* Recevez vos likes/vues/abonn\xE9s \u2705
-
-\u{1F517} *Autres sites utilisables plusieurs fois :*
-\u2022 https://fireliker.com/
-\u2022 https://freer.es/
-\u2022 https://mytoolstown.com/onlinetools/
-
-\u267E\uFE0F *Tous ces sites peuvent \xEAtre utilis\xE9s plusieurs fois !*
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "tiktok_certif",
-    name: "\u2705 TikTok Certif",
-    price: 15,
-    manualDelivery: true,
-    description: "Badge certifi\xE9 TikTok sans conditions requises.",
-    content: `\u2705 *TikTok \u2014 Obtenir la Certification (Badge V\xE9rifi\xE9)*
-
-\u{1F4CC} *Pr\xE9requis :* Plusieurs adresses e-mail
-\u{1F4CC} Un compte TikTok avec un nom et une photo de profil d\xE9finis
-
-*1.* Cr\xE9ez environ *5 faux comptes* imitant votre vrai compte
-_(Exemple : votre compte = @nexoshop \u2192 faux = @nexoshop\\_levrai avec la m\xEAme photo de profil)_
-
-*2.* *D\xE9connectez-vous* de tous ces faux comptes
-
-*3.* Envoyez un e-mail \xE0 TikTok _(support@tiktok.com)_ :
-
-_"Bonjour, plusieurs comptes usurpent mon identit\xE9. Pouvez-vous m'aider en me mettant la certification ? Merci."_
-\u2192 Joignez des *captures d'\xE9cran des faux comptes* \xE0 votre e-mail
-
-*4.* Attendez la r\xE9ponse de TikTok et suivez leurs instructions
-
-*5.* Vous obtenez votre badge de certification \u2705
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "tiktok_ban",
-    name: "\u{1F6AB} TikTok Ban",
-    price: 15,
-    description: "Bannis n'importe quel compte TikTok cibl\xE9.",
-    content: `\u{1F6AB} *TikTok \u2014 Bannir un Compte Cibl\xE9*
-
-\u{1F4CC} *Pr\xE9requis :*
-\u2022 La cible doit montrer son visage sur TikTok
-\u2022 Une fausse carte d'identit\xE9 avec sa photo
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-*Tutoriel*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*1.* Obtenez une carte d'identit\xE9 avec la *photo de la cible* et un autre nom _(ex : Romain Yousiz)_
-
-*2.* Signalez la cible \xE0 TikTok en pr\xE9tendant qu'elle *usurpe votre identit\xE9*
-\u2192 Envoyez la fausse carte d'identit\xE9 par e-mail \xE0 TikTok
-
-*3.* Patientez \u2192 une fois valid\xE9, le compte sera banni \u2705
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-*Cr\xE9er la fausse carte d'identit\xE9*
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*Option A :* Utilisez ce site :
-https://www.pixiz.com/frame/Carte-d-identite-2274085
-
-*Option B :* Prenez une photo de votre propre carte d'identit\xE9 \u2192 utilisez *Picsart / Photopea / Snap* pour remplacer la photo
-
-*Ajuster le cadrage de la photo :*
-https://www.idphoto.app/upload/photo-passeport
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "unban_apple",
-    name: "\u{1F34E} Unban Apple",
-    price: 5,
-    description: "R\xE9active un compte Apple banni en quelques messages.",
-    content: `\u{1F34E} *Tech Unban Apple \u2014 R\xE9activer ses Achats*
-
-*1.* Installez l'application *"Assistance"* sur l'App Store
-_(Permet de contacter le support Apple directement)_
-
-*2.* Sur l'\xE9cran d'accueil, appuyez sur *"Dites-nous ce qu'il se passe"*
-\u2192 \xC9crivez : _"Je souhaite obtenir de l'aide"_
-
-*3.* Choisissez votre appareil \u2192 s\xE9lectionnez *"Abonnements et achats"* \u2192 puis *"Achat impossible"*
-
-*4.* Descendez en bas de la page \u2192 cliquez sur *"Message"* pour discuter avec un agent
-
-*5.* Remplissez :
-\u2022 Titre : _Achat impossible_
-\u2022 Informations : _Je n'arrive pas \xE0 passer des achats sur Apple_
-\u2192 Cliquez sur *"D\xE9marrer une conversation de chat"*
-
-*6.* Envoyez ce message \xE0 l'agent :
-_"Bonjour, j'ai un probl\xE8me avec mes achats via Apple. Quand j'essaie d'acheter, \xE7a m'indique 'Achat Impossible \u2014 veuillez contacter l'assistance iTunes'. Je pense que mes achats ont \xE9t\xE9 d\xE9sactiv\xE9s ou mon compte Apple a \xE9t\xE9 banni. Pouvez-vous le r\xE9activer s'il vous pla\xEEt ? Je vous assure que c'est bien moi qui effectue les achats."_
-
-*7.* Suivez les instructions de l'agent \u2192 votre compte sera r\xE9activ\xE9 \u2705
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "robux",
-    name: "\u{1F3AE} Robux",
-    price: 10,
-    description: "Robux Roblox gratuits via des sites de r\xE9compenses.",
-    content: `\u{1F3AE} *Tech Robux (Roblox)*
-
-*M\xE9thode 1 \u2014 Clictune*
-
-\u{1F517} https://www.clictune.com/ieOu
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-*M\xE9thode 2 \u2014 Rocash*
-
-*1.* Allez sur le site : https://www.clictune.com/ieOw
-
-*2.* Cr\xE9ez un compte _(ou connectez-vous avec Google)_
-
-*3.* Liez votre compte Roblox
-
-*4.* Allez sur l'offre *Theoremreach*
-
-*5.* Compl\xE9tez les questionnaires
-
-*6.* Retournez sur Rocash \u2192 allez dans *Withdraw*
-
-*7.* Rejoignez le *groupe Roblox de Rocash* quand demand\xE9
-
-*8.* Appuyez sur *Withdraw* \u2192 entrez votre pseudo Roblox
-
-*9.* Vos Robux arrivent sur votre compte \u2705
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "vbuck",
-    name: "\u{1F3AE} V-Bucks",
-    price: 10,
-    description: "Jusqu'\xE0 6000 V-Bucks Fortnite gratuits.",
-    content: `\u{1F3AE} *Tech V-Bucks Fortnite \u2014 6000 V-Bucks*
-
-\u{1F4CC} *Pr\xE9requis :* VPN au Br\xE9sil + 5\u20AC sur PayPal
-
-*1.* Achetez une *carte Xbox br\xE9silienne de 25 BRL* ici :
-https://www.g2a.com/fr/xbox-live-gift-card-25-brl-xbox-live-key-brazil-i10000070179052
-
-*2.* Cr\xE9ez un *compte Microsoft* _(donc Xbox)_ avec un VPN situ\xE9 au *Br\xE9sil*
-
-*3.* *Liez* ce compte Xbox \xE0 votre compte Epic Games _(celui o\xF9 vous voulez les V-Bucks)_
-
-*4.* Entrez le code de la carte 25 BRL ici :
-https://account.microsoft.com/billing/redeem?refd=login.live.com
-
-*5.* Avec le solde, achetez *1000 V-Bucks* ici :
-https://www.xbox.com/pt-br/games/store/fortnite-1000-v-bucks/c0f5ht9nv86p
-
-*6.* Lancez Fortnite via le *cloud gaming Xbox* avec ce compte :
-https://www.xbox.com/fr-FR/play/games/fortnite/BT5P2X999VH2
-
-*7.* Demandez un remboursement ici \u2192 cliquez sur les 1000 V-Bucks \u2192 *"Incorrect purchase"* \u2192 envoyez :
-https://support.xbox.com/en-IN/help/subscriptions-billing/buy-games-apps/refund-orders
-
-*8.* Relancez le cloud gaming \u2192 vos V-Bucks sont l\xE0 \u2705
-
-*9.* \u267E\uFE0F *R\xE9p\xE9tez les \xE9tapes 5 \u2192 8* jusqu'\xE0 avoir *6000 V-Bucks*
-
-*\xC9tape finale :* D\xE9liez le compte Xbox de votre Epic Games
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "hack_wifi",
-    name: "\u{1F6DC} Hack Wifi",
-    price: 10,
-    description: "Guide complet pour hacker un r\xE9seau Wi-Fi (WPA2 + WEP).",
-    content: `\u{1F4F6} *Tech Hack Wifi*
-
-Tu vas recevoir un guide complet en fichier .txt avec :
-
-\u2022 \u2705 M\xE9thode WPA/WPA2 (Kali Linux) \u2014 protocole moderne
-\u2022 \u2705 M\xE9thode WEP (Backtrack/Kali) \u2014 routeurs anciens
-\u2022 \u{1F527} Liste des outils n\xE9cessaires
-\u2022 \u{1F4A1} Conseils et astuces
-
-\u{1F4CE} *Le fichier est envoy\xE9 ci-dessous.*
-
-\u26A0\uFE0F *\xC0 usage \xE9ducatif uniquement. Garde cette m\xE9thode pour toi !*`,
-    deliveryFile: "hack_wifi.txt"
-  },
-  {
-    id: "basic_fit",
-    name: "\u{1F4AA} BASIC-FIT",
-    price: 110,
-    manualDelivery: true,
-    description: "Abonnement Basic-Fit tous clubs \xE0 prix cass\xE9.",
-    content: `\u{1F4AA} *Tech BASIC-FIT*
-
-1. M\xE9thode r\xE9siliation + reprise :
-   - R\xE9silie ton abonnement actuel
-   - Attends 30 jours
-   - R\xE9inscris-toi avec une offre de reprise (-50%)
-
-2. Offre \xE9tudiant :
-   - Si tu as une carte \xE9tudiant, profite du tarif r\xE9duit
-   - Certaines universit\xE9s ont des partenariats BASIC-FIT
-
-3. Parrainage :
-   - Chaque parrainage = 1 mois gratuit
-   - Parraine des amis, de la famille
-
-4. Offre Black Friday / Janvier :
-   - BASIC-FIT propose souvent 3 mois \xE0 1\u20AC en janvier
-   - Surveille leurs promotions annuelles
-
-5. Compte premium partag\xE9 :
-   - L'offre "All clubs" peut \xEAtre partag\xE9e dans certains cas
-
-\u{1F4CD} Acc\xE8s illimit\xE9 \xE0 tous les clubs BASIC-FIT Europe !
-
-\u26A0\uFE0F M\xE9thode confidentielle - ne pas partager !`
-  },
-  {
-    id: "redbull",
-    name: "\u{1F964} Red Bull",
-    price: 8,
-    manualDelivery: true,
-    description: "Obtenez des Red Bull 250ml \xE0 0,10\u20AC unit\xE9.",
-    content: `\u{1F964} *Tech Red Bull \u2014 8\u20AC*
-
-Contactez le support pour passer votre commande.`
-  },
-  {
-    id: "carte_virtuelle",
-    name: "\u{1F4B3} Tech Carte Virtuelle",
-    price: 150,
-    description: "Encaisse 17\u20AC en 5 min via une carte virtuelle. \u267E\uFE0F Faisable \xE0 l'infini, sans aucune limite !",
-    content: `\u{1F4B3} *Tech Carte Virtuelle \u2014 17\u20AC par run*
-
-Encaisse *17\u20AC en 5 minutes* avec une simple carte virtuelle et une offre de bienvenue.
-\u26A1 Rapide, propre, et *reproductible \xE0 l'infini*.
-
-\u267E\uFE0F *Aucune limite \u2014 r\xE9p\xE9table autant de fois que tu veux !*
-
-\u{1F4B0} *Rentabilit\xE9 :*
-\u2022 9 runs = 153\u20AC \u2192 d\xE9j\xE0 rentable \u2705
-\u2022 15 runs = 255\u20AC \u{1F911}
-\u2022 30 runs = 510\u20AC \u{1F680}
-\u2022 \u267E\uFE0F runs = \u267E\uFE0F \u20AC \u2014 c'est toi qui d\xE9cides !
-
-\u{1F4C4} *Tutoriel complet (Google Docs) :*
-https://docs.google.com/document/d/1kCCuQpr1nq8xMGppJOtQuUX-lfBRgw1_zXnyp4K5RFA/edit?usp=sharing
-
-\u26A0\uFE0F *Garde cette m\xE9thode pour toi !*`
-  },
-  {
-    id: "fitness_park",
-    name: "\u{1F3CB}\uFE0F FITNESS PARK",
-    price: 70,
-    manualDelivery: true,
-    description: "Acc\xE8s Fitness Park n\xE9goci\xE9 ou offert.",
-    content: `\u{1F3CB}\uFE0F *Tech Fitness Park*
-
-1. Offre d\xE9couverte :
-   - Demande un acc\xE8s gratuit 7 jours
-   - Disponible dans la plupart des clubs
-
-2. Parrainage :
-   - Chaque parrainage = r\xE9duction sur ton abonnement
-   - Jusqu'\xE0 3 mois offerts selon les clubs
-
-3. Offre \xE9tudiante :
-   - Abonnement \xE9tudiant ~15\u20AC/mois
-   - N\xE9cessite carte \xE9tudiante valide
-
-4. N\xE9gociation directe :
-   - Va au club en personne
-   - N\xE9gocie avec le responsable
-   - Les responsables ont souvent des marges de man\u0153uvre
-
-5. Promotions saisonni\xE8res :
-   - Janvier : "Bonne r\xE9solution" = -50%
-   - Juin : avant l'\xE9t\xE9 = offres sp\xE9ciales
-
-\u{1F3AF} *Frais d'inscription* : Souvent n\xE9gociables ou offerts lors des promos !
-
-\u26A0\uFE0F Garde cette m\xE9thode confidentielle !`
-  }
-];
-var TIKTOK_TECH_IDS = ["tiktok_stats", "tiktok_certif", "tiktok_ban"];
-function getTechById(id) {
-  return TECHS.find((t) => t.id === id);
+async function getCategoriesByParent(parent) {
+  return db.select().from(boutiqueCategoriesTable).where(eq(boutiqueCategoriesTable.parent, parent)).orderBy(asc(boutiqueCategoriesTable.createdAt));
+}
+async function getCategoryById(id) {
+  const rows = await db.select().from(boutiqueCategoriesTable).where(eq(boutiqueCategoriesTable.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+async function createCategory(name, parent) {
+  const [row] = await db.insert(boutiqueCategoriesTable).values({ name, parent }).returning();
+  return row;
+}
+async function deleteCategory(id) {
+  await db.delete(boutiqueCategoriesTable).where(eq(boutiqueCategoriesTable.id, id));
+}
+async function getItemsByCategory(categoryId) {
+  return db.select().from(boutiqueItemsTable).where(eq(boutiqueItemsTable.categoryId, categoryId)).orderBy(asc(boutiqueItemsTable.createdAt));
+}
+async function getItemById(id) {
+  const rows = await db.select().from(boutiqueItemsTable).where(eq(boutiqueItemsTable.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+async function createItem(data) {
+  const [row] = await db.insert(boutiqueItemsTable).values({
+    categoryId: data.categoryId,
+    name: data.name,
+    description: data.description,
+    price: data.price.toFixed(2),
+    photoFileId: data.photoFileId ?? null
+  }).returning();
+  return row;
+}
+async function deleteItem(id) {
+  await db.delete(boutiqueItemsTable).where(eq(boutiqueItemsTable.id, id));
 }
 
 // src/bot/keyboards.ts
@@ -109539,233 +108923,6 @@ function loyaltyConvertKeyboard(points) {
   rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: "menu_loyalty" }]);
   return { inline_keyboard: rows };
 }
-var _achatMenuKb = {
-  inline_keyboard: [
-    [{ text: "\u{1F4B3} Abonnement \u{1F4B3}", callback_data: "menu_abonnement" }],
-    [{ text: "\u{1F527} Tech", callback_data: "menu_tech" }],
-    [{ text: "\u{1F4E6} Fournisseur", callback_data: "menu_fournisseur" }],
-    [{ text: "\u2728 Autres", callback_data: "menu_achat_autres" }],
-    [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-  ]
-};
-function achatMenuKeyboard() {
-  return _achatMenuKb;
-}
-var _achatAutresMenuKb = {
-  inline_keyboard: [
-    [{ text: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium \xE0 vie \u2014 23\u20AC", callback_data: "buy_deezer_gen" }],
-    [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_achat" }]
-  ]
-};
-function achatAutresMenuKeyboard() {
-  return _achatAutresMenuKb;
-}
-var _deezerGenConfirmKb = {
-  inline_keyboard: [
-    [{ text: "\u2705 Acheter maintenant \u2014 23\u20AC", callback_data: "buy_deezer_gen_cnf" }],
-    [{ text: "\u{1F6D2} Ajouter au panier", callback_data: "cart_add_deezer_gen" }],
-    [{ text: "\u274C Annuler", callback_data: "menu_achat_autres" }]
-  ]
-};
-function deezerGenConfirmKeyboard() {
-  return _deezerGenConfirmKb;
-}
-var _techMenuKb = null;
-function techMenuKeyboard() {
-  if (_techMenuKb) return _techMenuKb;
-  const techButtons = [];
-  const techsPerRow = 2;
-  const nonTikTokTechs = TECHS.filter((t) => !TIKTOK_TECH_IDS.includes(t.id));
-  for (let i = 0; i < nonTikTokTechs.length; i += techsPerRow) {
-    const row = nonTikTokTechs.slice(i, i + techsPerRow).map((tech) => ({
-      text: tech.name,
-      callback_data: `tech_${tech.id}`
-    }));
-    techButtons.push(row);
-  }
-  techButtons.push([{ text: "\u{1F3B5} TikTok", callback_data: "tech_submenu_tiktok" }]);
-  techButtons.push([{ text: "\u2B05\uFE0F Retour", callback_data: "menu_achat" }]);
-  _techMenuKb = { inline_keyboard: techButtons };
-  return _techMenuKb;
-}
-var _tiktokSubMenuKb = null;
-function tiktokSubMenuKeyboard() {
-  if (_tiktokSubMenuKb) return _tiktokSubMenuKb;
-  const tiktokTechs = TECHS.filter((t) => TIKTOK_TECH_IDS.includes(t.id));
-  _tiktokSubMenuKb = {
-    inline_keyboard: [
-      ...tiktokTechs.map((tech) => [{ text: tech.name, callback_data: `tech_${tech.id}` }]),
-      [{ text: "\u2B05\uFE0F Retour aux Techs", callback_data: "menu_tech" }]
-    ]
-  };
-  return _tiktokSubMenuKb;
-}
-var _abonnementMenuKb = {
-  inline_keyboard: [
-    [{ text: "\u{1F3AC} Streaming", callback_data: "cat_streaming" }],
-    [{ text: "\u{1F916} IA", callback_data: "cat_ia" }],
-    [{ text: "\u{1F3B5} Musique", callback_data: "cat_musique" }],
-    [{ text: "\u26BD Sport", callback_data: "cat_sport" }],
-    [{ text: "\u2728 Autres", callback_data: "cat_autres" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_achat" }]
-  ]
-};
-function abonnementMenuKeyboard() {
-  return _abonnementMenuKb;
-}
-var _streamingMenuKb = {
-  inline_keyboard: [
-    [
-      { text: "\u{1F37F} Netflix (avec pub)", callback_data: "sub_new_nf_pub" },
-      { text: "\u{1F37F} Netflix (sans pub)", callback_data: "sub_new_nf_nopub" }
-    ],
-    [
-      { text: "\u{1F3F0} Disney+", callback_data: "sub_new_disney" },
-      { text: "\u{1F338} Crunchyroll Mega Fan", callback_data: "sub_new_crunchyroll" }
-    ],
-    [
-      { text: "\u{1F4E6} Prime Video", callback_data: "sub_new_primevideo" },
-      { text: "\u{1F34F} Apple TV+", callback_data: "sub_new_appletv" }
-    ],
-    [{ text: "\u2B50 Paramount+", callback_data: "sub_new_paramount" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-  ]
-};
-function streamingMenuKeyboard() {
-  return _streamingMenuKb;
-}
-var _iaMenuKb = {
-  inline_keyboard: [
-    [
-      { text: "\u2728 Gemini Pro+", callback_data: "sub_new_gemini" },
-      { text: "\u{1F916} ChatGPT", callback_data: "cat_chatgpt" }
-    ],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-  ]
-};
-function iaMenuKeyboard() {
-  return _iaMenuKb;
-}
-var _chatgptMenuKb = {
-  inline_keyboard: [
-    [{ text: "\u{1F4AC} ChatGPT Plus \u2014 1 Mois \u2014 10\u20AC", callback_data: "sub_new_chatgpt" }],
-    [{ text: "\u{1F916} ChatGPT Go \u2014 1 An \u2014 20\u20AC", callback_data: "sub_new_chatgpt_go" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_ia" }]
-  ]
-};
-function chatgptMenuKeyboard() {
-  return _chatgptMenuKb;
-}
-var _musiqueMenuKb = {
-  inline_keyboard: [
-    [
-      { text: "\u{1F3B5} Spotify Premium", callback_data: "sub_new_spotify" },
-      { text: "\u25B6\uFE0F YouTube Premium", callback_data: "sub_new_youtube" }
-    ],
-    [{ text: "\u{1F3A7} Deezer Premium \u2014 Achat en lot", callback_data: "buy_deezer" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-  ]
-};
-function musiqueMenuKeyboard() {
-  return _musiqueMenuKb;
-}
-function deezerBulkMenuKeyboard(stock) {
-  const rows = DEEZER_LOTS.map((lot) => {
-    const stockOk = stock >= lot.quantity;
-    const suffix = lot.savingsLabel ? ` \u2014 ${lot.savingsLabel}` : "";
-    const stockBadge = !stockOk ? " \u274C Rupture" : "";
-    return [{
-      text: `\u{1F3A7} ${lot.label} \u2014 ${lot.price}\u20AC (${lot.pricePerUnit})${suffix}${stockBadge}`,
-      callback_data: stockOk ? `dzlot_${lot.id}` : "noop"
-    }];
-  });
-  rows.push([{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]);
-  return { inline_keyboard: rows };
-}
-function deezerBulkConfirmKeyboard(lotId, price) {
-  return {
-    inline_keyboard: [
-      [{ text: `\u2705 Acheter maintenant \u2014 ${price}\u20AC`, callback_data: `dzlot_${lotId}_cnf` }],
-      [{ text: "\u{1F6D2} Retour aux lots", callback_data: "buy_deezer" }],
-      [{ text: "\u21A9\uFE0F Annuler", callback_data: "cat_musique" }]
-    ]
-  };
-}
-var _sportMenuKb = {
-  inline_keyboard: [
-    [
-      { text: "\u{1F4AA} Basic-Fit", callback_data: "sub_bf" },
-      { text: "\u{1F3CB}\uFE0F Fitness Park", callback_data: "sub_fp" }
-    ],
-    [{ text: "\u{1F4FA} IPTV", callback_data: "menu_iptv" }],
-    [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_abonnement" }]
-  ]
-};
-function sportMenuKeyboard() {
-  return _sportMenuKb;
-}
-var _autresMenuKb = {
-  inline_keyboard: [
-    [
-      { text: "\u2702\uFE0F CapCut Pro", callback_data: "sub_new_capcut" },
-      { text: "\u{1F989} Duolingo Super", callback_data: "sub_new_duolingo" }
-    ],
-    [{ text: "\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys", callback_data: "sub_new_telepeage" }],
-    [{ text: "Retour", callback_data: "menu_abonnement" }]
-  ]
-};
-function autresMenuKeyboard() {
-  return _autresMenuKb;
-}
-function subNewDetailKeyboard(subId, price) {
-  return {
-    inline_keyboard: [
-      [{ text: `Acheter \u2014 ${price}\u20AC`, callback_data: `sub_new_buy_${subId}` }],
-      [{ text: `\u{1F6D2} Ajouter au panier \u2014 ${price}\u20AC`, callback_data: `cart_add_sub_${subId}` }],
-      [{ text: "Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
-}
-function subNewConfirmKeyboard(subId) {
-  return {
-    inline_keyboard: [
-      [
-        { text: "Confirmer", callback_data: `sub_new_cnf_${subId}` },
-        { text: "Annuler", callback_data: `sub_new_${subId}` }
-      ]
-    ]
-  };
-}
-function subDurationKeyboard(service) {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4C5} 1 An \u2014 70\u20AC", callback_data: `sub_dur_${service}_1an` }],
-      [{ text: "\u{1F4C5} 6 Mois \u2014 50\u20AC", callback_data: `sub_dur_${service}_6mois` }],
-      [{ text: "\u{1F4C5} 2 Mois \u2014 15\u20AC", callback_data: `sub_dur_${service}_2mois` }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
-}
-function subConfirmKeyboard(service, duration3) {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u2705 Confirmer", callback_data: `sub_cnf_${service}_${duration3}` },
-        { text: "\u274C Annuler", callback_data: "menu_abonnement" }
-      ]
-    ]
-  };
-}
-function iptvMenuKeyboard() {
-  return {
-    inline_keyboard: [
-      [{ text: "\u{1F4C5} 1 An \u2014 50\u20AC", callback_data: "iptv_buy_1an" }],
-      [{ text: "\u{1F4C5} 6 Mois \u2014 30\u20AC", callback_data: "iptv_buy_6mois" }],
-      [{ text: "\u{1F5D3}\uFE0F 1 Mois d'essai \u2014 10\u20AC", callback_data: "iptv_buy_1mois" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_abonnement" }]
-    ]
-  };
-}
 var _paymentMenuKb = {
   inline_keyboard: [
     [{ text: "\u{1FA99} Crypto \u2014 Litecoin (LTC)", callback_data: "pay_ltc" }],
@@ -109802,17 +108959,6 @@ var _supportMenuKb = {
 };
 function supportMenuKeyboard() {
   return _supportMenuKb;
-}
-function techConfirmKeyboard(techId) {
-  return {
-    inline_keyboard: [
-      [
-        { text: "\u2705 Acheter maintenant", callback_data: `tech_confirm_${techId}` },
-        { text: "\u274C Annuler", callback_data: "menu_tech" }
-      ],
-      [{ text: "\u{1F6D2} Ajouter au panier", callback_data: `cart_add_tech_${techId}` }]
-    ]
-  };
 }
 var _backToMainKb = {
   inline_keyboard: [[{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]]
@@ -109963,342 +109109,113 @@ var _adminSysKb = {
 function adminSysKeyboard() {
   return _adminSysKb;
 }
-
-// src/bot/subscriptions.ts
-var NEW_SUBS = [
-  {
-    id: "nf_pub",
-    emoji: "\u{1F3AC}",
-    name: "Netflix (avec pub)",
-    price: 5,
-    description: `\u{1F3AC} *Abonnement Netflix \u2014 Avec Publicit\xE9s*
-
-Profitez de tout le catalogue Netflix \xE0 prix r\xE9duit avec l'offre standard.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Netflix avec profil d\xE9di\xE9, pr\xEAt \xE0 l'emploi.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s \xE0 tout le catalogue Netflix
-\u2022 Profil personnel d\xE9di\xE9
-\u2022 Disponible sur TV, mobile, PC
-
-\u{1F4B3} *Notre prix : 5\u20AC* _(Tarif normal : 6,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9
-
-\u26A0\uFE0F VPN requis sur navigateur web _(non requis sur mobile)_`
-  },
-  {
-    id: "nf_nopub",
-    emoji: "\u{1F3AC}",
-    name: "Netflix (sans pub)",
-    price: 8,
-    description: `\u{1F3AC} *Abonnement Netflix \u2014 Sans Publicit\xE9s*
-
-Profitez de Netflix en HD, sans interruption publicitaire.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Netflix sans pub avec profil d\xE9di\xE9.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s \xE0 tout le catalogue Netflix en HD
-\u2022 Profil personnel d\xE9di\xE9
-\u2022 0 publicit\xE9
-\u2022 Disponible sur TV, mobile, PC
-
-\u{1F4B3} *Notre prix : 8\u20AC* _(Tarif normal : 13,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9
-
-\u26A0\uFE0F VPN requis sur navigateur web _(non requis sur mobile)_`
-  },
-  {
-    id: "disney",
-    emoji: "\u{1F3F0}",
-    name: "Disney+",
-    price: 4.5,
-    description: `\u{1F3F0} *Abonnement Disney+ \u2014 \xC0 Vie*
-
-Acc\xE9dez \xE0 tout l'univers Disney, Marvel, Star Wars et National Geographic.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Disney+ avec profil d\xE9di\xE9, pr\xEAt \xE0 l'emploi.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s complet : Disney, Marvel, Star Wars, Pixar
-\u2022 Profil personnel d\xE9di\xE9
-\u2022 Disponible sur TV, mobile, PC, tablette
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 11,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "crunchyroll",
-    emoji: "\u{1F38C}",
-    name: "Crunchyroll Mega Fan",
-    price: 4.5,
-    description: `\u{1F38C} *Abonnement Crunchyroll Mega Fan \u2014 \xC0 Vie*
-
-Tous les animes en illimit\xE9, sans pub, en HD.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Crunchyroll Mega Fan avec profil d\xE9di\xE9.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s illimit\xE9 \xE0 tout le catalogue anime
-\u2022 0 publicit\xE9
-\u2022 Qualit\xE9 HD jusqu'\xE0 1080p
-\u2022 Disponible sur tous les supports
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 9,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9
-
-\u26A0\uFE0F VPN recommand\xE9 si votre r\xE9gion ne correspond pas au compte`
-  },
-  {
-    id: "gemini",
-    emoji: "\u2728",
-    name: "Gemini Pro+",
-    price: 14.5,
-    description: `\u2728 *Abonnement Gemini Pro+ \u2014 12 Mois*
-
-L'IA de Google \xE0 son niveau maximum, pendant un an.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants complets d'un compte Gemini Pro+ activ\xE9 12 mois.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s complet \xE0 Gemini Pro+
-\u2022 Email + mot de passe modifiables
-\u2022 Compte v\xE9rifi\xE9 et fonctionnel
-
-\u{1F4B3} *Notre prix : 14,50\u20AC* _(Tarif normal : 21,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : 12 mois*
-\u{1F6E1} *Garantie : 12 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "primevideo",
-    emoji: "\u{1F4E6}",
-    name: "Prime Video",
-    price: 12,
-    description: `\u{1F4E6} *Abonnement Amazon Prime Video \u2014 6 Mois*
-
-Films, s\xE9ries et contenus exclusifs Amazon sans limite.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants complets d'un compte Prime Video activ\xE9 pour 6 mois.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s complet au catalogue Prime Video
-\u2022 Email + mot de passe modifiables
-\u2022 Compte v\xE9rifi\xE9 et fonctionnel
-
-\u{1F4B3} *Notre prix : 12\u20AC* _(Tarif normal : 6,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : 6 mois*
-\u{1F6E1} *Garantie : 6 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "capcut",
-    emoji: "\u2702\uFE0F",
-    name: "CapCut Pro",
-    price: 8,
-    description: `\u2702\uFE0F *Abonnement CapCut Pro \u2014 \xC0 Vie*
-
-Cr\xE9ez des vid\xE9os professionnelles avec tous les outils premium d\xE9bloqu\xE9s.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte CapCut Pro \xE0 vie.
-
-\u{1F4E6} *Inclus :*
-\u2022 Tous les filtres et effets premium
-\u2022 Export sans filigrane
-\u2022 Templates exclusifs
-\u2022 Utilisable mobile et PC
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 9,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : 1 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "youtube",
-    emoji: "\u25B6\uFE0F",
-    name: "YouTube Premium",
-    price: 5,
-    description: `\u25B6\uFE0F *Abonnement YouTube Premium \u2014 1 Mois*
-
-YouTube sans pub, avec t\xE9l\xE9chargements et YouTube Music inclus.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez un lien d'activation \xE0 utiliser sur votre propre compte YouTube. Aucun mot de passe demand\xE9.
-
-\u{1F4E6} *Inclus :*
-\u2022 0 publicit\xE9 sur toutes les vid\xE9os
-\u2022 YouTube Music Premium inclus
-\u2022 T\xE9l\xE9chargement hors ligne
-\u2022 Lecture en arri\xE8re-plan
-
-\u{1F4B3} *Notre prix : 5\u20AC* _(Tarif normal : 13,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : 1 mois*
-\u{1F6E1} *Garantie : 1 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "appletv",
-    emoji: "\u{1F34E}",
-    name: "Apple TV+",
-    price: 4.5,
-    description: `\u{1F34E} *Abonnement Apple TV+ \u2014 1 Mois*
-
-Les s\xE9ries et films originaux Apple, acclam\xE9s par la critique.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Apple TV+ fonctionnel pour 1 mois.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s complet aux contenus originaux Apple
-\u2022 Disponible sur tous les supports
-\u2022 Compte v\xE9rifi\xE9 et pr\xEAt \xE0 l'emploi
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 9,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : 1 mois*
-\u{1F6E1} *Garantie : 1 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "paramount",
-    emoji: "\u2B50",
-    name: "Paramount+",
-    price: 4.5,
-    description: `\u2B50 *Abonnement Paramount+ \u2014 \xC0 Vie*
-
-S\xE9ries, films et sport en direct, pour toujours.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Paramount+ \xE0 vie avec profil d\xE9di\xE9.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s complet au catalogue Paramount+
-\u2022 Profil personnel d\xE9di\xE9
-\u2022 Disponible sur TV, mobile, PC
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 11,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "duolingo",
-    emoji: "\u{1F989}",
-    name: "Duolingo Super",
-    price: 4.5,
-    description: `\u{1F989} *Abonnement Duolingo Super \u2014 \xC0 Vie*
-
-Apprenez des langues sans pub et avec toutes les fonctionnalit\xE9s premium.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants d'un compte Duolingo Super \xE0 vie.
-
-\u{1F4E6} *Inclus :*
-\u2022 0 publicit\xE9
-\u2022 C\u0153urs illimit\xE9s
-\u2022 Pratique illimit\xE9e
-\u2022 Statistiques avanc\xE9es
-
-\u{1F4B3} *Notre prix : 4,50\u20AC* _(Tarif normal : 13,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : \xC0 vie* \u2014 renouvellement automatique
-\u{1F6E1} *Garantie : \xC0 vie* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "chatgpt",
-    emoji: "\u{1F4AC}",
-    name: "ChatGPT Plus",
-    price: 10,
-    description: `\u{1F4AC} *Abonnement ChatGPT Plus \u2014 1 Mois*
-
-L'IA la plus avanc\xE9e au monde, avec acc\xE8s prioritaire et GPT-4o.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez une cl\xE9 d'activation \xE0 utiliser sur votre propre compte ChatGPT. Instructions incluses.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s GPT-4o illimit\xE9
-\u2022 G\xE9n\xE9ration d'images DALL\xB7E
-\u2022 Navigation web et plugins
-\u2022 Acc\xE8s prioritaire sans file d'attente
-
-\u{1F4B3} *Notre prix : 10\u20AC* _(Tarif normal : 24\u20AC/mois)_
-\u23F3 *Dur\xE9e : 1 mois*
-\u{1F6E1} *Garantie : 1 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "chatgpt_go",
-    emoji: "\u{1F916}",
-    name: "ChatGPT Go 1 An",
-    price: 20,
-    description: `\u{1F916} *Abonnement ChatGPT Go \u2014 1 An*
-
-ChatGPT Go pendant 12 mois complets, au meilleur prix.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez un lien d'activation \xE0 utiliser sur votre propre compte ou sur un nouveau compte.
-
-\u{1F4E6} *Inclus :*
-\u2022 Acc\xE8s ChatGPT Go 12 mois
-\u2022 Activable sur votre compte existant
-\u2022 Instructions d'activation incluses
-
-\u{1F4B3} *Notre prix : 20\u20AC* _(Tarif normal : 96\u20AC/an)_
-\u{1F4B0} *\xC9conomie r\xE9alis\xE9e : 76\u20AC*
-\u23F3 *Dur\xE9e : 12 mois*
-\u{1F6E1} *Garantie : 12 mois* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "spotify",
-    emoji: "\u{1F3B5}",
-    name: "Spotify Premium",
-    price: 10,
-    description: `\u{1F3B5} *Abonnement Spotify Premium \u2014 1 Mois*
-
-Musique en illimit\xE9, sans pub, en haute qualit\xE9.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez les identifiants complets d'un compte Spotify Premium AutoPay. Email + mot de passe enti\xE8rement modifiables.
-
-\u{1F4E6} *Inclus :*
-\u2022 \xC9coute illimit\xE9e sans publicit\xE9
-\u2022 Qualit\xE9 audio maximale
-\u2022 T\xE9l\xE9chargement hors ligne
-\u2022 Acc\xE8s sur tous les supports
-
-\u{1F4B3} *Notre prix : 10\u20AC* _(Tarif normal : 11,99\u20AC/mois)_
-\u23F3 *Dur\xE9e : 1 mois*
-\u{1F6E1} *Garantie : 30 jours* \u2014 remplacement assur\xE9`
-  },
-  {
-    id: "telepeage",
-    emoji: "\u{1F5FA}\uFE0F",
-    name: "T\xE9l\xE9p\xE9age Ulys",
-    price: 20,
-    description: `\u{1F5FA}\uFE0F *Abonnement T\xE9l\xE9p\xE9age Ulys*
-
-Marre de payer le p\xE9age plein tarif ? Passez au t\xE9l\xE9p\xE9age et ne payez plus jamais \xE0 un p\xE9age.
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez un badge Ulys directement chez vous. Il est d\xE9j\xE0 activ\xE9 et fonctionne imm\xE9diatement dans les pays suivants :
-
-\u{1F30D} *Pays inclus :*
-\u2022 \u{1F1EB}\u{1F1F7} France
-\u2022 \u{1F1F5}\u{1F1F9} Portugal
-\u2022 \u{1F1EA}\u{1F1F8} Espagne
-\u2022 \u{1F1EE}\u{1F1F9} Italie
-
-\u{1F4B3} *Notre prix : 20\u20AC*
-\u2709\uFE0F *Livraison express : 3 jours chez vous*
-\u{1F6E1} *Garantie : 30 jours* \u2014 remplacement assur\xE9`
-  }
+var TOP_LEVEL_BTNS = [
+  { text: "\u{1F393} Formations", cb: "bq_top_formations" },
+  { text: "\u{1F527} Techniques & Astuces", cb: "bq_top_techniques" },
+  { text: "\u{1F4C4} Documents & Ressources", cb: "bq_top_documents" }
 ];
-function getNewSubById(id) {
-  return NEW_SUBS.find((s) => s.id === id);
+function boutiqueMainKeyboard() {
+  return {
+    inline_keyboard: [
+      ...TOP_LEVEL_BTNS.map((b) => [{ text: b.text, callback_data: b.cb }]),
+      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+    ]
+  };
+}
+function boutiqueSubcatsKeyboard(cats, parent) {
+  const rows = cats.map((c) => [
+    { text: `\u{1F4C1} ${c.name}`, callback_data: `bq_cat_${c.id}` }
+  ]);
+  if (cats.length === 0) {
+    rows.push([{ text: "\u{1F4ED} Aucun dossier pour l'instant", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "\u2B05\uFE0F Retour Boutique", callback_data: "bq_main" }]);
+  rows.push([{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]);
+  return { inline_keyboard: rows };
+}
+function boutiqueCatKeyboard(items, catId, parent) {
+  const rows = items.filter((i) => true).map((i) => [{ text: `\u{1F6D2} ${i.name} \u2014 ${parseFloat(i.price).toFixed(2)}\u20AC`, callback_data: `bq_item_${i.id}` }]);
+  if (items.length === 0) {
+    rows.push([{ text: "\u{1F4ED} Aucun article pour l'instant", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: `bq_top_${parent}` }]);
+  rows.push([{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]);
+  return { inline_keyboard: rows };
+}
+function boutiqueItemKeyboard(itemId, catId, parent) {
+  return {
+    inline_keyboard: [
+      [{ text: "\u2705 Acheter maintenant", callback_data: `bq_buy_${itemId}` }],
+      [{ text: "\u2B05\uFE0F Retour", callback_data: `bq_cat_${catId}` }],
+      [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+    ]
+  };
+}
+function boutiqueItemBuyConfirmKeyboard(itemId, catId) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "\u2705 Confirmer l'achat", callback_data: `bq_buy_cnf_${itemId}` },
+        { text: "\u274C Annuler", callback_data: `bq_item_${itemId}` }
+      ]
+    ]
+  };
+}
+function bqaMainKeyboard() {
+  return {
+    inline_keyboard: [
+      ...TOP_LEVEL_BTNS.map((b) => [{ text: b.text, callback_data: `bqa_top_${b.cb.replace("bq_top_", "")}` }]),
+      [{ text: "\u2B05\uFE0F Retour Admin", callback_data: "admin_menu" }]
+    ]
+  };
+}
+function bqaSubcatsKeyboard(cats, parent) {
+  const rows = cats.map((c) => [
+    { text: `\u{1F4C1} ${c.name}`, callback_data: `bqa_cat_${c.id}` },
+    { text: "\u{1F5D1}\uFE0F", callback_data: `bqa_delcat_${c.id}` }
+  ]);
+  rows.push([{ text: "\u2795 Cr\xE9er un dossier", callback_data: `bqa_newcat_${parent}` }]);
+  rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: "bqa_main" }]);
+  return { inline_keyboard: rows };
+}
+function bqaCatKeyboard(items, catId, parent) {
+  const rows = items.map((i) => [
+    { text: `\u{1F4E6} ${i.name} (${parseFloat(i.price).toFixed(2)}\u20AC)`, callback_data: `bqa_item_${i.id}` },
+    { text: "\u{1F5D1}\uFE0F", callback_data: `bqa_delitem_${i.id}` }
+  ]);
+  rows.push([{ text: "\u2795 Ajouter un article", callback_data: `bqa_newitem_${catId}` }]);
+  rows.push([{ text: "\u{1F5D1}\uFE0F Supprimer ce dossier", callback_data: `bqa_delcat_${catId}` }]);
+  rows.push([{ text: "\u2B05\uFE0F Retour", callback_data: `bqa_top_${parent}` }]);
+  return { inline_keyboard: rows };
+}
+function bqaItemDetailKeyboard(itemId, catId) {
+  return {
+    inline_keyboard: [
+      [{ text: "\u{1F5D1}\uFE0F Supprimer cet article", callback_data: `bqa_delitem_${itemId}` }],
+      [{ text: "\u2B05\uFE0F Retour au dossier", callback_data: `bqa_cat_${catId}` }]
+    ]
+  };
+}
+function bqaDelCatConfirmKeyboard(catId, parent) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "\u26A0\uFE0F Oui, supprimer", callback_data: `bqa_delcat_cnf_${catId}` },
+        { text: "\u274C Annuler", callback_data: `bqa_cat_${catId}` }
+      ],
+      [{ text: "\u2B05\uFE0F Retour", callback_data: `bqa_top_${parent}` }]
+    ]
+  };
+}
+function bqaDelItemConfirmKeyboard(itemId, catId) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "\u26A0\uFE0F Oui, supprimer", callback_data: `bqa_delitem_cnf_${itemId}` },
+        { text: "\u274C Annuler", callback_data: `bqa_item_${itemId}` }
+      ]
+    ]
+  };
 }
 
 // src/bot/paypal.ts
@@ -110590,8 +109507,6 @@ async function checkAndPayReferralBonus(referredId, notifyParrain) {
 }
 
 // src/bot/index.ts
-var IPTV_PRICES = { "1an": 50, "6mois": 30, "1mois": 10 };
-var IPTV_LABELS = { "1an": "1 An", "6mois": "6 Mois", "1mois": "1 Mois d'essai" };
 function isAdmin(userId) {
   const adminId = parseInt(process.env["ADMIN_TELEGRAM_ID"] || "0");
   return adminId !== 0 && userId === adminId;
@@ -110607,7 +109522,6 @@ var userCoupon = /* @__PURE__ */ new Map();
 var pendingCouponInput = /* @__PURE__ */ new Set();
 var pendingCouponCreation = /* @__PURE__ */ new Map();
 var pendingCouponEdit = /* @__PURE__ */ new Map();
-var pendingTelepeage = /* @__PURE__ */ new Map();
 var pendingCryptoTx = /* @__PURE__ */ new Map();
 var pendingLtcVerification = /* @__PURE__ */ new Map();
 var pendingRerolls = /* @__PURE__ */ new Map();
@@ -110642,51 +109556,17 @@ function buildRemoveServKeyboard() {
   rows.push([{ text: "\u2716\uFE0F Fermer", callback_data: "admin_removeserv_close" }]);
   return { inline_keyboard: rows };
 }
-var SERVICE_DISABLED_MSG = `\u{1F525} *Victime de son succ\xE8s !*
-
-Ce service est temporairement indisponible.
-Revenez plus tard \u{1F64F}`;
 var pendingSupport = /* @__PURE__ */ new Map();
 var pendingSuggestion = /* @__PURE__ */ new Map();
-var SUB_PRICES = {
-  bf: { "1an": 70, "6mois": 50, "2mois": 18 },
-  fp: { "1an": 70, "6mois": 50, "2mois": 15 },
-  nf: { "1an": 45 },
-  ps: { essential: 35, extra: 40, premium: 50 },
-  sp: { "1an": 25 }
-};
-var SUB_LABELS = {
-  bf: "BASIC-FIT",
-  fp: "FITNESS PARK",
-  nf: "Netflix",
-  ps: "PlayStation Plus",
-  sp: "Spotify"
-};
-var DUR_LABELS = {
-  "1an": "1 An",
-  "6mois": "6 Mois",
-  "2mois": "2 Mois",
-  essential: "Essential 1 an",
-  extra: "Extra 1 an",
-  premium: "Pr\xE9mium 1 an"
-};
-var pendingSubscription = /* @__PURE__ */ new Map();
 var pendingNewOrders = /* @__PURE__ */ new Map();
+var pendingBqaAdmin = /* @__PURE__ */ new Map();
 var pendingPaypalProof = /* @__PURE__ */ new Map();
 var adminBroadcasting = false;
 var adminPendingAction = /* @__PURE__ */ new Map();
 var userCart = /* @__PURE__ */ new Map();
-function cartUid() {
-  return Math.random().toString(36).slice(2, 8);
-}
 function getCart(userId) {
   if (!userCart.has(userId)) userCart.set(userId, []);
   return userCart.get(userId);
-}
-function addToCart(userId, item) {
-  const newItem = { ...item, uid: cartUid() };
-  getCart(userId).push(newItem);
-  return newItem;
 }
 function removeFromCart(userId, uid) {
   const cart = getCart(userId);
@@ -111884,6 +110764,21 @@ _Envoie /annuler pour annuler._`,
       await bot.sendMessage(msg.chat.id, "\u2705 Action annul\xE9e.");
     }
   });
+  bot.onText(/\/categorieadmin/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!isAdmin(msg.from.id)) {
+      await bot.sendMessage(chatId, "\u274C Acc\xE8s refus\xE9.");
+      return;
+    }
+    pendingBqaAdmin.delete(msg.from.id);
+    await bot.sendMessage(
+      chatId,
+      `\u{1F3EA} *Gestion de la Boutique*
+
+Choisissez une cat\xE9gorie principale \xE0 g\xE9rer :`,
+      { parse_mode: "Markdown", reply_markup: bqaMainKeyboard() }
+    );
+  });
   bot.onText(/\/adminmenu/, async (msg) => {
     const chatId = msg.chat.id;
     if (!isAdmin(msg.from.id)) {
@@ -112885,18 +111780,356 @@ _Applique ce code lors de ton prochain achat (panier)._
         );
         return;
       }
-      if (data === "menu_achat") {
-        const ACHAT_IMAGE_PATH = `${PUBLIC_PATH}/achat.jpg`;
+      if (data === "menu_achat" || data === "bq_main") {
         await deleteOldMenu(chatId);
         try {
-          const sent = await bot.sendPhoto(chatId, createReadStream(ACHAT_IMAGE_PATH), {
-            caption: "\u{1F6D2} *Menu Achat \u2014 Que souhaitez-vous ?*",
+          const sent = await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/achat.jpg`), {
+            caption: "\u{1F3EA} *Boutique NexoShop*\n\nChoisissez une cat\xE9gorie :",
             parse_mode: "Markdown",
-            reply_markup: achatMenuKeyboard()
+            reply_markup: boutiqueMainKeyboard()
           });
           userMenuMsg.set(chatId, sent.message_id);
         } catch {
-          await sendMenu(chatId, "\u{1F6D2} *Menu Achat \u2014 Que souhaitez-vous ?*", achatMenuKeyboard());
+          await sendMenu(chatId, "\u{1F3EA} *Boutique NexoShop*\n\nChoisissez une cat\xE9gorie :", boutiqueMainKeyboard());
+        }
+        return;
+      }
+      if (data.startsWith("bq_top_")) {
+        const parent = data.replace("bq_top_", "");
+        const top = getTopLevel(parent);
+        if (!top) return;
+        const cats = await getCategoriesByParent(parent);
+        await sendMenu(
+          chatId,
+          `${top.emoji} *${top.label}*
+
+Choisissez un dossier :`,
+          boutiqueSubcatsKeyboard(cats, parent)
+        );
+        return;
+      }
+      if (data.startsWith("bq_cat_") && !data.startsWith("bq_cat_cnf_")) {
+        const catId = parseInt(data.replace("bq_cat_", ""));
+        if (isNaN(catId)) return;
+        const cat = await getCategoryById(catId);
+        if (!cat) return;
+        const items = await getItemsByCategory(catId);
+        const activeItems = items.filter((i) => i.active);
+        await sendMenu(
+          chatId,
+          `\u{1F4C1} *${cat.name}*
+
+${activeItems.length === 0 ? "Aucun article disponible pour l'instant." : "S\xE9lectionnez un article :"}`,
+          boutiqueCatKeyboard(activeItems, catId, cat.parent)
+        );
+        return;
+      }
+      if (data.startsWith("bq_item_")) {
+        const itemId = parseInt(data.replace("bq_item_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const cat = await getCategoryById(item.categoryId);
+        if (!cat) return;
+        const balance = await getBalance(userId);
+        const price = parseFloat(item.price);
+        const caption = `\u{1F4E6} *${item.name}*
+
+${item.description}
+
+\u{1F4B0} Prix : *${price.toFixed(2)}\u20AC*
+\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*`;
+        await deleteOldMenu(chatId);
+        if (item.photoFileId) {
+          try {
+            const sent = await bot.sendPhoto(chatId, item.photoFileId, {
+              caption,
+              parse_mode: "Markdown",
+              reply_markup: boutiqueItemKeyboard(item.id, cat.id, cat.parent)
+            });
+            userMenuMsg.set(chatId, sent.message_id);
+          } catch {
+            await sendMenu(chatId, caption, boutiqueItemKeyboard(item.id, cat.id, cat.parent));
+          }
+        } else {
+          await sendMenu(chatId, caption, boutiqueItemKeyboard(item.id, cat.id, cat.parent));
+        }
+        return;
+      }
+      if (data.startsWith("bq_buy_") && !data.startsWith("bq_buy_cnf_")) {
+        const itemId = parseInt(data.replace("bq_buy_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const price = parseFloat(item.price);
+        const balance = await getBalance(userId);
+        if (balance < price) {
+          await sendMenu(
+            chatId,
+            `\u274C *Solde insuffisant*
+
+Prix : *${price.toFixed(2)}\u20AC*
+Votre solde : *${balance.toFixed(2)}\u20AC*
+Il vous manque : *${(price - balance).toFixed(2)}\u20AC*`,
+            { inline_keyboard: [
+              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
+              [{ text: "\u2B05\uFE0F Retour", callback_data: `bq_item_${itemId}` }]
+            ] }
+          );
+          return;
+        }
+        await sendMenu(
+          chatId,
+          `\u{1F6D2} *Confirmation d'achat*
+
+\u{1F4E6} *${item.name}*
+\u{1F4B0} Prix : *${price.toFixed(2)}\u20AC*
+\u{1F45B} Solde apr\xE8s achat : *${(balance - price).toFixed(2)}\u20AC*
+
+Confirmez-vous cet achat ?`,
+          boutiqueItemBuyConfirmKeyboard(item.id, item.categoryId)
+        );
+        return;
+      }
+      if (data.startsWith("bq_buy_cnf_")) {
+        const itemId = parseInt(data.replace("bq_buy_cnf_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const price = parseFloat(item.price);
+        const balance = await getBalance(userId);
+        if (balance < price) {
+          await sendMenu(
+            chatId,
+            `\u274C *Solde insuffisant.* Veuillez recharger votre compte.`,
+            { inline_keyboard: [[{ text: "\u{1F4B3} Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const orderId = generateOrderId();
+        const deducted = await deductBalance(userId, price, `Achat boutique : ${item.name} #${orderId}`);
+        if (!deducted) {
+          await sendMenu(
+            chatId,
+            `\u274C *Solde insuffisant.* Veuillez recharger votre compte.`,
+            { inline_keyboard: [[{ text: "\u{1F4B3} Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const newBalance = await getBalance(userId);
+        await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
+        const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
+        await deleteOldMenu(chatId);
+        await sendReceipt(
+          chatId,
+          `\u2705 *Achat confirm\xE9 !*
+
+\u{1F4E6} *${item.name}*
+\u{1F9FE} Commande n\xB0 *#${orderId}*
+\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
+
+\u{1F4F8} *Faites un screen de ce message* et contactez le support pour recevoir votre produit.`,
+          { inline_keyboard: [
+            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
+          ] }
+        );
+        sendDiscordLog("\u{1F6D2} Achat Boutique", `Un utilisateur a achet\xE9 un article boutique.`, "green", [
+          { name: "User ID", value: `\`${userId}\``, inline: true },
+          { name: "Username", value: user?.username ? `@${user.username}` : "\u2014", inline: true },
+          { name: "Article", value: item.name, inline: true },
+          { name: "Prix", value: `${price}\u20AC`, inline: true },
+          { name: "Commande", value: `#${orderId}`, inline: true },
+          { name: "Solde restant", value: `${newBalance.toFixed(2)}\u20AC`, inline: true }
+        ], "orders").catch(() => {
+        });
+        return;
+      }
+      if (data.startsWith("bqa_") && isAdmin(userId)) {
+        if (data === "bqa_main") {
+          pendingBqaAdmin.delete(userId);
+          await sendMenu(chatId, `\u{1F3EA} *Gestion de la Boutique*
+
+Choisissez une cat\xE9gorie principale :`, bqaMainKeyboard());
+          return;
+        }
+        if (data.startsWith("bqa_top_")) {
+          pendingBqaAdmin.delete(userId);
+          const parent = data.replace("bqa_top_", "");
+          const top = getTopLevel(parent);
+          if (!top) return;
+          const cats = await getCategoriesByParent(parent);
+          await sendMenu(
+            chatId,
+            `${top.emoji} *${top.label}* \u2014 Dossiers (${cats.length})
+
+G\xE9rez les dossiers de cette cat\xE9gorie :`,
+            bqaSubcatsKeyboard(cats, parent)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_cat_") && !data.startsWith("bqa_cat_cnf_")) {
+          pendingBqaAdmin.delete(userId);
+          const catId = parseInt(data.replace("bqa_cat_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const items = await getItemsByCategory(catId);
+          await sendMenu(
+            chatId,
+            `\u{1F4C1} *${cat.name}* \u2014 Articles (${items.length})
+
+G\xE9rez les articles de ce dossier :`,
+            bqaCatKeyboard(items, catId, cat.parent)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_item_") && !data.startsWith("bqa_item_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_item_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          const price = parseFloat(item.price);
+          const infoText = `\u{1F4E6} *${item.name}*
+
+\u{1F4DD} ${item.description}
+
+\u{1F4B0} Prix : *${price.toFixed(2)}\u20AC*
+\u{1F5BC}\uFE0F Photo : ${item.photoFileId ? "\u2705 Oui" : "\u274C Non"}`;
+          if (item.photoFileId) {
+            try {
+              await bot.sendPhoto(chatId, item.photoFileId, {
+                caption: infoText,
+                parse_mode: "Markdown",
+                reply_markup: bqaItemDetailKeyboard(item.id, item.categoryId)
+              });
+            } catch {
+              await sendMenu(chatId, infoText, bqaItemDetailKeyboard(item.id, item.categoryId));
+            }
+          } else {
+            await sendMenu(chatId, infoText, bqaItemDetailKeyboard(item.id, item.categoryId));
+          }
+          return;
+        }
+        if (data.startsWith("bqa_newcat_")) {
+          const parent = data.replace("bqa_newcat_", "");
+          const top = getTopLevel(parent);
+          if (!top) return;
+          pendingBqaAdmin.set(userId, { step: "cat_name", parent });
+          await bot.sendMessage(
+            chatId,
+            `\u{1F4C1} *Nouveau dossier dans ${top.emoji} ${top.label}*
+
+Comment s'appelle ce dossier ?
+
+_Exemple : Business, Design, Marketing..._`,
+            { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_top_${parent}` }]] } }
+          );
+          return;
+        }
+        if (data.startsWith("bqa_delcat_") && !data.startsWith("bqa_delcat_cnf_")) {
+          const catId = parseInt(data.replace("bqa_delcat_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const items = await getItemsByCategory(catId);
+          await sendMenu(
+            chatId,
+            `\u26A0\uFE0F *Supprimer le dossier "${cat.name}" ?*
+
+Cela supprimera \xE9galement *${items.length} article(s)* \xE0 l'int\xE9rieur.
+
+Cette action est irr\xE9versible.`,
+            bqaDelCatConfirmKeyboard(catId, cat.parent)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_delcat_cnf_")) {
+          const catId = parseInt(data.replace("bqa_delcat_cnf_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const parent = cat.parent;
+          await deleteCategory(catId);
+          const cats = await getCategoriesByParent(parent);
+          const top = getTopLevel(parent);
+          await sendMenu(
+            chatId,
+            `\u2705 *Dossier supprim\xE9 !*
+
+${top.emoji} *${top.label}* \u2014 ${cats.length} dossier(s) restant(s)`,
+            bqaSubcatsKeyboard(cats, parent)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_newitem_")) {
+          const catId = parseInt(data.replace("bqa_newitem_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          pendingBqaAdmin.set(userId, { step: "item_name", catId });
+          await bot.sendMessage(
+            chatId,
+            `\u{1F4E6} *Nouvel article dans "${cat.name}"*
+
+*\xC9tape 1/4 \u2014 Nom de l'article :*
+
+_Exemple : Formation SEO Avanc\xE9_`,
+            { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_cat_${catId}` }]] } }
+          );
+          return;
+        }
+        if (data.startsWith("bqa_delitem_") && !data.startsWith("bqa_delitem_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_delitem_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          await sendMenu(
+            chatId,
+            `\u26A0\uFE0F *Supprimer l'article "${item.name}" ?*
+
+Cette action est irr\xE9versible.`,
+            bqaDelItemConfirmKeyboard(item.id, item.categoryId)
+          );
+          return;
+        }
+        if (data.startsWith("bqa_delitem_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_delitem_cnf_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          const catId = item.categoryId;
+          await deleteItem(itemId);
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(
+            chatId,
+            `\u2705 *Article supprim\xE9 !*
+
+\u{1F4C1} *${cat?.name ?? "Dossier"}* \u2014 ${items.length} article(s) restant(s)`,
+            bqaCatKeyboard(items, catId, cat?.parent ?? "formations")
+          );
+          return;
+        }
+        if (data.startsWith("bqa_skip_photo_")) {
+          const catId = parseInt(data.replace("bqa_skip_photo_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_photo") return;
+          pendingBqaAdmin.delete(userId);
+          const { name, desc: desc2, price } = bqState;
+          const item = await createItem({ categoryId: catId, name, description: desc2, price });
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(
+            chatId,
+            `\u2705 *Article "${item.name}" cr\xE9\xE9 !* (sans photo)
+
+\u{1F4C1} *${cat?.name ?? "Dossier"}* \u2014 ${items.length} article(s)`,
+            bqaCatKeyboard(items, catId, cat?.parent ?? "formations")
+          );
+          return;
         }
         return;
       }
@@ -113381,799 +112614,6 @@ ${lines.join("\n")}`,
           return;
         }
       }
-      if (data === "menu_fournisseur") {
-        await deleteOldMenu(chatId);
-        try {
-          const sent = await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/fournisseur.png`), {
-            caption: "\u{1F6A7} *Fournisseur \u2014 Bient\xF4t disponible !*\n\nCette section arrive prochainement. Restez connect\xE9 !",
-            parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]] }
-          });
-          userMenuMsg.set(chatId, sent.message_id);
-        } catch {
-          await bot.answerCallbackQuery(query.id, { text: "\u{1F6A7} Bient\xF4t disponible ! Revenez prochainement.", show_alert: true });
-        }
-        return;
-      }
-      if (data === "menu_tech") {
-        await deleteOldMenu(chatId);
-        try {
-          const sent = await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/tech.png`), {
-            caption: "\u{1F527} *Menu Tech \u2014 Choisissez votre tech :*",
-            parse_mode: "Markdown",
-            reply_markup: techMenuKeyboard()
-          });
-          userMenuMsg.set(chatId, sent.message_id);
-        } catch {
-          await sendMenu(chatId, "\u{1F527} *Menu Tech \u2014 Choisissez votre tech :*", techMenuKeyboard());
-        }
-        return;
-      }
-      if (data === "tech_submenu_tiktok") {
-        await sendMenu(
-          chatId,
-          `\u{1F3B5} *TikTok \u2014 Choisissez votre tech :*`,
-          tiktokSubMenuKeyboard()
-        );
-        return;
-      }
-      if (data === "menu_abonnement") {
-        const ABONNEMENT_IMAGE_PATH = `${PUBLIC_PATH}/abonnement.jpg`;
-        await deleteOldMenu(chatId);
-        try {
-          const sent = await bot.sendPhoto(chatId, createReadStream(ABONNEMENT_IMAGE_PATH), {
-            caption: "Choisissez une cat\xE9gorie d'abonnement :",
-            parse_mode: "Markdown",
-            reply_markup: abonnementMenuKeyboard()
-          });
-          userMenuMsg.set(chatId, sent.message_id);
-        } catch {
-          await sendMenu(chatId, "Choisissez une cat\xE9gorie d'abonnement :", abonnementMenuKeyboard());
-        }
-        return;
-      }
-      if (data === "cat_streaming") {
-        await sendMenu(chatId, "\u{1F3AC} Streaming \u2014 Choisissez un abonnement :", streamingMenuKeyboard());
-        return;
-      }
-      if (data === "cat_ia") {
-        await sendMenu(chatId, "\u{1F916} Intelligence Artificielle \u2014 Choisissez un abonnement :", iaMenuKeyboard());
-        return;
-      }
-      if (data === "cat_chatgpt") {
-        await sendMenu(chatId, "\u{1F916} *ChatGPT* \u2014 Choisissez votre formule :", chatgptMenuKeyboard());
-        return;
-      }
-      if (data === "cat_musique") {
-        await sendMenu(chatId, "\u{1F3B5} Musique \u2014 Choisissez un abonnement :", musiqueMenuKeyboard());
-        return;
-      }
-      if (data === "cat_sport") {
-        await sendMenu(chatId, "\u26BD Sport \u2014 Choisissez un abonnement :", sportMenuKeyboard());
-        return;
-      }
-      if (data === "cat_autres") {
-        await sendMenu(chatId, "\u2728 Autres \u2014 Choisissez un abonnement :", autresMenuKeyboard());
-        return;
-      }
-      if (data === "buy_deezer") {
-        const deezerStock = await getDeezerStockCount();
-        await sendMenu(
-          chatId,
-          `\u{1F3A7} *Deezer Premium \u2014 Achat en lot*
-
-Profitez de la musique en illimit\xE9, sans publicit\xE9, en qualit\xE9 FLAC.
-
-\u{1F4E6} Stock actuel : *${deezerStock}* lien(s)
-
-\u{1F4B0} *Choisissez votre lot :*`,
-          deezerBulkMenuKeyboard(deezerStock)
-        );
-        return;
-      }
-      if (data.startsWith("dzlot_") && !data.endsWith("_cnf")) {
-        const lotId = data.replace("dzlot_", "");
-        const lot = getDeezerLotById(lotId);
-        if (!lot) return;
-        const deezerStock = await getDeezerStockCount();
-        if (deezerStock < lot.quantity) {
-          await sendMenu(
-            chatId,
-            `\u{1F614} *Stock insuffisant*
-
-Il ne reste que *${deezerStock}* lien(s) disponible(s).
-Choisissez un lot plus petit.`,
-            { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour aux lots", callback_data: "buy_deezer" }]] }
-          );
-          return;
-        }
-        const balance = await getBalance(userId);
-        const savingsLine = lot.savingsLabel ? `
-\u{1F525} *${lot.savingsLabel}*` : "";
-        await sendMenu(
-          chatId,
-          `\u{1F3A7} *Deezer Premium \u2014 ${lot.label}*
-
-\u{1F4B0} Prix total : *${lot.price}\u20AC*
-\u{1F4B2} Prix unitaire : *${lot.pricePerUnit}*${savingsLine}
-\u{1F4E6} Stock disponible : *${deezerStock}*
-\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*
-
-Confirmez-vous cet achat ?`,
-          deezerBulkConfirmKeyboard(lot.id, lot.price)
-        );
-        return;
-      }
-      if (data.startsWith("dzlot_") && data.endsWith("_cnf")) {
-        const lotId = data.replace("dzlot_", "").replace("_cnf", "");
-        const lot = getDeezerLotById(lotId);
-        if (!lot) return;
-        if (disabledServices.has("deezer")) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]] });
-          return;
-        }
-        const deezerStock = await getDeezerStockCount();
-        if (deezerStock < lot.quantity) {
-          await sendMenu(
-            chatId,
-            `\u{1F614} *Rupture de stock*
-
-Il ne reste que *${deezerStock}* lien(s). Choisissez un lot plus petit.`,
-            { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour aux lots", callback_data: "buy_deezer" }]] }
-          );
-          return;
-        }
-        const balance = await getBalance(userId);
-        if (balance < lot.price) {
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Votre solde : *${balance.toFixed(2)}\u20AC*
-Prix : *${lot.price}\u20AC*`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }],
-              [{ text: "\u21A9\uFE0F Retour", callback_data: "buy_deezer" }]
-            ] }
-          );
-          return;
-        }
-        const links = await popDeezerLinks(userId, lot.quantity);
-        if (links.length < lot.quantity) {
-          await sendMenu(
-            chatId,
-            `\u{1F614} *Erreur de stock.* Veuillez r\xE9essayer ou contacter le support.`,
-            { inline_keyboard: [[{ text: "\u{1F4AC} Support", url: SUPPORT_URL }]] }
-          );
-          return;
-        }
-        const orderId = generateOrderId();
-        const deducted = await deductBalance(userId, lot.price, `Achat Deezer x${lot.quantity} #${orderId}`);
-        if (!deducted) {
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant.* Veuillez recharger.`,
-            { inline_keyboard: [[{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }]] }
-          );
-          return;
-        }
-        const newBalance = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(lot.price));
-        await onPurchaseComplete(userId);
-        const userInfo = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const deezerStockAfter = await getDeezerStockCount();
-        let linksText = "";
-        if (lot.quantity === 1) {
-          linksText = `\u{1F3A7} *Lien d'activation :*
-\`${links[0]}\``;
-        } else {
-          linksText = `\u{1F3A7} *Vos ${links.length} liens :*
-${links.map((l, i) => `${i + 1}. \`${l}\``).join("\n")}`;
-        }
-        await deleteOldMenu(chatId);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Votre commande Deezer est pr\xEAte !*
-
-${linksText}
-
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
-
-\u26A0\uFE0F Ces liens sont personnels et \xE0 usage unique.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        sendDiscordLog(
-          "\u{1F3A7} Deezer Premium achet\xE9",
-          `Un utilisateur a achet\xE9 un lot Deezer.`,
-          "purple",
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Username", value: userInfo?.username ? `@${userInfo.username}` : "\u2014", inline: true },
-            { name: "Lot", value: `x${lot.quantity} \u2014 ${lot.price}\u20AC`, inline: true },
-            { name: "Commande", value: `#${orderId}`, inline: true },
-            { name: "Stock restant", value: `${deezerStockAfter} lien(s)`, inline: true }
-          ],
-          "activity"
-        ).catch(() => {
-        });
-        if (deezerStockAfter <= 2) {
-          const adminId = getAdminId();
-          if (adminId) {
-            bot.sendMessage(
-              adminId,
-              `\u26A0\uFE0F *Stock Deezer faible !*
-
-Il ne reste que *${deezerStockAfter}* lien(s).
-Utilisez /adddeezer pour en ajouter.`,
-              { parse_mode: "Markdown" }
-            ).catch(() => {
-            });
-          }
-        }
-        return;
-      }
-      if (data === "buy_deezer_cnf") {
-        if (disabledServices.has("deezer")) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]] });
-          return;
-        }
-        const balance = await getBalance(userId);
-        const price = 2;
-        if (balance < price) {
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Votre solde : *${balance.toFixed(2)}\u20AC*
-Prix Deezer : *${price}\u20AC*
-
-Rechargez votre compte depuis le menu Paiement.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }],
-              [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]
-            ] }
-          );
-          return;
-        }
-        const deezerStockBefore = await getDeezerStockCount();
-        if (deezerStockBefore === 0) {
-          await sendMenu(
-            chatId,
-            `\u{1F614} *Rupture de stock temporaire*
-
-Il n'y a plus de liens Deezer disponibles pour le moment.
-Revenez plus tard ou contactez le support.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-              [{ text: "\u21A9\uFE0F Retour", callback_data: "cat_musique" }]
-            ] }
-          );
-          return;
-        }
-        const link = await popDeezerLink(userId);
-        if (!link) {
-          await sendMenu(chatId, `\u{1F614} *Rupture de stock.* Contactez le support.`, { inline_keyboard: [[{ text: "\u{1F4AC} Support", url: SUPPORT_URL }]] });
-          return;
-        }
-        const orderId = generateOrderId();
-        const deducted = await deductBalance(userId, price, `Achat Deezer Premium #${orderId}`);
-        if (!deducted) {
-          await sendMenu(chatId, `\u274C *Solde insuffisant.* Veuillez recharger votre compte.`, { inline_keyboard: [[{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }]] });
-          return;
-        }
-        const newBalance = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(price));
-        await onPurchaseComplete(userId);
-        const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const deezerStockAfter = await getDeezerStockCount();
-        await sendReceipt(
-          chatId,
-          `\u2705 *Votre Deezer Premium est pr\xEAt !*
-
-\u{1F3A7} *Lien d'activation :*
-${link}
-
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
-
-\u26A0\uFE0F Ce lien est personnel et \xE0 usage unique. Ne le partagez pas.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        sendDiscordLog(
-          "\u{1F3A7} Deezer Premium achet\xE9",
-          `Un utilisateur a achet\xE9 un Deezer Premium.`,
-          "purple",
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Username", value: user.username ? `@${user.username}` : "\u2014", inline: true },
-            { name: "Commande", value: `#${orderId}`, inline: true },
-            { name: "Prix", value: `${price}\u20AC`, inline: true },
-            { name: "Stock restant", value: `${deezerStockAfter} lien(s)`, inline: true }
-          ],
-          "activity"
-        ).catch(() => {
-        });
-        if (deezerStockAfter <= 2) {
-          const adminId = getAdminId();
-          if (adminId) {
-            bot.sendMessage(
-              adminId,
-              `\u26A0\uFE0F *Stock Deezer faible !*
-
-Il ne reste que *${deezerStockAfter}* lien(s).
-Utilisez /adddeezer pour en ajouter.`,
-              { parse_mode: "Markdown" }
-            ).catch(() => {
-            });
-          }
-        }
-        return;
-      }
-      if (data === "menu_achat_autres") {
-        await sendMenu(
-          chatId,
-          `\u2728 *Autres Produits*
-
-D\xE9couvrez nos autres produits disponibles :`,
-          achatAutresMenuKeyboard()
-        );
-        return;
-      }
-      if (data === "buy_deezer_gen") {
-        await sendMenu(
-          chatId,
-          `\u{1F3A7} *G\xE9n\xE9rateur de lien Deezer Premium \xE0 vie*
-
-Obtenez un g\xE9n\xE9rateur personnel pour cr\xE9er vos propres liens Deezer Premium \xE0 vie.
-
-\u{1F4B0} *Prix : 23\u20AC*
-\u{1F4E6} *Livraison :* Apr\xE8s achat, vous recevez votre num\xE9ro de commande.
-\u{1F4F8} *Faites un screen* du message re\xE7u et contactez le support pour recevoir votre g\xE9n\xE9rateur.`,
-          deezerGenConfirmKeyboard()
-        );
-        return;
-      }
-      if (data === "buy_deezer_gen_cnf") {
-        const balance = await getBalance(userId);
-        const price = 23;
-        if (balance < price) {
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Votre solde : *${balance.toFixed(2)}\u20AC*
-Prix : *${price}\u20AC*
-
-Rechargez votre compte depuis le menu Paiement.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }],
-              [{ text: "\u21A9\uFE0F Retour", callback_data: "menu_achat_autres" }]
-            ] }
-          );
-          return;
-        }
-        const orderId = generateOrderId();
-        const deductedGen = await deductBalance(userId, price, `Achat G\xE9n\xE9rateur Deezer #${orderId}`);
-        if (!deductedGen) {
-          await sendMenu(chatId, `\u274C *Solde insuffisant.* Veuillez recharger votre compte.`, { inline_keyboard: [[{ text: "\u{1F4B0} Recharger", callback_data: "menu_payment" }]] });
-          return;
-        }
-        const newBalance = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(price));
-        await onPurchaseComplete(userId);
-        const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Achat confirm\xE9 !*
-
-\u{1F3A7} *G\xE9n\xE9rateur Deezer Premium \xE0 vie*
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
-
-\u{1F4F8} *Faites un screen de ce message* et contactez le support en le joignant pour recevoir votre g\xE9n\xE9rateur.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        sendDiscordLog(
-          "\u{1F3A7} G\xE9n\xE9rateur Deezer achet\xE9",
-          `Un utilisateur a achet\xE9 le g\xE9n\xE9rateur Deezer Premium \xE0 vie.`,
-          "purple",
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Username", value: user.username ? `@${user.username}` : "\u2014", inline: true },
-            { name: "Commande", value: `#${orderId}`, inline: true },
-            { name: "Prix", value: `${price}\u20AC`, inline: true }
-          ],
-          "activity"
-        ).catch(() => {
-        });
-        return;
-      }
-      if (data === "sub_bf" || data === "sub_fp") {
-        const service = data.replace("sub_", "");
-        if (disabledServices.has(service)) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "cat_sport" }]] });
-          return;
-        }
-        const label = SUB_LABELS[service];
-        const bfDescription = service === "bf" ? `\u{1F3C6} *Abonnement Basic-Fit Ultimate*
-
-Profitez d'un acc\xE8s complet avec l'offre Ultimate \u2728
-
-*Fonctionnement :*
-Apr\xE8s votre achat, vous recevrez un compte Basic-Fit Ultimate personnel, configur\xE9 avec vos informations (nom, pr\xE9nom, date de naissance).
-
-\u{1F680} *Inclus :*
-\u2022 Acc\xE8s dans toute l'Europe
-\u2022 Invitation d'un ami 7j/7
-\u2022 Acc\xE8s aux fauteuils de massage
-\u2022 Boissons Yanga en illimit\xE9
-\u2022 Sac Basic-Fit + gourde offerts
-
-\u{1F6E1} *Garantie :* Tous nos comptes sont garantis. En cas de probl\xE8me, un remplacement est assur\xE9.
-
-_Tarif normal : 34,89\u20AC/mois_
-
-Choisissez la dur\xE9e :` : `\u{1F4B3} *${label}*
-
-Choisissez la dur\xE9e de votre abonnement :`;
-        await sendMenu(chatId, bfDescription, subDurationKeyboard(service));
-        return;
-      }
-      if (data.startsWith("sub_new_") && !data.startsWith("sub_new_buy_") && !data.startsWith("sub_new_cnf_")) {
-        const subId = data.replace("sub_new_", "");
-        if (disabledServices.has(subId)) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_abonnement" }]] });
-          return;
-        }
-        const sub = getNewSubById(subId);
-        if (!sub) return;
-        await sendMenu(chatId, sub.description, subNewDetailKeyboard(sub.id, sub.price));
-        return;
-      }
-      if (data === "sub_new_buy_telepeage") {
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        const sub = getNewSubById("telepeage");
-        if (!sub) return;
-        if (balance < sub.price) {
-          const missing = (sub.price - balance).toFixed(2);
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Prix : ${sub.price}\u20AC | Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*
-
-Rechargez votre solde pour continuer.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u2B05\uFE0F Retour", callback_data: "cat_autres" }]
-            ] }
-          );
-          return;
-        }
-        pendingTelepeage.set(userId, { step: "nom" });
-        await bot.sendMessage(chatId, `\u{1F5FA}\uFE0F *Commande T\xE9l\xE9p\xE9age Ulys*
-
-Pour cr\xE9er votre compte, j'ai besoin de quelques informations.
-
-*\xC9tape 1/6 \u2014 Votre nom de famille :*`, { parse_mode: "Markdown" });
-        return;
-      }
-      if (data.startsWith("sub_new_buy_")) {
-        const subId = data.replace("sub_new_buy_", "");
-        const sub = getNewSubById(subId);
-        if (!sub) return;
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F6D2} *Confirmation de commande*
-
-${sub.emoji} *${sub.name}*
-\u{1F4B0} Prix : *${sub.price}\u20AC*
-\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*
-
-Confirmez-vous cet achat ?`,
-          subNewConfirmKeyboard(sub.id)
-        );
-        return;
-      }
-      if (data.startsWith("sub_new_cnf_")) {
-        const subId = data.replace("sub_new_cnf_", "");
-        const sub = getNewSubById(subId);
-        if (!sub) return;
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        if (balance < sub.price) {
-          const missing = (sub.price - balance).toFixed(2);
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Prix : ${sub.price}\u20AC | Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*
-
-Rechargez votre solde pour continuer.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_abonnement" }]
-            ] }
-          );
-          return;
-        }
-        const orderId = generateOrderId();
-        const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
-        const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-        await deductBalance(userId, sub.price, `Abonnement ${sub.name} #${orderId}`);
-        const newBal = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(sub.price));
-        await onPurchaseComplete(userId);
-        pendingNewOrders.set(orderId, { userId, subLabel: sub.name, emoji: sub.emoji });
-        const adminId = getAdminId();
-        if (adminId) {
-          bot.sendMessage(
-            adminId,
-            `\u{1F195} *Nouvelle commande re\xE7ue !*
-
-${sub.emoji} *${sub.name}*
-\u{1F464} Client : ${username} (\`${userId}\`)
-\u{1F9FE} N\xB0 commande : \`#${orderId}\`
-\u{1F4B0} Prix pay\xE9 : ${sub.price}\u20AC
-\u{1F4C5} Date : ${nowStr}
-
-\u2B07\uFE0F *Pour livrer la commande, utilisez :*
-\`/new ${orderId} <identifiants>\``,
-            { parse_mode: "Markdown" }
-          ).catch(() => {
-          });
-        }
-        sendOrderNotification(
-          `${sub.emoji} Nouvelle commande \u2014 ${sub.name}`,
-          `Un client a pass\xE9 une commande.`,
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Pseudo", value: username, inline: true },
-            { name: "N\xB0 commande", value: `#${orderId}`, inline: true },
-            { name: "Service", value: sub.name, inline: true },
-            { name: "Prix pay\xE9", value: `${sub.price}\u20AC`, inline: true },
-            { name: "Date", value: nowStr, inline: true },
-            { name: "Commande admin", value: `\`/new ${orderId} <identifiants>\``, inline: false }
-          ],
-          "netflix"
-        );
-        await deleteOldMenu(chatId);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Commande confirm\xE9e !*
-
-${sub.emoji} *${sub.name}*
-\u{1F9FE} N\xB0 de commande : *#${orderId}*
-\u{1F4B0} Solde restant : *${newBal.toFixed(2)}\u20AC*
-
-\u23F3 *Votre abonnement est en cours de traitement.*
-Vous recevrez vos acc\xE8s dans les plus brefs d\xE9lais.
-En cas de probl\xE8me, contactez le support.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
-      if (data.startsWith("sub_dur_")) {
-        const parts = data.replace("sub_dur_", "").split("_");
-        const service = parts[0];
-        const duration3 = parts.slice(1).join("_");
-        const price = SUB_PRICES[service]?.[duration3];
-        if (!price) return;
-        const label = SUB_LABELS[service];
-        const durLabel = DUR_LABELS[duration3];
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F4B3} *${label} \u2014 ${durLabel}*
-
-\u{1F4B0} Prix : *${price}\u20AC*
-\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*
-
-Confirmez-vous cet abonnement ?`,
-          subConfirmKeyboard(service, duration3)
-        );
-        return;
-      }
-      if (data.startsWith("sub_cnf_")) {
-        const parts = data.replace("sub_cnf_", "").split("_");
-        const service = parts[0];
-        const duration3 = parts.slice(1).join("_");
-        const price = SUB_PRICES[service]?.[duration3];
-        if (!price) return;
-        const label = SUB_LABELS[service] ?? service;
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        if (balance < price) {
-          const missing = (price - balance).toFixed(2);
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Prix : ${price}\u20AC | Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*
-
-Rechargez votre solde pour continuer.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_abonnement" }]
-            ] }
-          );
-          sendDiscordLog(
-            "\u274C Solde insuffisant \u2014 Abonnement",
-            `Un utilisateur n'a pas pu finaliser son abonnement (solde insuffisant).`,
-            "red",
-            [
-              { name: "User ID", value: `\`${userId}\``, inline: true },
-              { name: "Pseudo", value: query.from.username ? `@${query.from.username}` : query.from.first_name ?? "\u2014", inline: true },
-              { name: "Service", value: label, inline: true },
-              { name: "Prix", value: `${price}\u20AC`, inline: true },
-              { name: "Solde actuel", value: `${balance.toFixed(2)}\u20AC`, inline: true },
-              { name: "Manque", value: `-${missing}\u20AC`, inline: true }
-            ],
-            "payments"
-          );
-          return;
-        }
-        if (service === "nf" || service === "ps" || service === "sp") {
-          const orderId = generateOrderId();
-          const serviceLabel = SUB_LABELS[service];
-          const durLabel = DUR_LABELS[duration3];
-          const emoji3 = service === "nf" ? "\u{1F3AC}" : service === "ps" ? "\u{1F3AE}" : "\u{1F3B5}";
-          const adminCmd = `/newnetflix ${userId} email:motdepasse`;
-          const discordChannel = "netflix";
-          await deductBalance(userId, price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
-          const newBal = await getBalance(userId);
-          await onPurchaseComplete(userId);
-          const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
-          const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-          sendOrderNotification(
-            `${emoji3} Nouvelle commande ${serviceLabel}`,
-            `Un client a command\xE9 un abonnement ${serviceLabel}.`,
-            [
-              { name: "User ID", value: `\`${userId}\``, inline: true },
-              { name: "Pseudo", value: username, inline: true },
-              { name: "Commande", value: `#${orderId}`, inline: true },
-              { name: "Offre", value: durLabel, inline: true },
-              { name: "Prix pay\xE9", value: `${price}\u20AC`, inline: true },
-              { name: "Date", value: nowStr, inline: true },
-              { name: "Commande admin", value: `\`${adminCmd}\``, inline: false }
-            ],
-            discordChannel
-          );
-          await deleteOldMenu(chatId);
-          await sendReceipt(
-            chatId,
-            `\u2705 *Commande confirm\xE9e !*
-
-${emoji3} ${serviceLabel} \u2014 ${durLabel}
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBal.toFixed(2)}\u20AC*
-
-\u23F3 *Votre compte est en cours de cr\xE9ation.*
-Vous recevrez vos identifiants dans les plus brefs d\xE9lais. En cas de probl\xE8me, contactez le support.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ] }
-          );
-          return;
-        }
-        pendingSubscription.set(userId, { service, duration: duration3, price, step: "nom" });
-        await sendMenu(
-          chatId,
-          `\u{1F4CB} *Cr\xE9ation de votre abonnement ${SUB_LABELS[service]}*
-
-*\xC9tape 1/3* \u2014 Quel est votre *nom de famille* ?
-
-_Format : Depain_`,
-          { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "menu_abonnement" }]] }
-        );
-        return;
-      }
-      if (data === "menu_iptv") {
-        if (disabledServices.has("iptv")) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "cat_sport" }]] });
-          return;
-        }
-        await sendMenu(
-          chatId,
-          `\u{1F4FA} *IPTV \u2014 Choisissez votre abonnement :*
-
-\u{1F4C5} *1 An \u2014 50\u20AC*
-\u{1F4C5} *6 Mois \u2014 30\u20AC*
-\u{1F5D3}\uFE0F *1 Mois d'essai \u2014 10\u20AC*`,
-          iptvMenuKeyboard()
-        );
-        return;
-      }
-      if (data === "iptv_buy_1an" || data === "iptv_buy_6mois" || data === "iptv_buy_1mois") {
-        const duration3 = data.replace("iptv_buy_", "");
-        const price = IPTV_PRICES[duration3];
-        const label = IPTV_LABELS[duration3];
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        if (balance < price) {
-          const missing = (price - balance).toFixed(2);
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Abonnement : *IPTV ${label}*
-Prix : ${price}\u20AC
-Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*
-
-Rechargez votre solde pour acc\xE9der \xE0 l'IPTV !`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u2B05\uFE0F Retour IPTV", callback_data: "menu_iptv" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ] }
-          );
-          return;
-        }
-        const iptvOrderId = generateOrderId();
-        const success2 = await deductBalance(userId, price, `Achat IPTV ${label} #${iptvOrderId}`);
-        if (!success2) {
-          await sendMenu(chatId, "\u274C *Erreur lors de l'achat.* Veuillez r\xE9essayer.", backToMainKeyboard());
-          return;
-        }
-        const newBalance = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(price));
-        await onPurchaseComplete(userId);
-        const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
-        const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-        sendOrderNotification(
-          "\u{1F4FA} Nouvelle commande IPTV",
-          `Un client a command\xE9 un abonnement IPTV.`,
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Pseudo", value: username, inline: true },
-            { name: "Commande", value: `#${iptvOrderId}`, inline: true },
-            { name: "Dur\xE9e", value: label, inline: true },
-            { name: "Prix pay\xE9", value: `${price}\u20AC`, inline: true },
-            { name: "Date", value: nowStr, inline: true },
-            { name: "Commande admin", value: `\`/newiptv ${userId} email:motdepasse\``, inline: false }
-          ],
-          "iptv"
-        );
-        await deleteOldMenu(chatId);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Commande confirm\xE9e !*
-
-\u{1F4FA} IPTV \u2014 ${label}
-\u{1F9FE} Commande n\xB0 *#${iptvOrderId}*
-\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*
-
-\u23F3 *Votre abonnement est en cours de cr\xE9ation.*
-Vous recevrez vos identifiants dans les plus brefs d\xE9lais. En cas de probl\xE8me, contactez le support.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
       if (data === "menu_payment") {
         pendingCryptoTx.delete(userId);
         const balance = await getBalance(userId);
@@ -114578,168 +113018,6 @@ Contactez le support pour plus d'informations.`,
         }
         return;
       }
-      if (data.startsWith("tech_confirm_")) {
-        const techId = data.replace("tech_confirm_", "");
-        const tech = getTechById(techId);
-        if (!tech) {
-          try {
-            await bot.answerCallbackQuery(query.id, { text: "\u274C Tech introuvable", show_alert: true });
-          } catch {
-          }
-          return;
-        }
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        if (balance < tech.price) {
-          const missing = (tech.price - balance).toFixed(2);
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant*
-
-Tech : *${tech.name}*
-Prix : ${tech.price}\u20AC
-Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*
-
-Rechargez votre solde pour acc\xE9der \xE0 cette tech !`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u2B05\uFE0F Retour aux Techs", callback_data: "menu_tech" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ] }
-          );
-          sendDiscordLog(
-            "\u274C Solde insuffisant \u2014 Tech",
-            `Un utilisateur n'a pas pu acheter une tech (solde insuffisant).`,
-            "red",
-            [
-              { name: "User ID", value: `\`${userId}\``, inline: true },
-              { name: "Pseudo", value: query.from.username ? `@${query.from.username}` : query.from.first_name ?? "\u2014", inline: true },
-              { name: "Tech", value: tech.name, inline: true },
-              { name: "Prix", value: `${tech.price}\u20AC`, inline: true },
-              { name: "Solde actuel", value: `${balance.toFixed(2)}\u20AC`, inline: true },
-              { name: "Manque", value: `-${missing}\u20AC`, inline: true }
-            ],
-            "payments"
-          );
-          return;
-        }
-        const orderId = generateOrderId();
-        const success2 = await deductBalance(userId, tech.price, `Achat tech: ${tech.name} #${orderId}`);
-        if (!success2) {
-          await sendMenu(chatId, "\u274C *Erreur lors de l'achat.* Veuillez r\xE9essayer.", backToMainKeyboard());
-          return;
-        }
-        const newBalance = await getBalance(userId);
-        await addLoyaltyPoints(userId, Math.floor(tech.price));
-        await onPurchaseComplete(userId);
-        sendDiscordLog(
-          "\u{1F527} Achat Tech",
-          `Un utilisateur a achet\xE9 une tech/m\xE9thode.`,
-          "green",
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Produit", value: tech.name, inline: true },
-            { name: "Prix", value: `${tech.price}\u20AC`, inline: true },
-            { name: "Commande", value: `#${orderId}`, inline: true },
-            { name: "Solde restant", value: `${newBalance.toFixed(2)}\u20AC`, inline: true }
-          ],
-          "techs"
-        );
-        await deleteOldMenu(chatId);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Achat confirm\xE9 !*
-
-${tech.name} \u2014 ${tech.price}\u20AC
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBalance.toFixed(2)}\u20AC*`
-        );
-        if (tech.manualDelivery) {
-          const adminId = getAdminId();
-          await sendReceipt(
-            chatId,
-            `\u{1F4E6} *Livraison en cours de traitement*
-
-Pour recevoir votre tech, contactez le support en lui envoyant :
-
-\u2022 \u{1F9FE} Num\xE9ro de commande : *#${orderId}*
-\u2022 \u{1F527} Produit : *${tech.name}*
-
-Le support vous r\xE9pondra dans les plus brefs d\xE9lais !`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-              [{ text: "\u{1F527} Autres Techs", callback_data: "menu_tech" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ] }
-          );
-        } else if (tech.deliveryFile) {
-          await sendReceipt(chatId, tech.content, {
-            inline_keyboard: [
-              [{ text: "\u{1F527} Autres Techs", callback_data: "menu_tech" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ]
-          });
-          try {
-            await bot.sendDocument(chatId, createReadStream(`${PUBLIC_PATH}/${tech.deliveryFile}`), {
-              caption: `\u{1F4CE} *${tech.name}* \u2014 Guide complet`,
-              parse_mode: "Markdown"
-            });
-          } catch (err) {
-            logger.error({ err }, `Error sending delivery file for tech ${tech.id}`);
-          }
-        } else {
-          await sendReceipt(chatId, tech.content, {
-            inline_keyboard: [
-              [{ text: "\u{1F527} Autres Techs", callback_data: "menu_tech" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ]
-          });
-        }
-        return;
-      }
-      if (data.startsWith("tech_")) {
-        const techId = data.replace("tech_", "");
-        if (disabledServices.has(techId)) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_tech" }]] });
-          return;
-        }
-        const tech = getTechById(techId);
-        if (!tech) {
-          try {
-            await bot.answerCallbackQuery(query.id, { text: "\u274C Tech introuvable", show_alert: true });
-          } catch {
-          }
-          return;
-        }
-        await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
-        const balance = await getBalance(userId);
-        sendDiscordLog(
-          "\u{1F441}\uFE0F Tech consult\xE9e",
-          `Un utilisateur a ouvert la page d'une tech.`,
-          "blue",
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Pseudo", value: query.from.username ? `@${query.from.username}` : query.from.first_name ?? "\u2014", inline: true },
-            { name: "Tech", value: tech.name, inline: true },
-            { name: "Prix", value: `${tech.price}\u20AC`, inline: true },
-            { name: "Solde actuel", value: `${balance.toFixed(2)}\u20AC`, inline: true }
-          ],
-          "activity"
-        );
-        await sendMenu(
-          chatId,
-          `\u{1F527} *${tech.name}*
-_${tech.description}_
-
-\u{1F4B0} Prix : *${tech.price}\u20AC*
-\u{1F45B} Votre solde : *${balance.toFixed(2)}\u20AC*
-
-Confirmez-vous l'achat de cette tech ?`,
-          techConfirmKeyboard(tech.id)
-        );
-        return;
-      }
       if (data === "cart_view") {
         await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         const cart = getCart(userId);
@@ -115006,96 +113284,6 @@ Entrez votre code de r\xE9duction :`, {
 Vous pouvez recommencer vos achats depuis la boutique.`, cartEmptyKeyboard());
         return;
       }
-      if (data.startsWith("cart_add_tech_")) {
-        const techId = data.replace("cart_add_tech_", "");
-        const tech = getTechById(techId);
-        if (!tech) return;
-        addToCart(userId, { label: `\u{1F527} ${tech.name}`, price: tech.price, type: "tech", techId: tech.id });
-        try {
-          await bot.answerCallbackQuery(query.id, { text: `\u2705 ${tech.name} ajout\xE9 au panier !`, show_alert: false });
-        } catch {
-        }
-        const cart = getCart(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F6D2} *${tech.name}* ajout\xE9 au panier !
-
-\u{1F6CD}\uFE0F Panier : *${cart.length} article(s)* \u2014 Total : *${cartTotal(userId).toFixed(2)}\u20AC*`,
-          { inline_keyboard: [
-            [{ text: "\u{1F6CD}\uFE0F Voir le panier", callback_data: "cart_view" }],
-            [{ text: "\u{1F527} Continuer les achats Tech", callback_data: "menu_tech" }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
-      if (data === "cart_add_deezer") {
-        if (disabledServices.has("deezer")) {
-          await sendMenu(chatId, SERVICE_DISABLED_MSG, { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "cat_musique" }]] });
-          return;
-        }
-        addToCart(userId, { label: "\u{1F3A7} Deezer Premium \xE0 vie", price: 2, type: "deezer" });
-        try {
-          await bot.answerCallbackQuery(query.id, { text: "\u2705 Deezer ajout\xE9 au panier !", show_alert: false });
-        } catch {
-        }
-        const cart = getCart(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F6D2} *Deezer Premium \xE0 vie* ajout\xE9 au panier !
-
-\u{1F6CD}\uFE0F Panier : *${cart.length} article(s)* \u2014 Total : *${cartTotal(userId).toFixed(2)}\u20AC*`,
-          { inline_keyboard: [
-            [{ text: "\u{1F6CD}\uFE0F Voir le panier", callback_data: "cart_view" }],
-            [{ text: "\u{1F3B5} Continuer les achats Musique", callback_data: "cat_musique" }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
-      if (data === "cart_add_deezer_gen") {
-        addToCart(userId, { label: "\u{1F3A7} G\xE9n\xE9rateur Deezer Premium", price: 35, type: "deezer_gen" });
-        try {
-          await bot.answerCallbackQuery(query.id, { text: "\u2705 Deezer G\xE9n\xE9rateur ajout\xE9 !", show_alert: false });
-        } catch {
-        }
-        const cart = getCart(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F6D2} *G\xE9n\xE9rateur Deezer Premium* ajout\xE9 au panier !
-
-\u{1F6CD}\uFE0F Panier : *${cart.length} article(s)* \u2014 Total : *${cartTotal(userId).toFixed(2)}\u20AC*`,
-          { inline_keyboard: [
-            [{ text: "\u{1F6CD}\uFE0F Voir le panier", callback_data: "cart_view" }],
-            [{ text: "\u2728 Continuer les achats", callback_data: "menu_achat_autres" }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
-      if (data.startsWith("cart_add_sub_")) {
-        const subId = data.replace("cart_add_sub_", "");
-        const sub = getNewSubById(subId);
-        if (!sub) return;
-        addToCart(userId, { label: `${sub.emoji} ${sub.name}`, price: sub.price, type: "sub_new", subId: sub.id, subEmoji: sub.emoji });
-        try {
-          await bot.answerCallbackQuery(query.id, { text: `\u2705 ${sub.name} ajout\xE9 au panier !`, show_alert: false });
-        } catch {
-        }
-        const cart = getCart(userId);
-        await sendMenu(
-          chatId,
-          `\u{1F6D2} *${sub.emoji} ${sub.name}* ajout\xE9 au panier !
-
-\u{1F6CD}\uFE0F Panier : *${cart.length} article(s)* \u2014 Total : *${cartTotal(userId).toFixed(2)}\u20AC*`,
-          { inline_keyboard: [
-            [{ text: "\u{1F6CD}\uFE0F Voir le panier", callback_data: "cart_view" }],
-            [{ text: "\u{1F4B3} Continuer les abonnements", callback_data: "menu_abonnement" }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
       if (data === "cart_checkout") {
         await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
         const cart = getCart(userId);
@@ -115124,110 +113312,11 @@ Rechargez votre solde pour continuer.`,
           return;
         }
         const username = query.from.username ? `@${query.from.username}` : query.from.first_name || "\u2014";
-        const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
         const errors = [];
         const successes = [];
         for (const item of cart) {
           try {
-            if (item.type === "tech" && item.techId) {
-              const techData = getTechById(item.techId);
-              if (!techData) {
-                errors.push(`${item.label} (non trouv\xE9)`);
-                continue;
-              }
-              await deductBalance(userId, item.price, `Panier - ${item.label}`);
-              successes.push(item.label);
-              try {
-                await bot.sendMessage(
-                  userId,
-                  `\u{1F527} *${techData.name}*
-
-${techData.content}`,
-                  { parse_mode: "Markdown" }
-                );
-                if (techData.deliveryFile) {
-                  await bot.sendDocument(userId, createReadStream(`${PUBLIC_PATH}/${techData.deliveryFile}`), {
-                    caption: `\u{1F4CE} *${techData.name}* \u2014 Guide complet`,
-                    parse_mode: "Markdown"
-                  });
-                }
-              } catch {
-              }
-            } else if (item.type === "deezer") {
-              const stock = await getDeezerStockCount();
-              if (stock === 0) {
-                errors.push(`${item.label} (stock \xE9puis\xE9)`);
-                continue;
-              }
-              const link = await popDeezerLink();
-              if (!link) {
-                errors.push(`${item.label} (erreur stock)`);
-                continue;
-              }
-              await deductBalance(userId, item.price, `Panier - ${item.label}`);
-              successes.push(item.label);
-              try {
-                await bot.sendMessage(
-                  userId,
-                  `\u{1F3A7} *Deezer Premium \xE0 vie*
-
-Voici votre lien d'acc\xE8s :
-\`${link}\`
-
-_Cliquez sur le lien pour activer votre acc\xE8s._`,
-                  { parse_mode: "Markdown" }
-                );
-              } catch {
-              }
-            } else if (item.type === "deezer_gen") {
-              const link = await popDeezerLink();
-              if (!link) {
-                errors.push(`${item.label} (stock \xE9puis\xE9)`);
-                continue;
-              }
-              await deductBalance(userId, item.price, `Panier - ${item.label}`);
-              successes.push(item.label);
-              try {
-                await bot.sendMessage(
-                  userId,
-                  `\u{1F3A7} *G\xE9n\xE9rateur Deezer Premium \xE0 vie*
-
-Voici votre acc\xE8s :
-\`${link}\`
-
-_Utilisez ce lien pour acc\xE9der au g\xE9n\xE9rateur et obtenir votre compte Deezer Premium._`,
-                  { parse_mode: "Markdown" }
-                );
-              } catch {
-              }
-            } else if (item.type === "sub_new" && item.subId) {
-              const sub = getNewSubById(item.subId);
-              if (!sub) {
-                errors.push(`${item.label} (non trouv\xE9)`);
-                continue;
-              }
-              const orderId = generateOrderId();
-              await deductBalance(userId, item.price, `Panier - ${item.label} #${orderId}`);
-              successes.push(item.label);
-              pendingNewOrders.set(orderId, { userId, subLabel: sub.name, emoji: sub.emoji });
-              const adminId = getAdminId();
-              if (adminId) {
-                bot.sendMessage(
-                  adminId,
-                  `\u{1F6CD}\uFE0F *Commande panier !*
-
-${sub.emoji} *${sub.name}*
-\u{1F464} ${username} (\`${userId}\`)
-\u{1F9FE} #${orderId}
-\u{1F4B0} ${item.price}\u20AC
-\u{1F4C5} ${nowStr}
-
-\`/new ${orderId} <identifiants>\``,
-                  { parse_mode: "Markdown" }
-                ).catch(() => {
-                });
-              }
-            }
+            errors.push(`${item.label} (boutique temporairement indisponible)`);
           } catch {
             errors.push(`${item.label} (erreur)`);
           }
@@ -115546,6 +113635,32 @@ Commande si confirm\xE9 : \`/addbalance ${senderUserId} ${proof.amount.toFixed(2
         }
       }
       return;
+    }
+    if (isAdmin(senderUserId) && msg.photo && msg.photo.length > 0 && pendingBqaAdmin.has(senderUserId)) {
+      const bqState = pendingBqaAdmin.get(senderUserId);
+      if (bqState.step === "item_photo") {
+        pendingBqaAdmin.delete(senderUserId);
+        const { catId, name, desc: desc2, price } = bqState;
+        const photoFileId = msg.photo[msg.photo.length - 1].file_id;
+        const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId });
+        const cat = await getCategoryById(catId);
+        await bot.sendPhoto(senderChatId, photoFileId, {
+          caption: `\u2705 *Article cr\xE9\xE9 avec succ\xE8s !*
+
+\u{1F4E6} *${item.name}*
+\u{1F4DD} ${item.description}
+\u{1F4B0} Prix : *${parseFloat(item.price).toFixed(2)}\u20AC*
+\u{1F5BC}\uFE0F Photo : \u2705 Oui`,
+          parse_mode: "Markdown",
+          reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations")
+        }).catch(async () => {
+          await bot.sendMessage(senderChatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !*`, {
+            parse_mode: "Markdown",
+            reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations")
+          });
+        });
+        return;
+      }
     }
     if (isAdmin(senderUserId) && pendingCouponEdit.has(senderUserId) && msg.text && !msg.text.startsWith("/")) {
       const editState = pendingCouponEdit.get(senderUserId);
@@ -115960,6 +114075,80 @@ ${allIds.length} utilisateurs`, { parse_mode: "Markdown" });
     const userId = msg.from.id;
     const text2 = msg.text.trim();
     if (isBanned(userId)) return;
+    if (isAdmin(userId) && pendingBqaAdmin.has(userId)) {
+      const bqState = pendingBqaAdmin.get(userId);
+      if (bqState.step === "cat_name") {
+        const name = text2.trim();
+        pendingBqaAdmin.delete(userId);
+        const cat = await createCategory(name, bqState.parent);
+        const cats = await getCategoriesByParent(bqState.parent);
+        const top = getTopLevel(bqState.parent);
+        await bot.sendMessage(
+          chatId,
+          `\u2705 *Dossier "${cat.name}" cr\xE9\xE9 !*
+
+${top.emoji} *${top.label}* \u2014 ${cats.length} dossier(s)`,
+          { parse_mode: "Markdown", reply_markup: bqaSubcatsKeyboard(cats, bqState.parent) }
+        );
+        return;
+      }
+      if (bqState.step === "item_name") {
+        const name = text2.trim();
+        pendingBqaAdmin.set(userId, { step: "item_desc", catId: bqState.catId, name });
+        await bot.sendMessage(
+          chatId,
+          `\u{1F4E6} *Nom :* ${name}
+
+*\xC9tape 2/4 \u2014 Description de l'article :*
+
+_D\xE9crivez l'article en quelques lignes._`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] } }
+        );
+        return;
+      }
+      if (bqState.step === "item_desc") {
+        const desc2 = text2.trim();
+        pendingBqaAdmin.set(userId, { step: "item_price", catId: bqState.catId, name: bqState.name, desc: desc2 });
+        await bot.sendMessage(
+          chatId,
+          `\u{1F4E6} *Nom :* ${bqState.name}
+\u{1F4DD} *Description :* ${desc2}
+
+*\xC9tape 3/4 \u2014 Prix (en \u20AC) :*
+
+_Exemple : 9.99_`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] } }
+        );
+        return;
+      }
+      if (bqState.step === "item_price") {
+        const price = parseFloat(text2.trim().replace(",", "."));
+        if (isNaN(price) || price <= 0) {
+          await bot.sendMessage(chatId, `\u274C *Prix invalide.* Entrez un nombre positif, ex : \`9.99\``, {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] }
+          });
+          return;
+        }
+        pendingBqaAdmin.set(userId, { step: "item_photo", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price });
+        await bot.sendMessage(
+          chatId,
+          `\u{1F4E6} *Nom :* ${bqState.name}
+\u{1F4DD} *Desc :* ${bqState.desc}
+\u{1F4B0} *Prix :* ${price.toFixed(2)}\u20AC
+
+*\xC9tape 4/4 \u2014 Photo (optionnelle) :*
+
+Envoie une photo pour illustrer l'article, ou clique sur "Passer" pour l'ignorer.`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [
+            [{ text: "\u23E9 Passer (sans photo)", callback_data: `bqa_skip_photo_${bqState.catId}` }],
+            [{ text: "\u274C Annuler", callback_data: `bqa_cat_${bqState.catId}` }]
+          ] } }
+        );
+        return;
+      }
+      return;
+    }
     if (isAdmin(userId) && adminAddingDeezerLinks) {
       const lineRegex = /Lien valide\s*=\s*(https?:\/\/[^\s]+)/gi;
       const found = [];
@@ -115989,95 +114178,6 @@ Continuez \xE0 envoyer des liens ou tapez /fini.`,
         });
       }
       return;
-    }
-    if (pendingSubscription.has(userId)) {
-      const state = pendingSubscription.get(userId);
-      const serviceLabel = SUB_LABELS[state.service];
-      const durLabel = DUR_LABELS[state.duration];
-      if (state.step === "nom") {
-        pendingSubscription.set(userId, { ...state, step: "prenom", nom: text2 });
-        await sendMenu(
-          chatId,
-          `\u{1F4CB} *Cr\xE9ation de votre abonnement ${serviceLabel}*
-
-*\xC9tape 2/3* \u2014 Quel est votre *pr\xE9nom* ?
-
-_Format : Math\xE9o_`,
-          { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "menu_abonnement" }]] }
-        );
-        return;
-      }
-      if (state.step === "prenom") {
-        pendingSubscription.set(userId, { ...state, step: "dob", prenom: text2 });
-        await sendMenu(
-          chatId,
-          `\u{1F4CB} *Cr\xE9ation de votre abonnement ${serviceLabel}*
-
-*\xC9tape 3/3* \u2014 Quelle est votre *date de naissance* ?
-
-_Format : 10/02/2005_`,
-          { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "menu_abonnement" }]] }
-        );
-        return;
-      }
-      if (state.step === "dob") {
-        pendingSubscription.delete(userId);
-        const balance = await getBalance(userId);
-        if (balance < state.price) {
-          await sendMenu(
-            chatId,
-            `\u274C *Solde insuffisant.* Il vous manque ${(state.price - balance).toFixed(2)}\u20AC.
-
-Veuillez recharger et recommencer.`,
-            { inline_keyboard: [
-              [{ text: "\u{1F4B3} Recharger mon solde", callback_data: "menu_payment" }],
-              [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-            ] }
-          );
-          return;
-        }
-        const orderId = generateOrderId();
-        await deductBalance(userId, state.price, `Abonnement ${serviceLabel} ${durLabel} #${orderId}`);
-        const newBal = await getBalance(userId);
-        await onPurchaseComplete(userId);
-        const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "\u2014";
-        const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-        const adminCmd = state.service === "bf" ? `/newbasicfit ${userId} email:motdepasse` : `/newfitnesspark ${userId} email:motdepasse`;
-        sendOrderNotification(
-          `${state.service === "bf" ? "\u{1F4AA}" : "\u{1F3CB}\uFE0F"} Nouvelle commande ${serviceLabel}`,
-          `Un client a command\xE9 un abonnement ${serviceLabel}.`,
-          [
-            { name: "User ID", value: `\`${userId}\``, inline: true },
-            { name: "Pseudo", value: username, inline: true },
-            { name: "Commande", value: `#${orderId}`, inline: true },
-            { name: "Dur\xE9e", value: durLabel, inline: true },
-            { name: "Prix pay\xE9", value: `${state.price}\u20AC`, inline: true },
-            { name: "Date cr\xE9ation", value: nowStr, inline: true },
-            { name: "Nom", value: state.nom, inline: true },
-            { name: "Pr\xE9nom", value: state.prenom, inline: true },
-            { name: "Date de naissance", value: text2, inline: true },
-            { name: "Commande admin", value: `\`${adminCmd}\``, inline: false }
-          ],
-          state.service === "bf" ? "basicfit" : "fitnesspark"
-        );
-        await deleteOldMenu(chatId);
-        await sendReceipt(
-          chatId,
-          `\u2705 *Commande confirm\xE9e !*
-
-${state.service === "bf" ? "\u{1F4AA}" : "\u{1F3CB}\uFE0F"} ${serviceLabel} \u2014 ${durLabel}
-\u{1F9FE} Commande n\xB0 *#${orderId}*
-\u{1F4B0} Solde restant : *${newBal.toFixed(2)}\u20AC*
-
-\u23F3 *Votre abonnement est en cours de cr\xE9ation.*
-Vous recevrez vos identifiants dans les plus brefs d\xE9lais. En cas de probl\xE8me, contactez le support.`,
-          { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
-            [{ text: "\u{1F3E0} Menu Principal", callback_data: "menu_main" }]
-          ] }
-        );
-        return;
-      }
     }
     if (pendingCryptoTx.has(userId)) {
       const { amount, ltc, ltcAddress } = pendingCryptoTx.get(userId);
@@ -116259,156 +114359,6 @@ Ton filleul \`${filleulId}\` a recharg\xE9 et ton compte a \xE9t\xE9 cr\xE9dit\x
       }
       return;
     }
-    if (pendingTelepeage.has(userId)) {
-      const state = pendingTelepeage.get(userId);
-      const cancelKb = { inline_keyboard: [[{ text: "\u274C Annuler", callback_data: "cat_autres" }]] };
-      if (state.step === "nom") {
-        pendingTelepeage.set(userId, { ...state, step: "prenom", nom: text2 });
-        await bot.sendMessage(chatId, `\u2705 Nom : *${text2}*
-
-*\xC9tape 2/6 \u2014 Votre pr\xE9nom :*`, { parse_mode: "Markdown", reply_markup: cancelKb });
-        return;
-      }
-      if (state.step === "prenom") {
-        pendingTelepeage.set(userId, { ...state, step: "dob", prenom: text2 });
-        await bot.sendMessage(chatId, `\u2705 Pr\xE9nom : *${text2}*
-
-*\xC9tape 3/6 \u2014 Votre date de naissance :*
-_Format : JJ/MM/AAAA_`, { parse_mode: "Markdown", reply_markup: cancelKb });
-        return;
-      }
-      if (state.step === "dob") {
-        pendingTelepeage.set(userId, { ...state, step: "email", dob: text2 });
-        await bot.sendMessage(chatId, `\u2705 Date de naissance : *${text2}*
-
-*\xC9tape 4/6 \u2014 Votre adresse e-mail :*`, { parse_mode: "Markdown", reply_markup: cancelKb });
-        return;
-      }
-      if (state.step === "email") {
-        pendingTelepeage.set(userId, { ...state, step: "adresse", email: text2 });
-        await bot.sendMessage(chatId, `\u2705 E-mail : *${text2}*
-
-*\xC9tape 5/6 \u2014 Votre adresse postale (pour recevoir le badge) :*`, { parse_mode: "Markdown", reply_markup: cancelKb });
-        return;
-      }
-      if (state.step === "adresse") {
-        pendingTelepeage.set(userId, { ...state, step: "plaque", adresse: text2 });
-        await bot.sendMessage(chatId, `\u2705 Adresse : *${text2}*
-
-*\xC9tape 6/6 \u2014 La plaque d'immatriculation de votre v\xE9hicule :*`, { parse_mode: "Markdown", reply_markup: cancelKb });
-        return;
-      }
-      if (state.step === "plaque") {
-        pendingTelepeage.delete(userId);
-        const sub = getNewSubById("telepeage");
-        await getOrCreateUser(userId, msg.from?.username, msg.from?.first_name, msg.from?.last_name);
-        const balance = await getBalance(userId);
-        if (balance < sub.price) {
-          const missing = (sub.price - balance).toFixed(2);
-          await sendMenu(chatId, `\u274C *Solde insuffisant*
-
-Prix : ${sub.price}\u20AC | Votre solde : ${balance.toFixed(2)}\u20AC
-Il vous manque : *${missing}\u20AC*`, { inline_keyboard: [[{ text: "\u{1F4B3} Recharger", callback_data: "menu_payment" }]] });
-          return;
-        }
-        const orderId = generateOrderId();
-        const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "\u2014";
-        const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
-        await deductBalance(userId, sub.price, `Abonnement ${sub.name} #${orderId}`);
-        const newBal = await getBalance(userId);
-        pendingNewOrders.set(orderId, { userId, subLabel: sub.name, emoji: sub.emoji });
-        const adminId = getAdminId();
-        const infoBlock = `\u{1F464} *Nom :* ${state.nom} ${state.prenom}
-\u{1F382} *Naissance :* ${state.dob}
-\u{1F4E7} *Email :* ${state.email}
-\u{1F3E0} *Adresse :* ${state.adresse}
-\u{1F697} *Plaque :* ${text2}`;
-        if (adminId) {
-          bot.sendMessage(
-            adminId,
-            `\u{1F195} *Nouvelle commande T\xE9l\xE9p\xE9age Ulys*
-
-\u{1F5FA}\uFE0F *${sub.name}*
-\u{1F464} Client : ${username} (\`${userId}\`)
-\u{1F9FE} N\xB0 commande : \`#${orderId}\`
-\u{1F4B0} Prix pay\xE9 : ${sub.price}\u20AC
-\u{1F4C5} Date : ${nowStr}
-
-\u{1F4CB} *Informations client :*
-${infoBlock}
-
-\u2B07\uFE0F *Pour livrer la commande, utilisez :*
-\`/new ${orderId} <confirmation>\``,
-            { parse_mode: "Markdown" }
-          ).catch(() => {
-          });
-        }
-        sendOrderNotification(
-          `\u{1F5FA}\uFE0F T\xE9l\xE9p\xE9age Ulys \u2014 N\xB0${orderId}`,
-          `Client : ${username} (${userId})
-${infoBlock}`
-        ).catch(() => {
-        });
-        await bot.sendMessage(
-          chatId,
-          `\u2705 *Commande enregistr\xE9e !*
-
-\u{1F5FA}\uFE0F *${sub.name}*
-\u{1F9FE} N\xB0 commande : \`#${orderId}\`
-\u{1F4B0} Prix : ${sub.price}\u20AC | Nouveau solde : *${newBal.toFixed(2)}\u20AC*
-
-\u{1F4EC} Votre badge sera envoy\xE9 \xE0 l'adresse indiqu\xE9e dans les meilleurs d\xE9lais.
-Notre \xE9quipe traite votre commande \u2014 vous serez notifi\xE9 d\xE8s la livraison.`,
-          { parse_mode: "Markdown" }
-        );
-        return;
-      }
-    }
-    if (pendingCouponInput.has(userId)) {
-      pendingCouponInput.delete(userId);
-      const code = text2.trim().toUpperCase();
-      const def = activeCoupons.get(code.toLowerCase());
-      if (!def) {
-        await bot.sendMessage(chatId, `\u274C *Code coupon invalide.* V\xE9rifiez le code et r\xE9essayez.`, {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "\u{1F6CD}\uFE0F Retour au panier", callback_data: "cart_view" }]] }
-        });
-        return;
-      }
-      if (def.expiresAt && def.expiresAt < /* @__PURE__ */ new Date()) {
-        await bot.sendMessage(chatId, `\u274C *Ce coupon a expir\xE9.*`, {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "\u{1F6CD}\uFE0F Retour au panier", callback_data: "cart_view" }]] }
-        });
-        return;
-      }
-      if (def.restrictedToUserId && def.restrictedToUserId !== userId) {
-        await bot.sendMessage(chatId, `\u274C *Ce coupon n'est pas valable pour votre compte.*`, {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "\u{1F6CD}\uFE0F Retour au panier", callback_data: "cart_view" }]] }
-        });
-        return;
-      }
-      if (def.maxUses > 0 && def.usedCount >= def.maxUses) {
-        await bot.sendMessage(chatId, `\u274C *Ce coupon a atteint son nombre maximum d'utilisations.*`, {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "\u{1F6CD}\uFE0F Retour au panier", callback_data: "cart_view" }]] }
-        });
-        return;
-      }
-      if (def.usedBy.has(userId)) {
-        await bot.sendMessage(chatId, `\u274C *Vous avez d\xE9j\xE0 utilis\xE9 ce coupon.*`, {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[{ text: "\u{1F6CD}\uFE0F Retour au panier", callback_data: "cart_view" }]] }
-        });
-        return;
-      }
-      userCoupon.set(userId, code);
-      const cart = getCart(userId);
-      const balance = await getBalance(userId);
-      await sendCartMenu(chatId, buildCartText(userId, cart, balance), cartViewKeyboard(cart.map((i) => ({ uid: i.uid, label: i.label, price: i.price })), code));
-      return;
-    }
     if (pendingCustomAmount.has(userId)) {
       const { method } = pendingCustomAmount.get(userId);
       const amount = parseFloat(text2);
@@ -116575,6 +114525,11 @@ Nous vous r\xE9pondrons dans les plus brefs d\xE9lais.`,
 }
 
 // src/index.ts
+var __dirname2 = dirname(fileURLToPath(import.meta.url));
+try {
+  process.loadEnvFile(join(__dirname2, "../../../.env"));
+} catch {
+}
 var rawPort = process.env["PORT"] ?? "8080";
 var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {

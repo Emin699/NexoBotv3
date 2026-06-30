@@ -13,7 +13,7 @@ git checkout -- node_modules/.modules.yaml node_modules/.pnpm-workspace-state-v1
 git pull origin main
 
 echo "📦 Installation des dépendances..."
-pnpm install --frozen-lockfile
+pnpm install
 
 echo "🔨 Build lib/db..."
 cd lib/db && npx tsc -p tsconfig.json && cd "$REPO_DIR"

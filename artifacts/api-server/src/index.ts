@@ -1,8 +1,11 @@
-import { config as dotenvConfig } from "dotenv";
-import { resolve } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 
 // Charger le .env depuis la racine du workspace (compatible Replit + VPS)
-dotenvConfig({ path: resolve(process.cwd(), "../../.env") });
+const __dirname = dirname(fileURLToPath(import.meta.url));
+try {
+  (process as any).loadEnvFile(join(__dirname, "../../../.env"));
+} catch { /* .env optionnel — les variables peuvent aussi être injectées par l'environnement */ }
 
 import app from "./app";
 import { logger } from "./lib/logger";
