@@ -113053,11 +113053,11 @@ Choisissez votre m\xE9thode de paiement :`, paymentMenuKeyboard());
           chatId,
           `\u{1F4B3} *Paiement par Carte bancaire (SumUp)*
 
-Pour recharger votre solde par carte bancaire, contactez le support.
+Pour recharger votre solde par carte bancaire, contactez l'administrateur.
 
 Notre \xE9quipe vous enverra un lien de paiement s\xE9curis\xE9 *SumUp* et cr\xE9ditera votre solde d\xE8s r\xE9ception du paiement.`,
           { inline_keyboard: [
-            [{ text: "\u{1F4AC} Contacter le support", url: SUPPORT_URL }],
+            [{ text: "\u{1F464} Contacter l'administrateur", url: ADMIN_URL }],
             [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_payment" }]
           ] }
         );
