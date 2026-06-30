@@ -108869,6 +108869,15 @@ async function deleteItem(id) {
 async function getDeliveriesByItemId(itemId) {
   return db.select().from(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.itemId, itemId)).orderBy(asc(boutiqueItemDeliveriesTable.createdAt));
 }
+async function createDelivery(data) {
+  const [row] = await db.insert(boutiqueItemDeliveriesTable).values({
+    itemId: data.itemId,
+    type: data.type,
+    fileId: data.fileId ?? null,
+    content: data.content ?? null
+  }).returning();
+  return row;
+}
 async function deleteDelivery(id) {
   await db.delete(boutiqueItemDeliveriesTable).where(eq(boutiqueItemDeliveriesTable.id, id));
 }
@@ -109818,6 +109827,36 @@ function startBot(expressApp) {
     bot.setWebHook(fullWebhookUrl).then(() => logger.info({ url: fullWebhookUrl }, "\u2705 Telegram webhook enregistr\xE9 \u2014 bot actif 24/7")).catch((err) => logger.error({ err }, "\xC9chec enregistrement webhook Telegram"));
     logger.info("Telegram bot d\xE9marr\xE9 en mode WEBHOOK (production 24/7)");
   }
+  function isParseEntitiesError(err) {
+    const msg = err?.message ?? String(err);
+    return msg.includes("can't parse entities") || msg.includes("can't find end of the entity");
+  }
+  function stripParseMode(opts) {
+    if (!opts) return opts;
+    const clone2 = { ...opts };
+    delete clone2["parse_mode"];
+    return clone2;
+  }
+  for (const method of ["sendMessage", "sendPhoto", "sendDocument", "sendVideo", "sendAudio", "sendAnimation", "editMessageText", "editMessageCaption"]) {
+    const original = bot[method].bind(bot);
+    bot[method] = async (...args) => {
+      try {
+        return await original(...args);
+      } catch (err) {
+        if (!isParseEntitiesError(err)) throw err;
+        const optsIdx = args.findIndex(
+          (a) => a && typeof a === "object" && "parse_mode" in a
+        );
+        if (optsIdx !== -1) {
+          const retryArgs = [...args];
+          retryArgs[optsIdx] = stripParseMode(args[optsIdx]);
+          logger.warn({ method }, "Markdown invalide \u2014 renvoi du message en texte brut");
+          return await original(...retryArgs);
+        }
+        throw err;
+      }
+    };
+  }
   const processedKeys = /* @__PURE__ */ new Set();
   function isNewKey(key) {
     if (processedKeys.has(key)) return false;
@@ -109871,6 +109910,21 @@ function startBot(expressApp) {
       [{ text: "\u{1F3B5} Audio", callback_data: `bqa_dlvedit_audio_${itemId}` }, { text: "\u{1F39E}\uFE0F GIF", callback_data: `bqa_dlvedit_anim_${itemId}` }],
       [{ text: "\u{1F5D1}\uFE0F Supprimer la livraison", callback_data: `bqa_dlvedit_none_${itemId}` }],
       [{ text: "\u274C Annuler", callback_data: cancelCb }]
+    ] };
+  }
+  function deliveryMoreKb(catId, count2, cancelCb) {
+    return { inline_keyboard: [
+      [{ text: "\u2795 Ajouter un autre \xE9l\xE9ment", callback_data: `bqa_dlv_more_${catId}` }],
+      [{ text: `\u2705 Terminer (${count2} \xE9l\xE9ment${count2 > 1 ? "s" : ""})`, callback_data: `bqa_dlv_done_${catId}` }],
+      [{ text: "\u274C Annuler", callback_data: cancelCb }]
+    ] };
+  }
+  function deliveryTypeAddKb(itemId) {
+    return { inline_keyboard: [
+      [{ text: "\u{1F4DD} Texte/Message", callback_data: `bqa_dlvadd_text_${itemId}` }, { text: "\u{1F5BC}\uFE0F Photo", callback_data: `bqa_dlvadd_photo_${itemId}` }],
+      [{ text: "\u{1F3A5} Vid\xE9o", callback_data: `bqa_dlvadd_video_${itemId}` }, { text: "\u{1F4C4} Document", callback_data: `bqa_dlvadd_doc_${itemId}` }],
+      [{ text: "\u{1F3B5} Audio", callback_data: `bqa_dlvadd_audio_${itemId}` }, { text: "\u{1F39E}\uFE0F GIF/Animation", callback_data: `bqa_dlvadd_anim_${itemId}` }],
+      [{ text: "\u274C Annuler", callback_data: `bqa_edit_delivery_${itemId}` }]
     ] };
   }
   async function sendSingleDelivery(chatId, dlv) {
@@ -112160,7 +112214,8 @@ G\xE9rez les articles de ce dossier :`,
           const item = await getItemById(itemId);
           if (!item) return;
           const price = parseFloat(item.price);
-          const deliveryLabel = item.deliveryType ? { text: "\u{1F4DD} Texte", photo: "\u{1F5BC}\uFE0F Photo", video: "\u{1F3A5} Vid\xE9o", document: "\u{1F4C4} Document", audio: "\u{1F3B5} Audio", animation: "\u{1F39E}\uFE0F GIF" }[item.deliveryType] ?? item.deliveryType : "\u274C Aucune (manuelle)";
+          const deliveryLabels = { text: "\u{1F4DD} Texte", photo: "\u{1F5BC}\uFE0F Photo", video: "\u{1F3A5} Vid\xE9o", document: "\u{1F4C4} Document", audio: "\u{1F3B5} Audio", animation: "\u{1F39E}\uFE0F GIF" };
+          const deliveryLabel = item.deliveryType ? deliveryLabels[item.deliveryType] ?? item.deliveryType : "\u274C Aucune (manuelle)";
           const adminPhotoIds = parsePhotoIds(item.photoFileId);
           const infoText = `\u{1F4E6} *${item.name}*
 
@@ -112223,7 +112278,7 @@ _Aucune livraison automatique configur\xE9e._${legacyNote}`;
           ] });
           return;
         }
-        if (data.startsWith("bqa_dlvadd_") && isAdmin(userId)) {
+        if (/^bqa_dlvadd_\d+$/.test(data) && isAdmin(userId)) {
           const itemId = parseInt(data.replace("bqa_dlvadd_", ""));
           if (isNaN(itemId)) return;
           const item = await getItemById(itemId);
@@ -112477,6 +112532,38 @@ Que souhaitez-vous envoyer automatiquement \xE0 l'acheteur apr\xE8s son achat ?`
           await bot.sendMessage(chatId, `\u2705 *${editState.photoFileIds.length} photo(s)* vitrine enregistr\xE9e(s) pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(itemId, editState.catId) });
           return;
         }
+        if (data.startsWith("bqa_dlv_done_") && isAdmin(userId)) {
+          const catId = parseInt(data.replace("bqa_dlv_done_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_delivery") return;
+          const { name, desc: desc2, price, photoFileIds, deliveries } = bqState;
+          pendingBqaAdmin.delete(userId);
+          const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: null });
+          for (const dlv of deliveries) {
+            await createDelivery({ itemId: item.id, type: dlv.type, fileId: dlv.fileId ?? null, content: dlv.content ?? null });
+          }
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* (${deliveries.length} \xE9l\xE9ment(s) de livraison)
+
+\u{1F4C1} *${cat?.name ?? "Dossier"}* \u2014 ${items.length} article(s)`, bqaCatKeyboard(items, catId, cat?.parent ?? "formations"));
+          return;
+        }
+        if (data.startsWith("bqa_dlv_more_") && isAdmin(userId)) {
+          const catId = parseInt(data.replace("bqa_dlv_more_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_delivery") return;
+          await bot.sendMessage(
+            chatId,
+            `\u2795 *Ajouter un autre \xE9l\xE9ment* (${bqState.deliveries.length} d\xE9j\xE0 ajout\xE9(s))
+
+Quel type d'\xE9l\xE9ment souhaitez-vous ajouter ?`,
+            { parse_mode: "Markdown", reply_markup: deliveryTypeKb(`bqa_cat_${catId}`) }
+          );
+          return;
+        }
         if (data.startsWith("bqa_dlv_") && isAdmin(userId)) {
           const bqState = pendingBqaAdmin.get(userId);
           if (!bqState || bqState.step !== "item_delivery") return;
@@ -112491,10 +112578,15 @@ Que souhaitez-vous envoyer automatiquement \xE0 l'acheteur apr\xE8s son achat ?`
           };
           if (data === "bqa_dlv_skip") {
             pendingBqaAdmin.delete(userId);
+            const accumulated = bqState.deliveries ?? [];
             const item = await createItem({ categoryId: catId, name, description: desc2, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: null });
+            for (const dlv of accumulated) {
+              await createDelivery({ itemId: item.id, type: dlv.type, fileId: dlv.fileId ?? null, content: dlv.content ?? null });
+            }
             const cat = await getCategoryById(catId);
             const items = await getItemsByCategory(catId);
-            await sendMenu(chatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* (livraison manuelle)
+            const suffix = accumulated.length > 0 ? `${accumulated.length} \xE9l\xE9ment(s) de livraison` : "livraison manuelle";
+            await sendMenu(chatId, `\u2705 *Article "${item.name}" cr\xE9\xE9 !* (${suffix})
 
 \u{1F4C1} *${cat?.name ?? "Dossier"}* \u2014 ${items.length} article(s)`, bqaCatKeyboard(items, catId, cat?.parent ?? "formations"));
             return;
@@ -114187,6 +114279,13 @@ Envoie d'autres photos ou clique "\u2705 Termin\xE9".`,
           await bot.sendMessage(senderChatId, `\u2705 Livraison \u{1F5BC}\uFE0F Photo mise \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "photo") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "photo", fileId: photoFileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `\u2705 \xC9l\xE9ment \u{1F5BC}\uFE0F Photo ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
     if (isAdmin(senderUserId) && msg.video) {
@@ -114215,6 +114314,13 @@ Ajoute un autre \xE9l\xE9ment ou termine.`,
           await updateItem(editState.itemId, { deliveryType: "video", deliveryFileId: fileId, deliveryCaption: caption });
           const item = await getItemById(editState.itemId);
           await bot.sendMessage(senderChatId, `\u2705 Livraison \u{1F3A5} Vid\xE9o mise \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "video") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "video", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `\u2705 \xC9l\xE9ment \u{1F3A5} Vid\xE9o ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
       }
@@ -114247,6 +114353,13 @@ Ajoute un autre \xE9l\xE9ment ou termine.`,
           await bot.sendMessage(senderChatId, `\u2705 Livraison \u{1F4C4} Document mis \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "document") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "document", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `\u2705 \xC9l\xE9ment \u{1F4C4} Document ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
     if (isAdmin(senderUserId) && msg.audio) {
@@ -114277,6 +114390,13 @@ Ajoute un autre \xE9l\xE9ment ou termine.`,
           await bot.sendMessage(senderChatId, `\u2705 Livraison \u{1F3B5} Audio mis \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "audio") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "audio", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `\u2705 \xC9l\xE9ment \u{1F3B5} Audio ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
     if (isAdmin(senderUserId) && msg.animation) {
@@ -114305,6 +114425,13 @@ Ajoute un autre \xE9l\xE9ment ou termine.`,
           await updateItem(editState.itemId, { deliveryType: "animation", deliveryFileId: fileId, deliveryCaption: caption });
           const item = await getItemById(editState.itemId);
           await bot.sendMessage(senderChatId, `\u2705 Livraison \u{1F39E}\uFE0F GIF mis \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "animation") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "animation", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `\u2705 \xC9l\xE9ment \u{1F39E}\uFE0F GIF ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
       }
@@ -114843,6 +114970,13 @@ Ajoute un autre \xE9l\xE9ment ou termine la cr\xE9ation.`,
         await updateItem(editState.itemId, { deliveryType: "text", deliveryFileId: null, deliveryCaption: text2.trim() });
         const item = await getItemById(editState.itemId);
         await bot.sendMessage(chatId, `\u2705 Livraison \u{1F4DD} Texte mise \xE0 jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+        return;
+      }
+      if (editState.step === "delivery_add_content" && editState.deliveryType === "text") {
+        pendingBqaEdit.delete(userId);
+        await createDelivery({ itemId: editState.itemId, type: "text", fileId: null, content: text2.trim() });
+        const item = await getItemById(editState.itemId);
+        await bot.sendMessage(chatId, `\u2705 \xC9l\xE9ment \u{1F4DD} Texte ajout\xE9 \xE0 *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
         return;
       }
       return;

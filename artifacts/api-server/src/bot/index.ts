@@ -522,6 +522,45 @@ export function startBot(expressApp?: Application): TelegramBot {
     logger.info("Telegram bot démarré en mode WEBHOOK (production 24/7)");
   }
 
+  // ── Filet de sécurité Markdown ────────────────────────────────────────────
+  // Si un texte (ex: nom/description d'article saisi par un admin) contient des
+  // caractères Markdown non fermés (* _ ` [ ]), Telegram renvoie une erreur
+  // "can't parse entities" et le message n'est pas envoyé. On intercepte cette
+  // erreur et on renvoie automatiquement le message en texte brut (sans parse_mode).
+  function isParseEntitiesError(err: unknown): boolean {
+    const msg = (err as { message?: string })?.message ?? String(err);
+    return msg.includes("can't parse entities") || msg.includes("can't find end of the entity");
+  }
+  function stripParseMode<T extends Record<string, unknown> | undefined>(opts: T): T {
+    if (!opts) return opts;
+    const clone = { ...opts } as Record<string, unknown>;
+    delete clone["parse_mode"];
+    return clone as T;
+  }
+  for (const method of ["sendMessage", "sendPhoto", "sendDocument", "sendVideo", "sendAudio", "sendAnimation", "editMessageText", "editMessageCaption"] as const) {
+    const original = (bot as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method].bind(bot);
+    (bot as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[method] = async (...args: unknown[]) => {
+      try {
+        return await original(...args);
+      } catch (err) {
+        if (!isParseEntitiesError(err)) throw err;
+        // On cherche l'argument d'options contenant parse_mode (généralement le
+        // dernier, mais sendPhoto/sendDocument/... peuvent avoir un fileOptions
+        // après l'objet d'options).
+        const optsIdx = args.findIndex(
+          (a) => a && typeof a === "object" && "parse_mode" in (a as Record<string, unknown>),
+        );
+        if (optsIdx !== -1) {
+          const retryArgs = [...args];
+          retryArgs[optsIdx] = stripParseMode(args[optsIdx] as Record<string, unknown>);
+          logger.warn({ method }, "Markdown invalide — renvoi du message en texte brut");
+          return await original(...retryArgs);
+        }
+        throw err;
+      }
+    };
+  }
+
   // ── Déduplication des updates Telegram ────────────────────────────────────
   // Évite qu'un même message ou callback soit traité deux fois
   const processedKeys = new Set<string>();
@@ -587,6 +626,25 @@ export function startBot(expressApp?: Application): TelegramBot {
       [{ text: "🎵 Audio", callback_data: `bqa_dlvedit_audio_${itemId}` }, { text: "🎞️ GIF", callback_data: `bqa_dlvedit_anim_${itemId}` }],
       [{ text: "🗑️ Supprimer la livraison", callback_data: `bqa_dlvedit_none_${itemId}` }],
       [{ text: "❌ Annuler", callback_data: cancelCb }],
+    ]};
+  }
+
+  // Clavier affiché après l'ajout d'un élément lors de la création (multi-livraison)
+  function deliveryMoreKb(catId: number, count: number, cancelCb: string): TelegramBot.InlineKeyboardMarkup {
+    return { inline_keyboard: [
+      [{ text: "➕ Ajouter un autre élément", callback_data: `bqa_dlv_more_${catId}` }],
+      [{ text: `✅ Terminer (${count} élément${count > 1 ? "s" : ""})`, callback_data: `bqa_dlv_done_${catId}` }],
+      [{ text: "❌ Annuler", callback_data: cancelCb }],
+    ]};
+  }
+
+  // Clavier de choix du type lors de l'ajout d'un élément à un article existant
+  function deliveryTypeAddKb(itemId: number): TelegramBot.InlineKeyboardMarkup {
+    return { inline_keyboard: [
+      [{ text: "📝 Texte/Message", callback_data: `bqa_dlvadd_text_${itemId}` }, { text: "🖼️ Photo", callback_data: `bqa_dlvadd_photo_${itemId}` }],
+      [{ text: "🎥 Vidéo", callback_data: `bqa_dlvadd_video_${itemId}` }, { text: "📄 Document", callback_data: `bqa_dlvadd_doc_${itemId}` }],
+      [{ text: "🎵 Audio", callback_data: `bqa_dlvadd_audio_${itemId}` }, { text: "🎞️ GIF/Animation", callback_data: `bqa_dlvadd_anim_${itemId}` }],
+      [{ text: "❌ Annuler", callback_data: `bqa_edit_delivery_${itemId}` }],
     ]};
   }
 
@@ -2835,8 +2893,9 @@ export function startBot(expressApp?: Application): TelegramBot {
           const item = await getItemById(itemId);
           if (!item) return;
           const price = parseFloat(item.price);
+          const deliveryLabels: Record<string, string> = { text: "📝 Texte", photo: "🖼️ Photo", video: "🎥 Vidéo", document: "📄 Document", audio: "🎵 Audio", animation: "🎞️ GIF" };
           const deliveryLabel = item.deliveryType
-            ? { text: "📝 Texte", photo: "🖼️ Photo", video: "🎥 Vidéo", document: "📄 Document", audio: "🎵 Audio", animation: "🎞️ GIF" }[item.deliveryType] ?? item.deliveryType
+            ? deliveryLabels[item.deliveryType] ?? item.deliveryType
             : "❌ Aucune (manuelle)";
           const adminPhotoIds = parsePhotoIds(item.photoFileId);
           const infoText =
@@ -2901,7 +2960,7 @@ export function startBot(expressApp?: Application): TelegramBot {
             return;
           }
 
-          if (data.startsWith("bqa_dlvadd_") && isAdmin(userId)) {
+          if (/^bqa_dlvadd_\d+$/.test(data) && isAdmin(userId)) {
             const itemId = parseInt(data.replace("bqa_dlvadd_", ""));
             if (isNaN(itemId)) return;
             const item = await getItemById(itemId);
@@ -3128,6 +3187,37 @@ export function startBot(expressApp?: Application): TelegramBot {
           return;
         }
 
+        // ── Boutique Admin : finaliser la création (multi-livraison) ───────
+        if (data.startsWith("bqa_dlv_done_") && isAdmin(userId)) {
+          const catId = parseInt(data.replace("bqa_dlv_done_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_delivery") return;
+          const { name, desc, price, photoFileIds, deliveries } = bqState;
+          pendingBqaAdmin.delete(userId);
+          const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: null });
+          for (const dlv of deliveries) {
+            await createDelivery({ itemId: item.id, type: dlv.type, fileId: dlv.fileId ?? null, content: dlv.content ?? null });
+          }
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId, `✅ *Article "${item.name}" créé !* (${deliveries.length} élément(s) de livraison)\n\n📁 *${cat?.name ?? "Dossier"}* — ${items.length} article(s)`, bqaCatKeyboard(items, catId, cat?.parent ?? "formations"));
+          return;
+        }
+
+        // ── Boutique Admin : ajouter un autre élément à la création ─────────
+        if (data.startsWith("bqa_dlv_more_") && isAdmin(userId)) {
+          const catId = parseInt(data.replace("bqa_dlv_more_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_delivery") return;
+          await bot.sendMessage(chatId,
+            `➕ *Ajouter un autre élément* (${bqState.deliveries.length} déjà ajouté(s))\n\nQuel type d'élément souhaitez-vous ajouter ?`,
+            { parse_mode: "Markdown", reply_markup: deliveryTypeKb(`bqa_cat_${catId}`) }
+          );
+          return;
+        }
+
         // ── Boutique Admin : sélection type de livraison (création) ────────
         if (data.startsWith("bqa_dlv_") && isAdmin(userId)) {
           const bqState = pendingBqaAdmin.get(userId);
@@ -3139,10 +3229,15 @@ export function startBot(expressApp?: Application): TelegramBot {
           };
           if (data === "bqa_dlv_skip") {
             pendingBqaAdmin.delete(userId);
+            const accumulated = bqState.deliveries ?? [];
             const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId: serializePhotoIds(photoFileIds), deliveryType: null });
+            for (const dlv of accumulated) {
+              await createDelivery({ itemId: item.id, type: dlv.type, fileId: dlv.fileId ?? null, content: dlv.content ?? null });
+            }
             const cat = await getCategoryById(catId);
             const items = await getItemsByCategory(catId);
-            await sendMenu(chatId, `✅ *Article "${item.name}" créé !* (livraison manuelle)\n\n📁 *${cat?.name ?? "Dossier"}* — ${items.length} article(s)`, bqaCatKeyboard(items, catId, cat?.parent ?? "formations"));
+            const suffix = accumulated.length > 0 ? `${accumulated.length} élément(s) de livraison` : "livraison manuelle";
+            await sendMenu(chatId, `✅ *Article "${item.name}" créé !* (${suffix})\n\n📁 *${cat?.name ?? "Dossier"}* — ${items.length} article(s)`, bqaCatKeyboard(items, catId, cat?.parent ?? "formations"));
             return;
           }
           const deliveryType = typeMap[data];
@@ -4701,6 +4796,13 @@ export function startBot(expressApp?: Application): TelegramBot {
           await bot.sendMessage(senderChatId, `✅ Livraison 🖼️ Photo mise à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "photo") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "photo", fileId: photoFileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `✅ Élément 🖼️ Photo ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
 
@@ -4728,6 +4830,13 @@ export function startBot(expressApp?: Application): TelegramBot {
           await updateItem(editState.itemId, { deliveryType: "video", deliveryFileId: fileId, deliveryCaption: caption });
           const item = await getItemById(editState.itemId);
           await bot.sendMessage(senderChatId, `✅ Livraison 🎥 Vidéo mise à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "video") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "video", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `✅ Élément 🎥 Vidéo ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
       }
@@ -4759,6 +4868,13 @@ export function startBot(expressApp?: Application): TelegramBot {
           await bot.sendMessage(senderChatId, `✅ Livraison 📄 Document mis à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "document") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "document", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `✅ Élément 📄 Document ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
 
@@ -4788,6 +4904,13 @@ export function startBot(expressApp?: Application): TelegramBot {
           await bot.sendMessage(senderChatId, `✅ Livraison 🎵 Audio mis à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "audio") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "audio", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `✅ Élément 🎵 Audio ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
       }
     }
 
@@ -4815,6 +4938,13 @@ export function startBot(expressApp?: Application): TelegramBot {
           await updateItem(editState.itemId, { deliveryType: "animation", deliveryFileId: fileId, deliveryCaption: caption });
           const item = await getItemById(editState.itemId);
           await bot.sendMessage(senderChatId, `✅ Livraison 🎞️ GIF mis à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+          return;
+        }
+        if (editState.step === "delivery_add_content" && editState.deliveryType === "animation") {
+          pendingBqaEdit.delete(senderUserId);
+          await createDelivery({ itemId: editState.itemId, type: "animation", fileId, content: caption });
+          const item = await getItemById(editState.itemId);
+          await bot.sendMessage(senderChatId, `✅ Élément 🎞️ GIF ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
           return;
         }
       }
@@ -5295,6 +5425,13 @@ export function startBot(expressApp?: Application): TelegramBot {
         await updateItem(editState.itemId, { deliveryType: "text", deliveryFileId: null, deliveryCaption: text.trim() });
         const item = await getItemById(editState.itemId);
         await bot.sendMessage(chatId, `✅ Livraison 📝 Texte mise à jour pour *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
+        return;
+      }
+      if (editState.step === "delivery_add_content" && editState.deliveryType === "text") {
+        pendingBqaEdit.delete(userId);
+        await createDelivery({ itemId: editState.itemId, type: "text", fileId: null, content: text.trim() });
+        const item = await getItemById(editState.itemId);
+        await bot.sendMessage(chatId, `✅ Élément 📝 Texte ajouté à *${item?.name}*.`, { parse_mode: "Markdown", reply_markup: bqaItemDetailKeyboard(editState.itemId, editState.catId) });
         return;
       }
       return;

@@ -40,3 +40,14 @@ GRANT USAGE, SELECT ON SEQUENCE boutique_item_deliveries_id_seq TO nexoshop;
 ## Important
 - Ne PAS utiliser `delivery_data TEXT` sur boutique_items (décision abandonnée en faveur de la table séparée)
 - Build: esbuild (pas de type checking) → toujours vérifier les replace() silencieux
+
+## Piège : ordre des handlers callback (collision de préfixes)
+- Les handlers Telegram `callback_query` sont des `if` séquentiels avec `startsWith`. Un préfixe court avale les longs s'il est testé en premier.
+- `bqa_dlvadd_` (générique, ouvre le menu type) DOIT utiliser `/^bqa_dlvadd_\d+$/` sinon il intercepte `bqa_dlvadd_text_`, `_photo_`, etc.
+- `bqa_dlv_done_<catId>` et `bqa_dlv_more_<catId>` DOIVENT être placés AVANT le `startsWith("bqa_dlv_")` générique.
+- **Why:** esbuild ne typecheck pas (`build.mjs`) → un build vert masque ces bugs runtime + fonctions kb manquantes. Toujours `pnpm run typecheck` avant de déployer.
+
+## Deux états distincts pour le contenu de livraison
+- `delivery_content` (pendingBqaEdit) = REMPLACE l'unique livraison legacy via `updateItem` (ancien système 1 type).
+- `delivery_add_content` (pendingBqaEdit) = AJOUTE une ligne via `createDelivery` (item existant, multi-éléments).
+- Chaque type média (text/photo/video/document/audio/animation) doit gérer les DEUX étapes, sinon l'admin reste bloqué après avoir choisi le type.
