@@ -68,6 +68,9 @@ export async function createItem(data: {
   description: string;
   price: number;
   photoFileId?: string;
+  deliveryType?: string | null;
+  deliveryFileId?: string | null;
+  deliveryCaption?: string | null;
 }): Promise<BoutiqueItem> {
   const [row] = await db
     .insert(boutiqueItemsTable)
@@ -77,9 +80,37 @@ export async function createItem(data: {
       description: data.description,
       price: data.price.toFixed(2),
       photoFileId: data.photoFileId ?? null,
+      deliveryType: data.deliveryType ?? null,
+      deliveryFileId: data.deliveryFileId ?? null,
+      deliveryCaption: data.deliveryCaption ?? null,
     })
     .returning();
   return row!;
+}
+
+export async function updateItem(id: number, data: Partial<{
+  name: string;
+  description: string;
+  price: number;
+  photoFileId: string | null;
+  deliveryType: string | null;
+  deliveryFileId: string | null;
+  deliveryCaption: string | null;
+}>): Promise<BoutiqueItem | null> {
+  const updateData: Record<string, unknown> = {};
+  if (data.name !== undefined) updateData["name"] = data.name;
+  if (data.description !== undefined) updateData["description"] = data.description;
+  if (data.price !== undefined) updateData["price"] = data.price.toFixed(2);
+  if ("photoFileId" in data) updateData["photoFileId"] = data.photoFileId;
+  if ("deliveryType" in data) updateData["deliveryType"] = data.deliveryType;
+  if ("deliveryFileId" in data) updateData["deliveryFileId"] = data.deliveryFileId;
+  if ("deliveryCaption" in data) updateData["deliveryCaption"] = data.deliveryCaption;
+  const [row] = await db
+    .update(boutiqueItemsTable)
+    .set(updateData)
+    .where(eq(boutiqueItemsTable.id, id))
+    .returning();
+  return row ?? null;
 }
 
 export async function deleteItem(id: number): Promise<void> {

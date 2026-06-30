@@ -16,6 +16,9 @@ export const boutiqueItemsTable = pgTable("boutique_items", {
   photoFileId: text("photo_file_id"),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deliveryType: text("delivery_type"),      // "text"|"photo"|"video"|"document"|"audio"|"animation"|null
+  deliveryFileId: text("delivery_file_id"), // file_id Telegram pour les médias
+  deliveryCaption: text("delivery_caption"),// texte du message ou légende du média
 });
 
 export type BoutiqueCategory = typeof boutiqueCategoriesTable.$inferSelect;

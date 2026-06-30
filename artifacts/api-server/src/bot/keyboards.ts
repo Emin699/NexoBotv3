@@ -464,6 +464,15 @@ export function bqaItemDetailKeyboard(
 ): TelegramBot.InlineKeyboardMarkup {
   return {
     inline_keyboard: [
+      [
+        { text: "✏️ Nom", callback_data: `bqa_edit_name_${itemId}` },
+        { text: "📝 Description", callback_data: `bqa_edit_desc_${itemId}` },
+      ],
+      [
+        { text: "💰 Prix", callback_data: `bqa_edit_price_${itemId}` },
+        { text: "🖼️ Photo vitrine", callback_data: `bqa_edit_photo_${itemId}` },
+      ],
+      [{ text: "📦 Contenu livraison", callback_data: `bqa_edit_delivery_${itemId}` }],
       [{ text: "🗑️ Supprimer cet article", callback_data: `bqa_delitem_${itemId}` }],
       [{ text: "⬅️ Retour au dossier", callback_data: `bqa_cat_${catId}` }],
     ],
