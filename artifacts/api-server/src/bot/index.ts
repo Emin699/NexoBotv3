@@ -19,8 +19,24 @@ import {
 } from "./db";
 import { WHEEL_PRIZES, spinWheel, getMilestonesInRange, type WheelPrize } from "./minigames";
 import {
+  getCategoriesByParent, getCategoryById, createCategory, deleteCategory,
+  getItemsByCategory, getItemById, createItem, deleteItem,
+  getTopLevel, TOP_LEVEL,
+} from "./boutique-db";
+import {
   mainMenuKeyboard,
   achatMenuKeyboard,
+  boutiqueMainKeyboard,
+  boutiqueSubcatsKeyboard,
+  boutiqueCatKeyboard,
+  boutiqueItemKeyboard,
+  boutiqueItemBuyConfirmKeyboard,
+  bqaMainKeyboard,
+  bqaSubcatsKeyboard,
+  bqaCatKeyboard,
+  bqaItemDetailKeyboard,
+  bqaDelCatConfirmKeyboard,
+  bqaDelItemConfirmKeyboard,
   paymentMenuKeyboard,
   paymentAmountKeyboard,
   supportMenuKeyboard,
@@ -174,6 +190,15 @@ type SuggestionType = "suggestion" | "bug";
 const pendingSuggestion = new Map<number, { type: SuggestionType }>();
 
 const pendingNewOrders = new Map<string, { userId: number; subLabel: string; emoji: string }>();
+
+// ── Boutique admin — flow de création ──────────────────────────────────────
+type BqaStep =
+  | { step: "cat_name"; parent: string }
+  | { step: "item_name"; catId: number }
+  | { step: "item_desc"; catId: number; name: string }
+  | { step: "item_price"; catId: number; name: string; desc: string }
+  | { step: "item_photo"; catId: number; name: string; desc: string; price: number };
+const pendingBqaAdmin = new Map<number, BqaStep>();
 
 // userId → en attente d'envoi de screenshot PayPal
 const pendingPaypalProof = new Map<number, { amount: number; reference: string; expiresAt: number }>();
@@ -1461,6 +1486,18 @@ export function startBot(expressApp?: Application): TelegramBot {
     }
   });
 
+  // /categorieadmin  (admin) — gérer la boutique (catégories + articles)
+  bot.onText(/\/categorieadmin/, async (msg) => {
+    const chatId = msg.chat.id;
+    if (!isAdmin(msg.from!.id)) { await bot.sendMessage(chatId, "❌ Accès refusé."); return; }
+    pendingBqaAdmin.delete(msg.from!.id);
+    await bot.sendMessage(
+      chatId,
+      `🏪 *Gestion de la Boutique*\n\nChoisissez une catégorie principale à gérer :`,
+      { parse_mode: "Markdown", reply_markup: bqaMainKeyboard() }
+    );
+  });
+
   // /adminmenu  (admin) — panneau d'administration complet
   bot.onText(/\/adminmenu/, async (msg) => {
     const chatId = msg.chat.id;
@@ -2457,19 +2494,314 @@ export function startBot(expressApp?: Application): TelegramBot {
       }
 
       // ── Achat ──────────────────────────────────────────────────
-      if (data === "menu_achat") {
-        const ACHAT_IMAGE_PATH = `${PUBLIC_PATH}/achat.jpg`;
+      if (data === "menu_achat" || data === "bq_main") {
         await deleteOldMenu(chatId);
         try {
-          const sent = await bot.sendPhoto(chatId, createReadStream(ACHAT_IMAGE_PATH), {
-            caption: "🛒 *Menu Achat — Que souhaitez-vous ?*",
+          const sent = await bot.sendPhoto(chatId, createReadStream(`${PUBLIC_PATH}/achat.jpg`), {
+            caption: "🏪 *Boutique NexoShop*\n\nChoisissez une catégorie :",
             parse_mode: "Markdown",
-            reply_markup: achatMenuKeyboard(),
+            reply_markup: boutiqueMainKeyboard(),
           });
           userMenuMsg.set(chatId, sent.message_id);
         } catch {
-          await sendMenu(chatId, "🛒 *Menu Achat — Que souhaitez-vous ?*", achatMenuKeyboard());
+          await sendMenu(chatId, "🏪 *Boutique NexoShop*\n\nChoisissez une catégorie :", boutiqueMainKeyboard());
         }
+        return;
+      }
+
+      // ── Boutique : top-level (sous-dossiers) ───────────────────
+      if (data.startsWith("bq_top_")) {
+        const parent = data.replace("bq_top_", "");
+        const top = getTopLevel(parent);
+        if (!top) return;
+        const cats = await getCategoriesByParent(parent);
+        await sendMenu(
+          chatId,
+          `${top.emoji} *${top.label}*\n\nChoisissez un dossier :`,
+          boutiqueSubcatsKeyboard(cats, parent)
+        );
+        return;
+      }
+
+      // ── Boutique : articles d'un sous-dossier ──────────────────
+      if (data.startsWith("bq_cat_") && !data.startsWith("bq_cat_cnf_")) {
+        const catId = parseInt(data.replace("bq_cat_", ""));
+        if (isNaN(catId)) return;
+        const cat = await getCategoryById(catId);
+        if (!cat) return;
+        const items = await getItemsByCategory(catId);
+        const activeItems = items.filter((i) => i.active);
+        await sendMenu(
+          chatId,
+          `📁 *${cat.name}*\n\n${activeItems.length === 0 ? "Aucun article disponible pour l'instant." : "Sélectionnez un article :"}`,
+          boutiqueCatKeyboard(activeItems, catId, cat.parent)
+        );
+        return;
+      }
+
+      // ── Boutique : fiche article ────────────────────────────────
+      if (data.startsWith("bq_item_")) {
+        const itemId = parseInt(data.replace("bq_item_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const cat = await getCategoryById(item.categoryId);
+        if (!cat) return;
+        const balance = await getBalance(userId);
+        const price = parseFloat(item.price);
+        const caption =
+          `📦 *${item.name}*\n\n` +
+          `${item.description}\n\n` +
+          `💰 Prix : *${price.toFixed(2)}€*\n` +
+          `👛 Votre solde : *${balance.toFixed(2)}€*`;
+        await deleteOldMenu(chatId);
+        if (item.photoFileId) {
+          try {
+            const sent = await bot.sendPhoto(chatId, item.photoFileId, {
+              caption, parse_mode: "Markdown",
+              reply_markup: boutiqueItemKeyboard(item.id, cat.id, cat.parent),
+            });
+            userMenuMsg.set(chatId, sent.message_id);
+          } catch {
+            await sendMenu(chatId, caption, boutiqueItemKeyboard(item.id, cat.id, cat.parent));
+          }
+        } else {
+          await sendMenu(chatId, caption, boutiqueItemKeyboard(item.id, cat.id, cat.parent));
+        }
+        return;
+      }
+
+      // ── Boutique : demande de confirmation achat ────────────────
+      if (data.startsWith("bq_buy_") && !data.startsWith("bq_buy_cnf_")) {
+        const itemId = parseInt(data.replace("bq_buy_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const price = parseFloat(item.price);
+        const balance = await getBalance(userId);
+        if (balance < price) {
+          await sendMenu(chatId,
+            `❌ *Solde insuffisant*\n\nPrix : *${price.toFixed(2)}€*\nVotre solde : *${balance.toFixed(2)}€*\nIl vous manque : *${(price - balance).toFixed(2)}€*`,
+            { inline_keyboard: [
+              [{ text: "💳 Recharger mon solde", callback_data: "menu_payment" }],
+              [{ text: "⬅️ Retour", callback_data: `bq_item_${itemId}` }],
+            ]}
+          );
+          return;
+        }
+        await sendMenu(chatId,
+          `🛒 *Confirmation d'achat*\n\n📦 *${item.name}*\n💰 Prix : *${price.toFixed(2)}€*\n👛 Solde après achat : *${(balance - price).toFixed(2)}€*\n\nConfirmez-vous cet achat ?`,
+          boutiqueItemBuyConfirmKeyboard(item.id, item.categoryId)
+        );
+        return;
+      }
+
+      // ── Boutique : traitement achat ─────────────────────────────
+      if (data.startsWith("bq_buy_cnf_")) {
+        const itemId = parseInt(data.replace("bq_buy_cnf_", ""));
+        if (isNaN(itemId)) return;
+        const item = await getItemById(itemId);
+        if (!item) return;
+        const price = parseFloat(item.price);
+        const balance = await getBalance(userId);
+        if (balance < price) {
+          await sendMenu(chatId, `❌ *Solde insuffisant.* Veuillez recharger votre compte.`,
+            { inline_keyboard: [[{ text: "💳 Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const orderId = generateOrderId();
+        const deducted = await deductBalance(userId, price, `Achat boutique : ${item.name} #${orderId}`);
+        if (!deducted) {
+          await sendMenu(chatId, `❌ *Solde insuffisant.* Veuillez recharger votre compte.`,
+            { inline_keyboard: [[{ text: "💳 Recharger", callback_data: "menu_payment" }]] }
+          );
+          return;
+        }
+        const newBalance = await getBalance(userId);
+        await addLoyaltyPoints(userId, Math.floor(price));
+        await onPurchaseComplete(userId);
+        const user = await getOrCreateUser(userId, query.from.username, query.from.first_name, query.from.last_name);
+        await deleteOldMenu(chatId);
+        await sendReceipt(chatId,
+          `✅ *Achat confirmé !*\n\n📦 *${item.name}*\n🧾 Commande n° *#${orderId}*\n💰 Solde restant : *${newBalance.toFixed(2)}€*\n\n📸 *Faites un screen de ce message* et contactez le support pour recevoir votre produit.`,
+          { inline_keyboard: [
+            [{ text: "💬 Contacter le support", url: SUPPORT_URL }],
+            [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+          ]}
+        );
+        sendDiscordLog("🛒 Achat Boutique", `Un utilisateur a acheté un article boutique.`, "green", [
+          { name: "User ID", value: `\`${userId}\``, inline: true },
+          { name: "Username", value: user?.username ? `@${user.username}` : "—", inline: true },
+          { name: "Article", value: item.name, inline: true },
+          { name: "Prix", value: `${price}€`, inline: true },
+          { name: "Commande", value: `#${orderId}`, inline: true },
+          { name: "Solde restant", value: `${newBalance.toFixed(2)}€`, inline: true },
+        ], "orders").catch(() => {});
+        return;
+      }
+
+      // ── Boutique Admin : callbacks bqa_* ────────────────────────
+      if (data.startsWith("bqa_") && isAdmin(userId)) {
+
+        if (data === "bqa_main") {
+          pendingBqaAdmin.delete(userId);
+          await sendMenu(chatId, `🏪 *Gestion de la Boutique*\n\nChoisissez une catégorie principale :`, bqaMainKeyboard());
+          return;
+        }
+
+        if (data.startsWith("bqa_top_")) {
+          pendingBqaAdmin.delete(userId);
+          const parent = data.replace("bqa_top_", "");
+          const top = getTopLevel(parent);
+          if (!top) return;
+          const cats = await getCategoriesByParent(parent);
+          await sendMenu(chatId,
+            `${top.emoji} *${top.label}* — Dossiers (${cats.length})\n\nGérez les dossiers de cette catégorie :`,
+            bqaSubcatsKeyboard(cats, parent)
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_cat_") && !data.startsWith("bqa_cat_cnf_")) {
+          pendingBqaAdmin.delete(userId);
+          const catId = parseInt(data.replace("bqa_cat_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId,
+            `📁 *${cat.name}* — Articles (${items.length})\n\nGérez les articles de ce dossier :`,
+            bqaCatKeyboard(items, catId, cat.parent)
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_item_") && !data.startsWith("bqa_item_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_item_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          const price = parseFloat(item.price);
+          const infoText =
+            `📦 *${item.name}*\n\n` +
+            `📝 ${item.description}\n\n` +
+            `💰 Prix : *${price.toFixed(2)}€*\n` +
+            `🖼️ Photo : ${item.photoFileId ? "✅ Oui" : "❌ Non"}`;
+          if (item.photoFileId) {
+            try {
+              await bot.sendPhoto(chatId, item.photoFileId, {
+                caption: infoText, parse_mode: "Markdown",
+                reply_markup: bqaItemDetailKeyboard(item.id, item.categoryId),
+              });
+            } catch {
+              await sendMenu(chatId, infoText, bqaItemDetailKeyboard(item.id, item.categoryId));
+            }
+          } else {
+            await sendMenu(chatId, infoText, bqaItemDetailKeyboard(item.id, item.categoryId));
+          }
+          return;
+        }
+
+        if (data.startsWith("bqa_newcat_")) {
+          const parent = data.replace("bqa_newcat_", "");
+          const top = getTopLevel(parent);
+          if (!top) return;
+          pendingBqaAdmin.set(userId, { step: "cat_name", parent });
+          await bot.sendMessage(chatId,
+            `📁 *Nouveau dossier dans ${top.emoji} ${top.label}*\n\nComment s'appelle ce dossier ?\n\n_Exemple : Business, Design, Marketing..._`,
+            { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_top_${parent}` }]] } }
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_delcat_") && !data.startsWith("bqa_delcat_cnf_")) {
+          const catId = parseInt(data.replace("bqa_delcat_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId,
+            `⚠️ *Supprimer le dossier "${cat.name}" ?*\n\nCela supprimera également *${items.length} article(s)* à l'intérieur.\n\nCette action est irréversible.`,
+            bqaDelCatConfirmKeyboard(catId, cat.parent)
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_delcat_cnf_")) {
+          const catId = parseInt(data.replace("bqa_delcat_cnf_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          const parent = cat.parent;
+          await deleteCategory(catId);
+          const cats = await getCategoriesByParent(parent);
+          const top = getTopLevel(parent)!;
+          await sendMenu(chatId,
+            `✅ *Dossier supprimé !*\n\n${top.emoji} *${top.label}* — ${cats.length} dossier(s) restant(s)`,
+            bqaSubcatsKeyboard(cats, parent)
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_newitem_")) {
+          const catId = parseInt(data.replace("bqa_newitem_", ""));
+          if (isNaN(catId)) return;
+          const cat = await getCategoryById(catId);
+          if (!cat) return;
+          pendingBqaAdmin.set(userId, { step: "item_name", catId });
+          await bot.sendMessage(chatId,
+            `📦 *Nouvel article dans "${cat.name}"*\n\n*Étape 1/4 — Nom de l'article :*\n\n_Exemple : Formation SEO Avancé_`,
+            { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_cat_${catId}` }]] } }
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_delitem_") && !data.startsWith("bqa_delitem_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_delitem_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          await sendMenu(chatId,
+            `⚠️ *Supprimer l'article "${item.name}" ?*\n\nCette action est irréversible.`,
+            bqaDelItemConfirmKeyboard(item.id, item.categoryId)
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_delitem_cnf_")) {
+          const itemId = parseInt(data.replace("bqa_delitem_cnf_", ""));
+          if (isNaN(itemId)) return;
+          const item = await getItemById(itemId);
+          if (!item) return;
+          const catId = item.categoryId;
+          await deleteItem(itemId);
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId,
+            `✅ *Article supprimé !*\n\n📁 *${cat?.name ?? "Dossier"}* — ${items.length} article(s) restant(s)`,
+            bqaCatKeyboard(items, catId, cat?.parent ?? "formations")
+          );
+          return;
+        }
+
+        if (data.startsWith("bqa_skip_photo_")) {
+          const catId = parseInt(data.replace("bqa_skip_photo_", ""));
+          if (isNaN(catId)) return;
+          const bqState = pendingBqaAdmin.get(userId);
+          if (!bqState || bqState.step !== "item_photo") return;
+          pendingBqaAdmin.delete(userId);
+          const { name, desc, price } = bqState;
+          const item = await createItem({ categoryId: catId, name, description: desc, price });
+          const cat = await getCategoryById(catId);
+          const items = await getItemsByCategory(catId);
+          await sendMenu(chatId,
+            `✅ *Article "${item.name}" créé !* (sans photo)\n\n📁 *${cat?.name ?? "Dossier"}* — ${items.length} article(s)`,
+            bqaCatKeyboard(items, catId, cat?.parent ?? "formations")
+          );
+          return;
+        }
+
         return;
       }
 
@@ -3855,6 +4187,34 @@ export function startBot(expressApp?: Application): TelegramBot {
       return;
     }
 
+    // ── Boutique Admin : réception photo pour article ────────────────────────
+    if (isAdmin(senderUserId) && msg.photo && msg.photo.length > 0 && pendingBqaAdmin.has(senderUserId)) {
+      const bqState = pendingBqaAdmin.get(senderUserId)!;
+      if (bqState.step === "item_photo") {
+        pendingBqaAdmin.delete(senderUserId);
+        const { catId, name, desc, price } = bqState;
+        const photoFileId = msg.photo[msg.photo.length - 1].file_id;
+        const item = await createItem({ categoryId: catId, name, description: desc, price, photoFileId });
+        const cat = await getCategoryById(catId);
+        await bot.sendPhoto(senderChatId, photoFileId, {
+          caption:
+            `✅ *Article créé avec succès !*\n\n` +
+            `📦 *${item.name}*\n` +
+            `📝 ${item.description}\n` +
+            `💰 Prix : *${parseFloat(item.price).toFixed(2)}€*\n` +
+            `🖼️ Photo : ✅ Oui`,
+          parse_mode: "Markdown",
+          reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations"),
+        }).catch(async () => {
+          await bot.sendMessage(senderChatId, `✅ *Article "${item.name}" créé !*`, {
+            parse_mode: "Markdown",
+            reply_markup: bqaCatKeyboard(await getItemsByCategory(catId), catId, cat?.parent ?? "formations"),
+          });
+        });
+        return;
+      }
+    }
+
     // ── Admin : saisie texte modification coupon ──────────────────────────────
     if (isAdmin(senderUserId) && pendingCouponEdit.has(senderUserId) && msg.text && !msg.text.startsWith("/")) {
       const editState = pendingCouponEdit.get(senderUserId)!;
@@ -4222,6 +4582,66 @@ export function startBot(expressApp?: Application): TelegramBot {
     const text = msg.text.trim();
 
     if (isBanned(userId)) return;
+
+    // ── Boutique Admin : flow de création texte ────────────────
+    if (isAdmin(userId) && pendingBqaAdmin.has(userId)) {
+      const bqState = pendingBqaAdmin.get(userId)!;
+
+      if (bqState.step === "cat_name") {
+        const name = text.trim();
+        pendingBqaAdmin.delete(userId);
+        const cat = await createCategory(name, bqState.parent);
+        const cats = await getCategoriesByParent(bqState.parent);
+        const top = getTopLevel(bqState.parent)!;
+        await bot.sendMessage(chatId,
+          `✅ *Dossier "${cat.name}" créé !*\n\n${top.emoji} *${top.label}* — ${cats.length} dossier(s)`,
+          { parse_mode: "Markdown", reply_markup: bqaSubcatsKeyboard(cats, bqState.parent) }
+        );
+        return;
+      }
+
+      if (bqState.step === "item_name") {
+        const name = text.trim();
+        pendingBqaAdmin.set(userId, { step: "item_desc", catId: bqState.catId, name });
+        await bot.sendMessage(chatId,
+          `📦 *Nom :* ${name}\n\n*Étape 2/4 — Description de l'article :*\n\n_Décrivez l'article en quelques lignes._`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] } }
+        );
+        return;
+      }
+
+      if (bqState.step === "item_desc") {
+        const desc = text.trim();
+        pendingBqaAdmin.set(userId, { step: "item_price", catId: bqState.catId, name: bqState.name, desc });
+        await bot.sendMessage(chatId,
+          `📦 *Nom :* ${bqState.name}\n📝 *Description :* ${desc}\n\n*Étape 3/4 — Prix (en €) :*\n\n_Exemple : 9.99_`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] } }
+        );
+        return;
+      }
+
+      if (bqState.step === "item_price") {
+        const price = parseFloat(text.trim().replace(",", "."));
+        if (isNaN(price) || price <= 0) {
+          await bot.sendMessage(chatId, `❌ *Prix invalide.* Entrez un nombre positif, ex : \`9.99\``, {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "❌ Annuler", callback_data: `bqa_cat_${bqState.catId}` }]] }
+          });
+          return;
+        }
+        pendingBqaAdmin.set(userId, { step: "item_photo", catId: bqState.catId, name: bqState.name, desc: bqState.desc, price });
+        await bot.sendMessage(chatId,
+          `📦 *Nom :* ${bqState.name}\n📝 *Desc :* ${bqState.desc}\n💰 *Prix :* ${price.toFixed(2)}€\n\n*Étape 4/4 — Photo (optionnelle) :*\n\nEnvoie une photo pour illustrer l'article, ou clique sur "Passer" pour l'ignorer.`,
+          { parse_mode: "Markdown", reply_markup: { inline_keyboard: [
+            [{ text: "⏩ Passer (sans photo)", callback_data: `bqa_skip_photo_${bqState.catId}` }],
+            [{ text: "❌ Annuler", callback_data: `bqa_cat_${bqState.catId}` }],
+          ]}}
+        );
+        return;
+      }
+
+      return;
+    }
 
     // ── Admin : collecte de liens Deezer ───────────────────────
     if (isAdmin(userId) && adminAddingDeezerLinks) {

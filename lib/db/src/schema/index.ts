@@ -7,3 +7,4 @@ export * from "./paypal_payments";
 export * from "./referrals";
 export * from "./reviews";
 export * from "./minigames";
+export * from "./boutique";

@@ -342,3 +342,159 @@ const _adminSysKb: TelegramBot.InlineKeyboardMarkup = {
 export function adminSysKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return _adminSysKb;
 }
+
+// ── Boutique — Utilisateur ───────────────────────────────────────────────────
+
+const TOP_LEVEL_BTNS = [
+  { text: "🎓 Formations",            cb: "bq_top_formations" },
+  { text: "🔧 Techniques & Astuces",  cb: "bq_top_techniques" },
+  { text: "📄 Documents & Ressources",cb: "bq_top_documents" },
+];
+
+export function boutiqueMainKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      ...TOP_LEVEL_BTNS.map((b) => [{ text: b.text, callback_data: b.cb }]),
+      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+    ],
+  };
+}
+
+export function boutiqueSubcatsKeyboard(
+  cats: { id: number; name: string }[],
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = cats.map((c) => [
+    { text: `📁 ${c.name}`, callback_data: `bq_cat_${c.id}` },
+  ]);
+  if (cats.length === 0) {
+    rows.push([{ text: "📭 Aucun dossier pour l'instant", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "⬅️ Retour Boutique", callback_data: "bq_main" }]);
+  rows.push([{ text: "🏠 Menu Principal", callback_data: "menu_main" }]);
+  return { inline_keyboard: rows };
+}
+
+export function boutiqueCatKeyboard(
+  items: { id: number; name: string; price: string }[],
+  catId: number,
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = items
+    .filter((i) => true)
+    .map((i) => [{ text: `🛒 ${i.name} — ${parseFloat(i.price).toFixed(2)}€`, callback_data: `bq_item_${i.id}` }]);
+  if (items.length === 0) {
+    rows.push([{ text: "📭 Aucun article pour l'instant", callback_data: "noop" }]);
+  }
+  rows.push([{ text: "⬅️ Retour", callback_data: `bq_top_${parent}` }]);
+  rows.push([{ text: "🏠 Menu Principal", callback_data: "menu_main" }]);
+  return { inline_keyboard: rows };
+}
+
+export function boutiqueItemKeyboard(
+  itemId: number,
+  catId: number,
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: "✅ Acheter maintenant", callback_data: `bq_buy_${itemId}` }],
+      [{ text: "⬅️ Retour", callback_data: `bq_cat_${catId}` }],
+      [{ text: "🏠 Menu Principal", callback_data: "menu_main" }],
+    ],
+  };
+}
+
+export function boutiqueItemBuyConfirmKeyboard(
+  itemId: number,
+  catId: number
+): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: "✅ Confirmer l'achat", callback_data: `bq_buy_cnf_${itemId}` },
+        { text: "❌ Annuler", callback_data: `bq_item_${itemId}` },
+      ],
+    ],
+  };
+}
+
+// ── Boutique — Admin ─────────────────────────────────────────────────────────
+
+export function bqaMainKeyboard(): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      ...TOP_LEVEL_BTNS.map((b) => [{ text: b.text, callback_data: `bqa_top_${b.cb.replace("bq_top_", "")}` }]),
+      [{ text: "⬅️ Retour Admin", callback_data: "admin_menu" }],
+    ],
+  };
+}
+
+export function bqaSubcatsKeyboard(
+  cats: { id: number; name: string }[],
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = cats.map((c) => [
+    { text: `📁 ${c.name}`, callback_data: `bqa_cat_${c.id}` },
+    { text: "🗑️", callback_data: `bqa_delcat_${c.id}` },
+  ]);
+  rows.push([{ text: "➕ Créer un dossier", callback_data: `bqa_newcat_${parent}` }]);
+  rows.push([{ text: "⬅️ Retour", callback_data: "bqa_main" }]);
+  return { inline_keyboard: rows };
+}
+
+export function bqaCatKeyboard(
+  items: { id: number; name: string; price: string }[],
+  catId: number,
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  const rows: TelegramBot.InlineKeyboardButton[][] = items.map((i) => [
+    { text: `📦 ${i.name} (${parseFloat(i.price).toFixed(2)}€)`, callback_data: `bqa_item_${i.id}` },
+    { text: "🗑️", callback_data: `bqa_delitem_${i.id}` },
+  ]);
+  rows.push([{ text: "➕ Ajouter un article", callback_data: `bqa_newitem_${catId}` }]);
+  rows.push([{ text: "🗑️ Supprimer ce dossier", callback_data: `bqa_delcat_${catId}` }]);
+  rows.push([{ text: "⬅️ Retour", callback_data: `bqa_top_${parent}` }]);
+  return { inline_keyboard: rows };
+}
+
+export function bqaItemDetailKeyboard(
+  itemId: number,
+  catId: number
+): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: "🗑️ Supprimer cet article", callback_data: `bqa_delitem_${itemId}` }],
+      [{ text: "⬅️ Retour au dossier", callback_data: `bqa_cat_${catId}` }],
+    ],
+  };
+}
+
+export function bqaDelCatConfirmKeyboard(
+  catId: number,
+  parent: string
+): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: "⚠️ Oui, supprimer", callback_data: `bqa_delcat_cnf_${catId}` },
+        { text: "❌ Annuler", callback_data: `bqa_cat_${catId}` },
+      ],
+      [{ text: "⬅️ Retour", callback_data: `bqa_top_${parent}` }],
+    ],
+  };
+}
+
+export function bqaDelItemConfirmKeyboard(
+  itemId: number,
+  catId: number
+): TelegramBot.InlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [
+        { text: "⚠️ Oui, supprimer", callback_data: `bqa_delitem_cnf_${itemId}` },
+        { text: "❌ Annuler", callback_data: `bqa_item_${itemId}` },
+      ],
+    ],
+  };
+}
