@@ -41,7 +41,6 @@ export function informationsMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
 const _minijeuxMenuKb: TelegramBot.InlineKeyboardMarkup = {
   inline_keyboard: [
     [{ text: "🎡 Roue du Destin", callback_data: "menu_wheel" }],
-    [{ text: "🎰 Jackpot — Mes tickets", callback_data: "menu_jackpot_info" }],
     [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
   ],
 };
@@ -228,23 +227,12 @@ const _adminMainMenuKb: TelegramBot.InlineKeyboardMarkup = {
     [{ text: "🎧 Deezer", callback_data: "admin_cat_deezer" }],
     [{ text: "🎟️ Coupons", callback_data: "admin_cat_coupons" }],
     [{ text: "🛒 Services", callback_data: "admin_cat_services" }],
-    [{ text: "🎰 Mini-jeux", callback_data: "admin_cat_minigames" }],
     [{ text: "📢 Communication", callback_data: "admin_cat_comm" }],
     [{ text: "🔧 Système", callback_data: "admin_cat_sys" }],
   ],
 };
 export function adminMainMenuKeyboard(): TelegramBot.InlineKeyboardMarkup {
   return _adminMainMenuKb;
-}
-
-export function adminMinigamesKeyboard(ticketCount: number): TelegramBot.InlineKeyboardMarkup {
-  return {
-    inline_keyboard: [
-      [{ text: `🎟️ Urne Jackpot : ${ticketCount} ticket(s)`, callback_data: "admin_do_jackpot_stats" }],
-      [{ text: "🎰 Lancer le tirage Jackpot", callback_data: "admin_do_jackpot_draw" }],
-      [{ text: "⬅️ Retour", callback_data: "admin_menu" }],
-    ],
-  };
 }
 
 const _adminCouponsKb: TelegramBot.InlineKeyboardMarkup = {

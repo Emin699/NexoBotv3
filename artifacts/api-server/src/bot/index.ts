@@ -14,7 +14,6 @@ import {
   getLoyaltyPoints, addLoyaltyPoints, deductLoyaltyPoints,
   incrementPurchaseCount,
   getLastWheelSpin, recordWheelSpin,
-  addJackpotTicket, getJackpotTicketCount, getUserJackpotTicketCount, getJackpotStats, drawJackpotWinner,
   getTotalRecharged,
 } from "./db";
 import { WHEEL_PRIZES, spinWheel, getMilestonesInRange, type WheelPrize } from "./minigames";
@@ -56,7 +55,6 @@ import {
   adminCouponsKeyboard,
   adminCommKeyboard,
   adminSysKeyboard,
-  adminMinigamesKeyboard,
   informationsMenuKeyboard,
   loyaltyMenuKeyboard,
   loyaltyConvertKeyboard,
@@ -605,7 +603,6 @@ export function startBot(expressApp?: Application): TelegramBot {
 
   async function onPurchaseComplete(userId: number): Promise<void> {
     await incrementPurchaseCount(userId);
-    await addJackpotTicket(userId);
   }
 
   // ── Keyboards livraison ───────────────────────────────────────────────────
@@ -1850,8 +1847,6 @@ export function startBot(expressApp?: Application): TelegramBot {
       `├ /testdiscord — Tester les webhooks Discord\n` +
       `├ /chatid — Obtenir son Chat ID\n` +
       `└ /annuler — Annuler l'action admin en cours\n\n` +
-      `🎰 *Mini-jeux*\n` +
-      `└ /tirage — Tirer le gagnant du jackpot lottery\n\n` +
       `🎟️ *Coupons de réduction*\n` +
       `├ /admincoupon — Panel complet (stats, modifier, supprimer)\n` +
       `├ /addcoupon — Créer un coupon (menu interactif)\n` +
@@ -2236,46 +2231,6 @@ export function startBot(expressApp?: Application): TelegramBot {
     }
   });
 
-  // /tirage — Admin : effectuer un tirage jackpot manuel
-  bot.onText(/\/tirage/, async (msg) => {
-    const chatId = msg.chat.id;
-    if (!isAdmin(msg.from!.id)) return;
-    try {
-      const { totalTickets, uniqueUsers } = await getJackpotStats();
-      if (totalTickets === 0) {
-        await bot.sendMessage(chatId, `🎰 *Aucun ticket disponible*\n\nIl n'y a aucun ticket en jeu pour le moment.`, { parse_mode: "Markdown" });
-        return;
-      }
-      const winner = await drawJackpotWinner();
-      if (!winner) {
-        await bot.sendMessage(chatId, `🎰 *Tirage annulé* — Aucun ticket valide.`, { parse_mode: "Markdown" });
-        return;
-      }
-      const jackpotUser = await getOrCreateUser(winner.telegramId);
-      const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
-      await bot.sendMessage(chatId,
-        `🎰 *Résultat du Tirage Jackpot*\n\n` +
-        `📊 Tickets en jeu : *${totalTickets}* (${uniqueUsers} participants)\n\n` +
-        `🏆 Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)\n` +
-        `🎟️ Ticket gagnant : \`${winner.ticketId}\`\n\n` +
-        `Le ticket a été marqué comme utilisé. Pensez à contacter le gagnant !`,
-        { parse_mode: "Markdown" }
-      );
-      try {
-        await bot.sendMessage(winner.telegramId,
-          `🎉 *Félicitations !*\n\n` +
-          `Tu as été tiré au sort lors du *Jackpot NexoShop* ! 🎰\n\n` +
-          `Un administrateur va te contacter très prochainement pour t'offrir ton lot.\n\n` +
-          `Merci de ta fidélité ! 🙏`,
-          { parse_mode: "Markdown" }
-        );
-      } catch (_) { /* l'utilisateur a peut-être bloqué le bot */ }
-    } catch (err) {
-      logger.error({ err }, "Error /tirage");
-      await bot.sendMessage(chatId, `❌ Erreur lors du tirage : ${String(err)}`);
-    }
-  });
-
   // ── Callback queries ───────────────────────────────────────────────────────
 
   bot.on("callback_query", async (query) => {
@@ -2325,32 +2280,12 @@ export function startBot(expressApp?: Application): TelegramBot {
 
       // ── Mini-Jeux — Menu ──────────────────────────────────────────
       if (data === "menu_minijeux") {
-        const ticketCount = await getUserJackpotTicketCount(userId);
         await sendMenu(
           chatId,
           `🎮 *Mini-Jeux NexoShop*\n\n` +
           `🎡 *Roue du Destin* — Tourne chaque jour pour gagner des récompenses.\n\n` +
-          `🎰 *Jackpot hebdomadaire* — Tu as *${ticketCount} ticket${ticketCount > 1 ? "s" : ""}* en jeu. ` +
-          `Un tirage est effectué chaque semaine par l'admin parmi tous les acheteurs.\n\n` +
           `Choisis ci-dessous :`,
           minijeuxMenuKeyboard()
-        );
-        return;
-      }
-
-      // ── Jackpot — Info tickets ────────────────────────────────────
-      if (data === "menu_jackpot_info") {
-        const count = await getUserJackpotTicketCount(userId);
-        const { totalTickets, uniqueUsers } = await getJackpotStats();
-        await sendMenu(
-          chatId,
-          `🎰 *Jackpot NexoShop*\n\n` +
-          `Chaque achat te rapporte *1 ticket* pour le tirage au sort hebdomadaire.\n\n` +
-          `🎟️ *Tes tickets :* ${count}\n` +
-          `👥 Participants actuels : ${uniqueUsers}\n` +
-          `📊 Total tickets en jeu : ${totalTickets}\n\n` +
-          `_Plus tu achètes, plus tu as de chances de gagner !_`,
-          { inline_keyboard: [[{ text: "⬅️ Retour", callback_data: "menu_minijeux" }]] }
         );
         return;
       }
@@ -2380,12 +2315,17 @@ export function startBot(expressApp?: Application): TelegramBot {
         const statusLine = canSpin
           ? `✅ *Tu peux tourner la roue !*`
           : `⏳ *Prochain spin dans :* ${nextSpinHours}h ${nextSpinMins}min ${nextSpinSecs}s`;
+        const wheelUser = await getOrCreateUser(userId);
+        const wheelHasPurchased = adminUser || ((wheelUser?.purchaseCount ?? 0) > 0);
+        const purchaseGateLine = wheelHasPurchased
+          ? ""
+          : `\n\n⚠️ _Effectue au moins un achat pour pouvoir gagner des récompenses._`;
         await sendMenu(
           chatId,
           `🎡 *Roue du Destin*\n\n` +
           `Tourne la roue chaque jour pour gagner des récompenses !\n\n` +
           `*🎁 Prix disponibles :*\n${prizeListText}\n\n` +
-          `${spinCounterLine}\n${statusLine}`,
+          `${spinCounterLine}\n${statusLine}${purchaseGateLine}`,
           wheelMenuKeyboard(canSpin)
         );
         return;
@@ -2418,7 +2358,11 @@ export function startBot(expressApp?: Application): TelegramBot {
           if (remaining <= 0) pendingRerolls.delete(userId);
           else pendingRerolls.set(userId, remaining);
         }
-        const prize = spinWheel();
+        // Gain conditionné à un achat : sans achat, 0% de chance de gagner (toujours « Dommage »)
+        const spinnerUser = await getOrCreateUser(userId);
+        const hasPurchased = adminUser || ((spinnerUser?.purchaseCount ?? 0) > 0);
+        const losingPrize = WHEEL_PRIZES.find((p) => p.type === "nothing") ?? WHEEL_PRIZES[0]!;
+        const prize = hasPurchased ? spinWheel() : losingPrize;
 
         // ── Frame initiale (bande à l'arrêt, avant lancement) ────────
         const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
@@ -2483,37 +2427,6 @@ export function startBot(expressApp?: Application): TelegramBot {
               [{ text: "⬅️ Retour", callback_data: "menu_infos" }],
             ],
           };
-
-        } else if (prize.type === "jackpot_paypal" && prize.value) {
-          resultMsg += prize.message ||
-            `🏆 *JACKPOT LÉGENDAIRE !* Tu as gagné *+${prize.value}€ PayPal* ! L'admin va te contacter pour envoyer le virement. Félicitations 🎉`;
-          // Notifier l'admin Telegram
-          const adminId = getAdminId();
-          if (adminId) {
-            try {
-              await bot.sendMessage(
-                adminId,
-                `🏆 *JACKPOT ROUE DU DESTIN !*\n\n` +
-                `Un joueur a décroché le jackpot !\n\n` +
-                `👤 User ID : \`${userId}\`\n` +
-                `💶 Montant à envoyer : *${prize.value}€ via PayPal*\n\n` +
-                `Envoie le virement et confirme au client via le bot.`,
-                { parse_mode: "Markdown" }
-              );
-            } catch { /* ignore */ }
-          }
-          // Notifier Discord
-          sendDiscordLog(
-            "🏆 JACKPOT — Roue du Destin",
-            `Un joueur a décroché le jackpot de la Roue du Destin !`,
-            "yellow",
-            [
-              { name: "User ID", value: `\`${userId}\``, inline: true },
-              { name: "Gain", value: `**+${prize.value}€ PayPal**`, inline: true },
-              { name: "Action requise", value: `Envoyer ${prize.value}€ PayPal au joueur`, inline: false },
-            ],
-            "payments"
-          ).catch(() => {});
         }
 
         // ── Discord log — résultat de spin ────────────────────────
@@ -2526,7 +2439,6 @@ export function startBot(expressApp?: Application): TelegramBot {
           ].filter(Boolean).join(" ");
           const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
           const spinColor = prize.type === "nothing" ? "grey"
-            : prize.type === "jackpot_paypal" ? "yellow"
             : prize.type === "reroll" ? "blue"
             : "green";
           const spinFields: { name: string; value: string; inline?: boolean }[] = [
@@ -3490,64 +3402,6 @@ export function startBot(expressApp?: Application): TelegramBot {
             `🔧 *Système*\n\nOutils de configuration :`,
             { parse_mode: "Markdown", reply_markup: adminSysKeyboard() }
           );
-          return;
-        }
-
-        if (data === "admin_cat_minigames") {
-          const ticketCount = await getJackpotTicketCount();
-          await bot.sendMessage(
-            chatId,
-            `🎮 *Mini-Jeux*\n\nGestion de la roue et du jackpot :`,
-            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
-          );
-          return;
-        }
-
-        if (data === "admin_do_jackpot_stats") {
-          try {
-            const { totalTickets, uniqueUsers } = await getJackpotStats();
-            await bot.sendMessage(chatId,
-              `🎰 *Statistiques Jackpot*\n\n` +
-              `🎟️ Tickets en jeu : *${totalTickets}*\n` +
-              `👥 Participants uniques : *${uniqueUsers}*\n\n` +
-              `Utilisez le bouton "Tirage au sort" pour désigner un gagnant.`,
-              { parse_mode: "Markdown" }
-            );
-          } catch (e) {
-            await bot.sendMessage(chatId, `❌ Erreur : ${String(e)}`);
-          }
-          return;
-        }
-
-        if (data === "admin_do_jackpot_draw") {
-          try {
-            const winner = await drawJackpotWinner();
-            if (!winner) {
-              await bot.sendMessage(chatId, `🎰 *Tirage annulé*\n\nAucun ticket valide disponible pour le jackpot.`, { parse_mode: "Markdown" });
-              return;
-            }
-            const jackpotUser = await getOrCreateUser(winner.telegramId);
-            const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
-            await bot.sendMessage(chatId,
-              `🎰 *Résultat du Tirage Jackpot*\n\n` +
-              `🏆 Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)\n` +
-              `🎟️ Ticket gagnant : \`${winner.ticketId}\`\n\n` +
-              `Le ticket a été marqué comme utilisé. Pensez à contacter le gagnant et à lui remettre son lot !`,
-              { parse_mode: "Markdown" }
-            );
-            // Notifier le gagnant
-            try {
-              await bot.sendMessage(winner.telegramId,
-                `🎉 *Félicitations !*\n\n` +
-                `Tu as été tiré au sort lors du *Jackpot NexoShop* ! 🎰\n\n` +
-                `Un administrateur va te contacter très prochainement pour t'offrir ton lot.\n\n` +
-                `Merci de ta fidélité ! 🙏`,
-                { parse_mode: "Markdown" }
-              );
-            } catch (_) { /* l'utilisateur a peut-être bloqué le bot */ }
-          } catch (e) {
-            await bot.sendMessage(chatId, `❌ Erreur lors du tirage : ${String(e)}`);
-          }
           return;
         }
 

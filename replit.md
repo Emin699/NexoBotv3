@@ -50,7 +50,7 @@ NexoShop is a Telegram-bot-based digital marketplace for selling digital goods (
 Schema is managed with Drizzle ORM. Tables: `users`, `transactions`, `referrals`, `reviews`, `deezer_links`, `iptv_stock`, `paypal_payments`, `sumup_checkouts`, `wheel_spins`, `jackpot_tickets`.
 
 - `wheel_spins` — tracks daily spin cooldown and total spin count per user
-- `jackpot_tickets` — one ticket per purchase, used for weekly admin jackpot draws
+- `jackpot_tickets` — DEPRECATED: jackpot lottery removed; table retained but unused
 
 Run schema push: `pnpm --filter @workspace/db run push-force`
 
@@ -59,13 +59,8 @@ Run schema push: `pnpm --filter @workspace/db run push-force`
 ### Roue du Destin (daily wheel spin)
 - Accessible via Menu Informations → 🎡 Roue du Destin
 - One spin per day per user; animated reveal message
-- Prizes: Dommage (70% real / 50% shown), -5% coupon (20%/40%), -10€ coupon (5%/20%), 50 pts (3%/30%), Deezer link (2%/10%)
+- **Win gated by purchases**: a user with `purchaseCount === 0` always lands on "Dommage" (0% chance to win); admins are exempt. The daily cooldown is still consumed on a forced loss.
 - Prize probs configured in `artifacts/api-server/src/bot/minigames.ts` → `WHEEL_PRIZES`
-
-### Jackpot Lottery
-- 1 ticket earned per purchase (any product)
-- Admin draws winner via `/tirage` command or Admin → Mini-Jeux panel
-- Winning user notified automatically; ticket marked as drawn
 
 ### Purchase Milestones
 - Tracked via `purchaseCount` on `users` table
@@ -76,6 +71,9 @@ Run schema push: `pnpm --filter @workspace/db run push-force`
 - Replaces single Deezer purchase button with lot menu
 - Lots: 1 link=2€, 10=5€, 50=15€, 200=20€
 - Configured in `DEEZER_LOTS` array in `minigames.ts`
+
+### Jackpot Lottery — REMOVED
+The weekly jackpot lottery (tickets per purchase, `/tirage` draw, admin Mini-Jeux panel, wheel `jackpot_paypal` prize) has been removed from the bot. The `jackpot_tickets` table and its DB helpers remain as dead code.
 
 ### `onPurchaseComplete()` hooked into all purchase flows:
 - Deezer single, Deezer generator, Deezer lots

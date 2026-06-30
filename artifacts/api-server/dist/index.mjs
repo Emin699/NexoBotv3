@@ -108579,35 +108579,6 @@ async function recordWheelSpin(telegramId) {
     }
   });
 }
-async function addJackpotTicket(telegramId) {
-  await db.insert(jackpotTicketsTable).values({ telegramId });
-}
-async function getJackpotTicketCount() {
-  const [row] = await db.select({ cnt: count() }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  return Number(row?.cnt ?? 0);
-}
-async function getUserJackpotTicketCount(telegramId) {
-  const [row] = await db.select({ cnt: count() }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL AND ${jackpotTicketsTable.telegramId} = ${telegramId}`);
-  return Number(row?.cnt ?? 0);
-}
-async function getJackpotStats() {
-  const [row] = await db.select({
-    totalTickets: count(),
-    uniqueUsers: sql`COUNT(DISTINCT ${jackpotTicketsTable.telegramId})`
-  }).from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  return {
-    totalTickets: Number(row?.totalTickets ?? 0),
-    uniqueUsers: Number(row?.uniqueUsers ?? 0)
-  };
-}
-async function drawJackpotWinner() {
-  const tickets = await db.select().from(jackpotTicketsTable).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  if (tickets.length === 0) return null;
-  const winner = tickets[Math.floor(Math.random() * tickets.length)];
-  await db.update(jackpotTicketsTable).set({ drawnAt: /* @__PURE__ */ new Date(), won: false }).where(sql`${jackpotTicketsTable.drawnAt} IS NULL`);
-  await db.update(jackpotTicketsTable).set({ won: true }).where(eq(jackpotTicketsTable.id, winner.id));
-  return { telegramId: winner.telegramId, ticketId: winner.id };
-}
 
 // src/bot/minigames.ts
 var WHEEL_PRIZES = [
@@ -108618,7 +108589,7 @@ var WHEEL_PRIZES = [
     displayedChance: 55,
     // % affiché aux joueurs
     realChance: 60.2,
-    // % réel (inclut les 0.2% du jackpot impossible)
+    // % réel
     type: "nothing",
     message: "\u{1F614} Pas de chance cette fois... Reviens demain pour retenter ta chance !"
   },
@@ -108719,18 +108690,6 @@ var WHEEL_PRIZES = [
     type: "loyalty_pts",
     value: 100,
     message: "\u{1F48E} *Exceptionnel !* *+100 points de fid\xE9lit\xE9* ont \xE9t\xE9 ajout\xE9s \xE0 ton compte !"
-  },
-  {
-    id: "jackpot_paypal",
-    label: "\u{1F3C6} JACKPOT ! +20\u20AC PayPal",
-    emoji: "\u{1F3C6}",
-    displayedChance: 0.1,
-    // % affiché (effet marketing)
-    realChance: 0,
-    // % réel — jackpot impossible à décrocher
-    type: "jackpot_paypal",
-    value: 20,
-    message: "\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+20\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}"
   }
 ];
 var _totalRealChance = WHEEL_PRIZES.reduce((s, p) => s + p.realChance, 0);
@@ -108929,7 +108888,6 @@ function informationsMenuKeyboard() {
 var _minijeuxMenuKb = {
   inline_keyboard: [
     [{ text: "\u{1F3A1} Roue du Destin", callback_data: "menu_wheel" }],
-    [{ text: "\u{1F3B0} Jackpot \u2014 Mes tickets", callback_data: "menu_jackpot_info" }],
     [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
   ]
 };
@@ -109059,22 +109017,12 @@ var _adminMainMenuKb = {
     [{ text: "\u{1F3A7} Deezer", callback_data: "admin_cat_deezer" }],
     [{ text: "\u{1F39F}\uFE0F Coupons", callback_data: "admin_cat_coupons" }],
     [{ text: "\u{1F6D2} Services", callback_data: "admin_cat_services" }],
-    [{ text: "\u{1F3B0} Mini-jeux", callback_data: "admin_cat_minigames" }],
     [{ text: "\u{1F4E2} Communication", callback_data: "admin_cat_comm" }],
     [{ text: "\u{1F527} Syst\xE8me", callback_data: "admin_cat_sys" }]
   ]
 };
 function adminMainMenuKeyboard() {
   return _adminMainMenuKb;
-}
-function adminMinigamesKeyboard(ticketCount) {
-  return {
-    inline_keyboard: [
-      [{ text: `\u{1F39F}\uFE0F Urne Jackpot : ${ticketCount} ticket(s)`, callback_data: "admin_do_jackpot_stats" }],
-      [{ text: "\u{1F3B0} Lancer le tirage Jackpot", callback_data: "admin_do_jackpot_draw" }],
-      [{ text: "\u2B05\uFE0F Retour", callback_data: "admin_menu" }]
-    ]
-  };
 }
 var _adminCouponsKb = {
   inline_keyboard: [
@@ -109894,7 +109842,6 @@ function startBot(expressApp) {
   }
   async function onPurchaseComplete(userId) {
     await incrementPurchaseCount(userId);
-    await addJackpotTicket(userId);
   }
   function deliveryTypeKb(cancelCb) {
     return { inline_keyboard: [
@@ -111151,9 +111098,6 @@ ${order.emoji} *${order.subLabel}*
 \u251C /chatid \u2014 Obtenir son Chat ID
 \u2514 /annuler \u2014 Annuler l'action admin en cours
 
-\u{1F3B0} *Mini-jeux*
-\u2514 /tirage \u2014 Tirer le gagnant du jackpot lottery
-
 \u{1F39F}\uFE0F *Coupons de r\xE9duction*
 \u251C /admincoupon \u2014 Panel complet (stats, modifier, supprimer)
 \u251C /addcoupon \u2014 Cr\xE9er un coupon (menu interactif)
@@ -111517,55 +111461,6 @@ ${lines}`,
       await bot.sendMessage(chatId, "\u274C Erreur lors de la r\xE9cup\xE9ration des commandes.");
     }
   });
-  bot.onText(/\/tirage/, async (msg) => {
-    const chatId = msg.chat.id;
-    if (!isAdmin(msg.from.id)) return;
-    try {
-      const { totalTickets, uniqueUsers } = await getJackpotStats();
-      if (totalTickets === 0) {
-        await bot.sendMessage(chatId, `\u{1F3B0} *Aucun ticket disponible*
-
-Il n'y a aucun ticket en jeu pour le moment.`, { parse_mode: "Markdown" });
-        return;
-      }
-      const winner = await drawJackpotWinner();
-      if (!winner) {
-        await bot.sendMessage(chatId, `\u{1F3B0} *Tirage annul\xE9* \u2014 Aucun ticket valide.`, { parse_mode: "Markdown" });
-        return;
-      }
-      const jackpotUser = await getOrCreateUser(winner.telegramId);
-      const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
-      await bot.sendMessage(
-        chatId,
-        `\u{1F3B0} *R\xE9sultat du Tirage Jackpot*
-
-\u{1F4CA} Tickets en jeu : *${totalTickets}* (${uniqueUsers} participants)
-
-\u{1F3C6} Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)
-\u{1F39F}\uFE0F Ticket gagnant : \`${winner.ticketId}\`
-
-Le ticket a \xE9t\xE9 marqu\xE9 comme utilis\xE9. Pensez \xE0 contacter le gagnant !`,
-        { parse_mode: "Markdown" }
-      );
-      try {
-        await bot.sendMessage(
-          winner.telegramId,
-          `\u{1F389} *F\xE9licitations !*
-
-Tu as \xE9t\xE9 tir\xE9 au sort lors du *Jackpot NexoShop* ! \u{1F3B0}
-
-Un administrateur va te contacter tr\xE8s prochainement pour t'offrir ton lot.
-
-Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
-          { parse_mode: "Markdown" }
-        );
-      } catch (_) {
-      }
-    } catch (err) {
-      logger.error({ err }, "Error /tirage");
-      await bot.sendMessage(chatId, `\u274C Erreur lors du tirage : ${String(err)}`);
-    }
-  });
   bot.on("callback_query", async (query) => {
     if (!isNewKey(`cb:${query.id}`)) return;
     const chatId = query.message.chat.id;
@@ -111603,35 +111498,14 @@ Retrouvez ici votre parrainage, vos points de fid\xE9lit\xE9, les mini-jeux et l
         return;
       }
       if (data === "menu_minijeux") {
-        const ticketCount = await getUserJackpotTicketCount(userId);
         await sendMenu(
           chatId,
           `\u{1F3AE} *Mini-Jeux NexoShop*
 
 \u{1F3A1} *Roue du Destin* \u2014 Tourne chaque jour pour gagner des r\xE9compenses.
 
-\u{1F3B0} *Jackpot hebdomadaire* \u2014 Tu as *${ticketCount} ticket${ticketCount > 1 ? "s" : ""}* en jeu. Un tirage est effectu\xE9 chaque semaine par l'admin parmi tous les acheteurs.
-
 Choisis ci-dessous :`,
           minijeuxMenuKeyboard()
-        );
-        return;
-      }
-      if (data === "menu_jackpot_info") {
-        const count2 = await getUserJackpotTicketCount(userId);
-        const { totalTickets, uniqueUsers } = await getJackpotStats();
-        await sendMenu(
-          chatId,
-          `\u{1F3B0} *Jackpot NexoShop*
-
-Chaque achat te rapporte *1 ticket* pour le tirage au sort hebdomadaire.
-
-\u{1F39F}\uFE0F *Tes tickets :* ${count2}
-\u{1F465} Participants actuels : ${uniqueUsers}
-\u{1F4CA} Total tickets en jeu : ${totalTickets}
-
-_Plus tu ach\xE8tes, plus tu as de chances de gagner !_`,
-          { inline_keyboard: [[{ text: "\u2B05\uFE0F Retour", callback_data: "menu_minijeux" }]] }
         );
         return;
       }
@@ -111653,6 +111527,11 @@ _Plus tu ach\xE8tes, plus tu as de chances de gagner !_`,
         ).join("\n");
         const spinCounterLine = adminUser ? `\u{1F3AF} *Spins disponibles :* \u221E _(mode admin)_` : `\u{1F3AF} *Spins disponibles :* ${totalAvailableSpins}`;
         const statusLine = canSpin ? `\u2705 *Tu peux tourner la roue !*` : `\u23F3 *Prochain spin dans :* ${nextSpinHours}h ${nextSpinMins}min ${nextSpinSecs}s`;
+        const wheelUser = await getOrCreateUser(userId);
+        const wheelHasPurchased = adminUser || (wheelUser?.purchaseCount ?? 0) > 0;
+        const purchaseGateLine = wheelHasPurchased ? "" : `
+
+\u26A0\uFE0F _Effectue au moins un achat pour pouvoir gagner des r\xE9compenses._`;
         await sendMenu(
           chatId,
           `\u{1F3A1} *Roue du Destin*
@@ -111663,7 +111542,7 @@ Tourne la roue chaque jour pour gagner des r\xE9compenses !
 ${prizeListText}
 
 ${spinCounterLine}
-${statusLine}`,
+${statusLine}${purchaseGateLine}`,
           wheelMenuKeyboard(canSpin)
         );
         return;
@@ -111694,7 +111573,10 @@ ${statusLine}`,
           if (remaining <= 0) pendingRerolls.delete(userId);
           else pendingRerolls.set(userId, remaining);
         }
-        const prize = spinWheel();
+        const spinnerUser = await getOrCreateUser(userId);
+        const hasPurchased = adminUser || (spinnerUser?.purchaseCount ?? 0) > 0;
+        const losingPrize = WHEEL_PRIZES.find((p) => p.type === "nothing") ?? WHEEL_PRIZES[0];
+        const prize = hasPurchased ? spinWheel() : losingPrize;
         const initPrizes = WHEEL_PRIZES.map((p) => p.emoji);
         const spinMsg = await bot.sendMessage(
           chatId,
@@ -111758,38 +111640,6 @@ _Ce lien est personnel, ne le partage pas._`;
               [{ text: "\u2B05\uFE0F Retour", callback_data: "menu_infos" }]
             ]
           };
-        } else if (prize.type === "jackpot_paypal" && prize.value) {
-          resultMsg += prize.message || `\u{1F3C6} *JACKPOT L\xC9GENDAIRE !* Tu as gagn\xE9 *+${prize.value}\u20AC PayPal* ! L'admin va te contacter pour envoyer le virement. F\xE9licitations \u{1F389}`;
-          const adminId = getAdminId();
-          if (adminId) {
-            try {
-              await bot.sendMessage(
-                adminId,
-                `\u{1F3C6} *JACKPOT ROUE DU DESTIN !*
-
-Un joueur a d\xE9croch\xE9 le jackpot !
-
-\u{1F464} User ID : \`${userId}\`
-\u{1F4B6} Montant \xE0 envoyer : *${prize.value}\u20AC via PayPal*
-
-Envoie le virement et confirme au client via le bot.`,
-                { parse_mode: "Markdown" }
-              );
-            } catch {
-            }
-          }
-          sendDiscordLog(
-            "\u{1F3C6} JACKPOT \u2014 Roue du Destin",
-            `Un joueur a d\xE9croch\xE9 le jackpot de la Roue du Destin !`,
-            "yellow",
-            [
-              { name: "User ID", value: `\`${userId}\``, inline: true },
-              { name: "Gain", value: `**+${prize.value}\u20AC PayPal**`, inline: true },
-              { name: "Action requise", value: `Envoyer ${prize.value}\u20AC PayPal au joueur`, inline: false }
-            ],
-            "payments"
-          ).catch(() => {
-          });
         }
         {
           const spinUser = await getOrCreateUser(userId).catch(() => null);
@@ -111799,7 +111649,7 @@ Envoie le virement et confirme au client via le bot.`,
             `\u2014 \`${userId}\``
           ].filter(Boolean).join(" ");
           const isNotable = prize.type !== "nothing" && prize.type !== "reroll";
-          const spinColor = prize.type === "nothing" ? "grey" : prize.type === "jackpot_paypal" ? "yellow" : prize.type === "reroll" ? "blue" : "green";
+          const spinColor = prize.type === "nothing" ? "grey" : prize.type === "reroll" ? "blue" : "green";
           const spinFields = [
             { name: "\u{1F464} Joueur", value: userDisplay, inline: false },
             { name: "\u{1F381} Prix gagn\xE9", value: `**${prize.label}**`, inline: true },
@@ -112861,75 +112711,6 @@ Envoie un message \xE0 tous tes clients :`,
 Outils de configuration :`,
             { parse_mode: "Markdown", reply_markup: adminSysKeyboard() }
           );
-          return;
-        }
-        if (data === "admin_cat_minigames") {
-          const ticketCount = await getJackpotTicketCount();
-          await bot.sendMessage(
-            chatId,
-            `\u{1F3AE} *Mini-Jeux*
-
-Gestion de la roue et du jackpot :`,
-            { parse_mode: "Markdown", reply_markup: adminMinigamesKeyboard(ticketCount) }
-          );
-          return;
-        }
-        if (data === "admin_do_jackpot_stats") {
-          try {
-            const { totalTickets, uniqueUsers } = await getJackpotStats();
-            await bot.sendMessage(
-              chatId,
-              `\u{1F3B0} *Statistiques Jackpot*
-
-\u{1F39F}\uFE0F Tickets en jeu : *${totalTickets}*
-\u{1F465} Participants uniques : *${uniqueUsers}*
-
-Utilisez le bouton "Tirage au sort" pour d\xE9signer un gagnant.`,
-              { parse_mode: "Markdown" }
-            );
-          } catch (e) {
-            await bot.sendMessage(chatId, `\u274C Erreur : ${String(e)}`);
-          }
-          return;
-        }
-        if (data === "admin_do_jackpot_draw") {
-          try {
-            const winner = await drawJackpotWinner();
-            if (!winner) {
-              await bot.sendMessage(chatId, `\u{1F3B0} *Tirage annul\xE9*
-
-Aucun ticket valide disponible pour le jackpot.`, { parse_mode: "Markdown" });
-              return;
-            }
-            const jackpotUser = await getOrCreateUser(winner.telegramId);
-            const displayName = jackpotUser.username ? `@${jackpotUser.username}` : jackpotUser.firstName || `#${winner.telegramId}`;
-            await bot.sendMessage(
-              chatId,
-              `\u{1F3B0} *R\xE9sultat du Tirage Jackpot*
-
-\u{1F3C6} Gagnant : *${displayName}* (ID \`${winner.telegramId}\`)
-\u{1F39F}\uFE0F Ticket gagnant : \`${winner.ticketId}\`
-
-Le ticket a \xE9t\xE9 marqu\xE9 comme utilis\xE9. Pensez \xE0 contacter le gagnant et \xE0 lui remettre son lot !`,
-              { parse_mode: "Markdown" }
-            );
-            try {
-              await bot.sendMessage(
-                winner.telegramId,
-                `\u{1F389} *F\xE9licitations !*
-
-Tu as \xE9t\xE9 tir\xE9 au sort lors du *Jackpot NexoShop* ! \u{1F3B0}
-
-Un administrateur va te contacter tr\xE8s prochainement pour t'offrir ton lot.
-
-Merci de ta fid\xE9lit\xE9 ! \u{1F64F}`,
-                { parse_mode: "Markdown" }
-              );
-            } catch (_) {
-            }
-          } catch (e) {
-            await bot.sendMessage(chatId, `\u274C Erreur lors du tirage : ${String(e)}`);
-          }
           return;
         }
         if (data === "admin_do_stats") {
