@@ -1,0 +1,61 @@
+
+>>>> In-memory PM2 is out-of-date, do:
+>>>> $ pm2 update
+In memory PM2 version: 6.0.14
+Local PM2 version: 7.0.3
+
+[TAILING] Tailing last 50 lines for [nexoshop] process (change the value with --lines option)
+/root/.pm2/logs/nexoshop-out.log last 50 lines:
+/root/.pm2/logs/nexoshop-error.log last 50 lines:
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+2|nexoshop | node: ../../.env: not found
+
+root@ubuntu:/var/www/nexobot#
